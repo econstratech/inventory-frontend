@@ -1,0 +1,19 @@
+/* src/Dashboard.css */
+
+
+
+.warning-gredient {
+  background: linear-gradient(90deg, rgba(248, 194, 10, 0.2) 30%, rgba(248, 193, 10, 0) 100%);
+}
+.danger-gredient {
+	background: linear-gradient(90deg, rgba(255,199,146,0.2) 30%, rgba(255,199,146,0) 100%);
+}
+.success-gredient {
+	background: linear-gradient(90deg, rgba(54,199,108,0.2) 30%, rgba(54,199,108,0) 100%);
+}
+.info-gredient {
+	background: linear-gradient(90deg, rgba(22,205,199,0.2) 30%, rgba(22,205,199,0) 100%);
+}
+.card-body-height-dashboard {
+	min-height: 475px;
+}

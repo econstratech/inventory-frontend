@@ -1,0 +1,100 @@
+.welcome-screen-body {
+  .content-wrapper {
+    background-color: #fff !important;
+  }
+}
+
+.welcome-screen {
+  .welcome-header {
+    padding: 25px 0;
+
+    .welcome-card {
+      position: relative;
+      &:after {
+        content: "";
+        width: 110px;
+        height: 110px;
+        background-image: url("/public/assets/images/app-logo.png");
+        background-size: cover;
+        background-repeat: no-repeat;
+        position: absolute;
+        top: 8px;
+        right: 9px;
+        opacity: 0.5;
+        z-index: 1;
+      }
+      .card-body {
+        position: relative;
+        z-index: 2;
+      }
+    }
+  }
+  .welcome-body {
+    padding: 25px 0;
+    background-color: #fff;
+    min-height: 100vh;
+    .product-tour {
+      flex: 0 0 auto;
+      width: 200px;
+      background-color: #dcedf9;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.3s ease-in-out;
+      &:hover {
+        background-color: #c4d8f0;
+      }
+    }
+  }
+}
+.onboarding-card {
+  background: linear-gradient(
+    90deg,
+    rgba(22, 205, 199, 0.2) 30%,
+    rgba(22, 205, 199, 0) 100%
+  );
+  .onboarding-card-clinet-name {
+    flex: 1;
+    min-width: 300px;
+  }
+}
+
+.tour_video_wrapper {
+  width: 100%;
+  height: 630px;
+  @media (max-width: 1200px) {
+    height: 400px;
+  }
+  @media (max-width: 991px) {
+    height: 260px;
+  }
+  @media (max-width: 479px) {
+    height: 230px;
+  }
+  @media (max-width: 420px) {
+    height: 200px;
+  }
+}
+
+.onboarding-card-tabs {
+  .nav-pills {
+    gap: 10px;
+    .nav-item {
+      .nav-link {
+        background-color: #e2ecf5;
+        &.active {
+          background-color: #007bff;
+        }
+      }
+    }
+  }
+}
+.billing-card {
+  .billing-card-info {
+    flex: 1;
+    min-width: 200px;
+  }
+}

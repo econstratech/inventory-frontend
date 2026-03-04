@@ -1,0 +1,10 @@
+span.field-invalid {
+    background-color: #fdd4db;
+    color: #7b0013;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-top: 2px;
+    font-weight: 500;
+  }

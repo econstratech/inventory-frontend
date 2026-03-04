@@ -1,0 +1,88 @@
+.switch-container {
+    width: 100%;
+    padding: 10px;
+}
+
+.form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.activate-all {
+    justify-content: space-between;
+    padding: 10px 0;
+}
+
+.switch-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.switch-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.switch-text {
+    flex: 2;
+    text-align: left;
+}
+
+.switch-label {
+    flex: 1;
+    text-align: center;
+}
+
+.custom-switch {
+    display: inline-block;
+    position: relative;
+    width: 40px;
+    height: 20px;
+}
+
+.custom-switch input {
+    display: none;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+}
+
+input:checked + .switch-slider {
+    background-color: #4caf50;
+}
+
+input:checked + .switch-slider:before {
+    transform: translateX(18px);
+}
+
+.switch-round {
+    border-radius: 34px;
+}
+
+.switch-round:before {
+    border-radius: 50%;
+}

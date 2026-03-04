@@ -1,0 +1,172 @@
+.login-auth-wrap {
+  padding: 6% 0;
+  font-family: "Quicksand", sans-serif;
+}
+
+.login-auth-wrap .container {
+  max-width: 1600px;
+}
+
+.login-auth-wrap .loginBox {
+  padding-left: 15%;
+}
+
+@media (max-width: 767px) {
+  .login-auth-wrap .loginBox {
+    padding-left: 0;
+  }
+}
+
+.login-auth-wrap .loginBox .logo-wrap {
+  max-width: 150px;
+}
+
+.login-auth-wrap .loginBox .login-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 1.5;
+  margin-top: 30px;
+  margin-bottom: 30px;
+}
+
+.login-auth-wrap .loginBox .login-title .sign-in {
+  padding: 8px 10px;
+  min-width: 160px;
+  display: inline-block;
+  text-align: center;
+}
+
+.login-auth-wrap .loginBox .login-title .sign-in span {
+  position: relative;
+  z-index: 2;
+  color: #ffffff;
+}
+
+.login-auth-wrap .loginBox .login-title .sign-in .login-svg {
+  position: absolute;
+  top: 4px;
+  left: 0;
+}
+
+.login-auth-wrap .loginBox .form-wrap .form-control {
+  border-radius: 0 .25rem .25rem 0 !important;
+}
+
+.login-auth-wrap .loginBox .form-wrap .input-group-text {
+  border-radius: .25rem !important;
+}
+
+.login-auth-wrap .loginBox .form-wrap .btn {
+  border-radius: 0.45rem !important;
+}
+
+.login-auth-wrap .loginBox .form-wrap .input-field {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 10px;
+}
+
+.login-auth-wrap .loginBox .form-wrap .input-container {
+  display: flex;
+  width: 100%;
+  margin-bottom: 15px;
+  align-items: center;
+  border: solid 1px #d0d4e4;
+}
+
+.login-auth-wrap .loginBox .form-wrap .icon {
+  padding: 10px;
+  background: #e6e6e6;
+  color: #8f8f8f;
+  min-width: 50px;
+  text-align: center;
+}
+
+.login-auth-wrap .loginBox .form-wrap .link-btn {
+  background: transparent;
+  outline: none;
+  border: 0;
+  padding: 0;
+}
+
+.login-auth-wrap .loginBox .or-sign {
+  text-align: center;
+  position: relative;
+}
+
+.login-auth-wrap .loginBox .or-sign:after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: #d0d4e4;
+  transform: translateY(-50%);
+}
+
+.login-auth-wrap .loginBox .or-sign span {
+  background-color: #ffffff;
+  font-weight: 600;
+  font-size: 16px;
+  position: relative;
+  z-index: 3;
+  padding: 5px 20px;
+  display: inline-block;
+}
+
+.login-auth-wrap .loginBox .other-login {
+  display: flex;
+  justify-content: center;
+}
+
+.login-auth-wrap .loginBox .other-login .other-login-wrap {
+  margin-left: 15px;
+  margin-right: 15px;
+  text-align: center;
+}
+
+.login-auth-wrap .loginBox .other-login .other-login-wrap .other-login-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.login-auth-wrap .loginBox .other-login .other-login-wrap .other-login-name {
+  font-size: 14px;
+  display: block;
+  color: #2a2a2a;
+  font-weight: 600;
+}
+
+.login-auth-wrap .login-right-col .login-right-wrap {
+  margin-top: 50px;
+}
+
+.login-auth-wrap .login-right-col .login-right-wrap .imgBx {
+  margin-bottom: -50px;
+}
+
+.login-auth-wrap .login-right-col .login-right-wrap .textBx {
+  background-color: #05101c;
+  color: #ffffff;
+  padding: 10%;
+  border-radius: 30px;
+  font-size: 32px;
+  font-style: italic;
+  letter-spacing: 2px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+span.field-invalid {
+  background-color: #fdd4db;
+  color: #7b0013;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 5px;
+  display: inline-block;
+  margin-top: 2px;
+  font-weight: 500;
+}
