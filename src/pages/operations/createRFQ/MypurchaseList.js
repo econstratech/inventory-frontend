@@ -2,74 +2,26 @@ import React, { useEffect, useState } from "react";
 import Select from "react-select";
 // import { FaStar } from "react-icons/fa";
 // import jsPDF from "jspdf";
-import "jspdf-autotable";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // import DataTable, { createTheme } from "react-data-table-component";
 import { Link } from "react-router-dom";
 import moment from "moment";  
 import {
-  // Dropdown,
   Modal,
-  // Overlay,
-  // OverlayTrigger,
-  // Popover,
 } from "react-bootstrap";
-// import Handsontable from "handsontable/base";
-// import { HotTable } from "@handsontable/react";
-// import { registerAllModules } from "handsontable/registry";
 import "handsontable/dist/handsontable.full.min.css";
-// import { PrivateAxios, url } from "../../environment/AxiosInstance";
-// import { UserAuth } from "../auth/Auth";
-// import Loader from "../landing/loder/Loader";
 
-// import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
-
-// import {
-//   exportExcel,
-//   exportPDF,
-//   printTable,
-// } from "../../environment/exportTable";
-
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
+import { Tooltip, Table } from "antd";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
-// import { UserAuth } from "../../auth/Auth";
 import Loader from "../../landing/loder/Loader";
 import { SuccessMessage, ErrorMessage } from "../../../environment/ToastMessage";
 import OperationsPageTopBar from "../OperationsPageTopBar";
 import DeleteModal from "../../CommonComponent/DeleteModal";
 import ConfirmModal from "../../CommonComponent/ConfirmModal";
-// import CreateRfqStatusBar from "./CreateRfqStatusBar";
 
 function MypurchaseList() {
-  // const {
-  //   isLoading,
-  //   setIsLoading,
-  //   Logout,
-  //   MatchPermission,
-  // } = UserAuth();
-  
-  // #region agent log
-  // React.useEffect(() => {
-  //   fetch('http://127.0.0.1:7242/ingest/9280eea7-b6c9-4578-b241-b25d1d820583',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MypurchaseList.js:53',message:'companysettings structure',data:{companysettings,hasMinimumPurchaseAmount:!!companysettings?.minimum_purchase_amount,minimum_purchase_amount:companysettings?.minimum_purchase_amount},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // }, [companysettings]);
-  // #endregion
-
-  //for-data table
-  // const [value, setValue] = useState(true);
-  // const [grid, setGrid] = useState(false);
-
-  // const [detailsShow, setDetailsShow] = useState(false);
-  // const [deleteShow, setDeleteShow] = useState(false);
-  // const [descriptionShow, setDescriptionShow] = useState(false);
-  // const [descriptionData, setDescriptionData] = useState("");
-  // const [tableData, setTableData] = useState([]);
   const [lgShow, setLgShow] = useState(false);
-  // const [deleteId, setDeleteId] = useState(null);
 
   const [purchaseData, setPurchaseData] = useState([]);
   const [userDetails] = useState(JSON.parse(localStorage.getItem('auth_user')) || null);
@@ -77,12 +29,6 @@ function MypurchaseList() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 10,
-    sort: [],
-    filter: null,
-  });
   const [getReview, setreview] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
@@ -124,10 +70,10 @@ function MypurchaseList() {
     }
   };
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
@@ -280,22 +226,6 @@ function MypurchaseList() {
     }
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (purchaseData && purchaseData.length > 0) {
-      excelExportRef.current.save();
-    } else {
-      alert("No data available for export.");
-    }
-  };
   // Handle Close Cancel Modal
   const handleCloseCancelModal = () => {
     setCancelModalShow(false);
@@ -325,50 +255,31 @@ function MypurchaseList() {
     setCancelModalShow(true);
   };
 
-  // Reference Cell
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div>
-          <span className="k_table_link">
-            <Link to={`/purchase/${dataItem.id}`}>{dataItem.reference}</Link>
-          </span>
+  const renderReference = (_, record) => (
+    <span className="k_table_link">
+      <Link to={`/purchase/${record.id}`}>{record.reference}</Link>
+    </span>
+  );
 
-          {/* {dataItem.is_parent === 1 && "   "}
-          {dataItem.is_parent == 1 && <i
-            className="fas fa-star"
-            style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }}
-          ></i>} */}
-
-        </div>
-      </td>
-    );
-  };
-
-  // Action Cell
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div className="d-flex gap-2">
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
           <Tooltip title="Edit">
             <Link
-              to={{ pathname: `/purchase/${dataItem.id}` }}
-              state={{ data: dataItem }}
+              to={{ pathname: `/purchase/${record.id}` }}
+              state={{ data: record }}
               className="me-1 icon-btn"
             >
               <i className="fas fa-pen"></i>
               
             </Link>
           </Tooltip>
-          {(dataItem.status === 5 || dataItem.status === 8) && (
+          {(record.status === 5 || record.status === 8) && (
             <Tooltip title="Show Managment Remarks">
               <button
                 className="me-1 icon-btn"
                 onClick={() => {
                   setLgShow(true);
-                  showReview(dataItem.id);
+                  showReview(record.id);
                 }}
               >
                 <i className="fas fa-info-circle"></i>
@@ -377,30 +288,30 @@ function MypurchaseList() {
             </Tooltip>
           )}
 
-          {dataItem.is_parent == 1 && dataItem.status == 2 && (
+          {record.is_parent == 1 && record.status == 2 && (
             <Tooltip title="Send Approval">
               <button
                 className="me-1 icon-btn"
                 style={{ cursor: "pointer" }}
-                onClick={() => handleStatusChange(dataItem.id, 3)}
+                onClick={() => handleStatusChange(record.id, 3)}
               >
                 <i className="fas fa-check"></i>
                 
               </button>
             </Tooltip>
           )}
-          {dataItem.is_parent == 1 && 
+          {record.is_parent == 1 && 
           ((
-            dataItem.status == 2 && dataItem.total_amount && generalSettings 
-            && generalSettings.min_purchase_amount && parseFloat(dataItem.total_amount) < parseFloat(generalSettings.min_purchase_amount)) 
-          || dataItem.status == 4)
+            record.status == 2 && record.total_amount && generalSettings 
+            && generalSettings.min_purchase_amount && parseFloat(record.total_amount) < parseFloat(generalSettings.min_purchase_amount)) 
+          || record.status == 4)
           && (
               <Tooltip title="Send to Vendor">
               <button
                 className="me-1 icon-btn"
                 style={{ cursor: "pointer" }}
                 onClick={() => {
-                  setSendToVendorPOId(dataItem.id);
+                  setSendToVendorPOId(record.id);
                   setSendToVendorModalShow(true);
                 }}
               >
@@ -452,7 +363,7 @@ function MypurchaseList() {
               className="me-1 icon-btn"
               style={{ cursor: "pointer" }}
               onClick={() =>
-                generatePDF(dataItem.id, dataItem.reference_number)
+                generatePDF(record.id, record.reference_number)
               }
             >
                <i className="fas fa-print"></i>
@@ -463,30 +374,31 @@ function MypurchaseList() {
             <button
               className="me-1 icon-btn"
               style={{ cursor: "pointer" }}
-              onClick={() => openCancelModal(dataItem.id)}
+              onClick={() => openCancelModal(record.id)}
             >
               <i className="fas fa-trash"></i>
               
             </button>
           </Tooltip>
+    </div>
+  );
 
-        </div>
-      </td>
-    );
-  };
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
+  const renderStatus = (value) => (
+    <label className="badge badge-outline-accent">
+      <i className="fas fa-circle f-s-8 d-flex me-1"></i>{value}
+    </label>
+  );
 
-    // Access the field value directly
-    const value = dataItem[field];
-    return (
-      <td>
-        <label className="badge badge-outline-accent"><i className="fas fa-circle f-s-8 d-flex me-1"></i>{value}</label>
-
-        {/* {value} */}
-      </td>
-    );
-  };
+  const columns = [
+    { title: "sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
+    { title: "reference", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "vendor", dataIndex: "vendor", key: "vendor", width: 200 },
+    { title: "created by", dataIndex: "created_by", key: "created_by", width: 200 },
+    { title: "Expected Arrival", dataIndex: "expected_arrival", key: "expected_arrival", width: 200 },
+    { title: "total", dataIndex: "total", key: "total", width: 150 },
+    { title: "status", dataIndex: "status_return", key: "status_return", width: 150, render: renderStatus },
+    { title: "action", key: "action", width: 250, render: renderAction },
+  ];
 
   return (
     <React.Fragment>
@@ -583,70 +495,23 @@ function MypurchaseList() {
         <div className="col-12">
           <div className="card">
             <div className="card-body p-0">
-              <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i className="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i className="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
-              </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={purchaseData} ref={pdfExportRef}>
-                  <ExcelExport data={purchaseData} ref={excelExportRef} >
-                    <Grid
-                      data={purchaseData}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      // filterable={false}
-                      sortable
-                      // scrollable="scrollable"
-                      // reorderable
-                      // resizable
-                      // {...dataState}
-                      onDataStateChange={(e) => setDataState(e.dataState)}
-                      isLoading={isLoading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-                      {/* Column Definitions */}
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
-                      <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="created_by" title="created by" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="expected_arrival" title="Expected Arrival" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
-                      {/* <GridColumn field="orderDeadline" title="Order Deadline" filterable={false} filter="numeric" width="200px" /> */}
-                      {/* <GridColumn field="sourceDocument" title="source Document" filterable={false} filter="text" width="200px" /> */}
-                      <GridColumn field="total" title="total" filterable={false} filter="text" width="150px" />
-                      <GridColumn
-                        field="status_return"
-                        title="status"
-                        filterable={false}
-                        filter="text"
-                        width="150px"
-                        // filterCell={CustomDropDownFilter}
-                        cells={{
-                          data: CustomCell
-                        }}
-                      />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="250px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
-
-
-
+                <Table
+                  columns={columns}
+                  dataSource={purchaseData}
+                  rowKey="id"
+                  loading={isLoading}
+                  pagination={{
+                    current: pageState.skip / pageState.take + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1400 }}
+                />
               </div>
             </div>
           </div>

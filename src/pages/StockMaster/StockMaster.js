@@ -179,7 +179,7 @@ function StockMaster() {
         },
         productCategory: item.product.productCategory || "",
         quantity: item.quantity || "",
-        quantityColour: quantityColour(item.product.buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
+        quantityColour: quantityColour(item.buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
         inventory_at_transit: item.inventory_at_transit || 0,
         inventory_needed: inventory_needed,
         sale_order_recieved: item.sale_order_recieved || 0,
@@ -513,7 +513,7 @@ function StockMaster() {
         const quantity = record?.quantity || 0;
         const quantityValue = parseFloat(quantity) || 0;
         const bgColor = record?.quantityColour;
-        console.log(record?.quantityColour);
+        // console.log(record?.quantityColour);
         
         // Determine text color based on background color
         // Yellow and cyan need dark text for readability
@@ -578,7 +578,7 @@ function StockMaster() {
       key: "inventory_needed",
       width: 150,
       render: (_, record) => {
-        return record?.inventory_needed || "0";
+        return record?.inventory_needed.toFixed(2) || "0";
       },
     },
     {
