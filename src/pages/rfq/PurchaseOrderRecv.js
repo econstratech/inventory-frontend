@@ -16,8 +16,8 @@ import {
   Table,
   Alert,
   Modal,
-  OverlayTrigger,
-  Popover,
+  // OverlayTrigger,
+  // Popover,
   // Tooltip,
 } from "react-bootstrap";
 import moment from "moment";
@@ -36,7 +36,7 @@ import {
 import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
 import VendorSelect from "../filterComponents/VendorSelect";
 import ProductSelect from "../filterComponents/ProductSelect";
-import { calculateTotalWeight } from "../../utils/weightConverter";
+// import { calculateTotalWeight } from "../../utils/weightConverter";
 import { Tooltip } from "antd";
 
 function PurchaseOrderRecv() {
@@ -81,22 +81,6 @@ function PurchaseOrderRecv() {
   // const [advancePayment, setAdvancePayment] = useState("");
   const [purchaseData, setPurchaseData] = useState(null);
   const [receivedStatus, setReceivedStatus] = useState({ label: "Pending", value: "pending" });
-
-  // const [setBillDate, BillDate] = useState("");
-  // const [selectedState, setSelectedState] = useState("");
-  // const fetchProducts = async (id, venid) => {
-  //   try {
-  //     const response = await PrivateAxios.get(
-  //       `/purchase/get_addi/${id}/${venid}`
-  //     ); // Adjust the URL to your API endpoint
-  //     console.log(response);
-  //     if (response.status === 200 && Array.isArray(response.data)) {
-  //       console.log(response.data);
-  //     }
-  //   } catch (error) {
-  //     console.error("There was an error fetching the product list!", error);
-  //   }
-  // };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -232,6 +216,10 @@ function PurchaseOrderRecv() {
   const billNumber = `BILL/${currentYear}/${currentMonth}/${setBillNumber}`;
   const validateForm = () => {
     const errors = {};
+    const previouslyReceived = products.reduce(
+      (sum, p) => sum + (parseFloat(p.received) || 0),
+      0
+    );
     const totalReceived = products.reduce(
       (sum, p) => sum + (parseFloat(p.received_now) || 0),
       0
@@ -240,6 +228,12 @@ function PurchaseOrderRecv() {
       (sum, p) => sum + (parseFloat(p.available_qty) || 0),
       0
     );
+    // console.log("receivedStatus", receivedStatus);
+    // console.log("totalReceived", totalReceived);
+    // If received status is completed and total received is greater than 0, return back without any errors
+    if (receivedStatus.value === 'completed' && previouslyReceived > 0) {
+      return errors;
+    }
     if (totalReceived === 0 && totalAvailableQty > 0) {
       return { _general: "At least one product must have received quantity." };
     }
@@ -273,6 +267,7 @@ function PurchaseOrderRecv() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // console.log("receivedStatus", receivedStatus);
     // console.log("products", products);
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
@@ -309,7 +304,6 @@ function PurchaseOrderRecv() {
         vendor_id: vendor.id ?? null,
         bill_date: new Date().toISOString().split('T')[0],
         bill_reference: billReference,
-        // buyer,
         products: updatedProducts,
         untaxed_amount: untaxedAmount.toFixed(2),
         sgst: taxAmount.toFixed(2),
@@ -317,15 +311,15 @@ function PurchaseOrderRecv() {
         total_amount: totalAmount.toFixed(2),
         received_status: receivedStatus.value,
       };
-      console.log("Vendor", vendor);
-      console.log("payload data", data);
-      // const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
-      // if (response.status === 200) {
-      //   SuccessMessage(response.data.message || "Bill Created successfully");
-      //   navigate(`/store/recv_update/request-quotation`);
-      // } else {
-      //   ErrorMessage(response.data.message || "Failed to save data");
-      // }
+      // console.log("Vendor", vendor);
+      // console.log("payload data", data);
+      const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
+      if (response.status === 200) {
+        SuccessMessage(response.data.message || "Bill Created successfully");
+        navigate(`/store/recv_update/request-quotation`);
+      } else {
+        ErrorMessage(response.data.message || "Failed to save data");
+      }
     } catch (error) {
       console.error("Error:", error);
     }
