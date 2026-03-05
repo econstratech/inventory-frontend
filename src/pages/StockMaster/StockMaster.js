@@ -27,8 +27,6 @@ function StockMaster() {
     brandId: null,
   });
 
-  // const { setIsLoading, Logout } = UserAuth();
-
   const [filteredData, setFilteredData] = useState([]);
   const [storeOptions, setStoreOptions] = useState([]);
   const [productTypeOptions, setProductTypeOptions] = useState([]);
@@ -43,6 +41,7 @@ function StockMaster() {
   const [updateFormData, setUpdateFormData] = useState({
     id: null,
     product: null,
+    variant: null,
     store: null,
     quantity: "",
   });
@@ -50,9 +49,6 @@ function StockMaster() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateErrors, setUpdateErrors] = useState({});
-  // const StockUpdateClose = () => setShowupdate(false);
-  // const StockUpdate = () => setShowupdate(true);
-  // const multipleItemsModalShow = () => setMultipleItems(true);
 
   // Fetch warehouses for dropdown
   const fetchStores = async () => {
@@ -164,6 +160,7 @@ function StockMaster() {
       return {
         key: index + 1,
         id: item.id || "",
+        productVariant: item.productVariant || "",
         product: {
           id: item.product.id || "",
           product_code: item.product.product_code || "",
@@ -292,9 +289,25 @@ function StockMaster() {
           label: `Store ID: ${data.warehouse_id}`,
         };
 
+        // Build selected variant option (display only)
+        // const variantData = data.productVariant || data.product_variant || null;
+        // const variantOption = variantData
+        //   ? {
+        //       value: variantData.id ?? data.product_variant_id,
+        //       label: `${variantData.weight_per_unit ?? 0} ${variantData.masterUOM?.label || ""}`.trim(),
+        //       variantData,
+        //     }
+        //   : data.product_variant_id
+        //   ? {
+        //       value: data.product_variant_id,
+        //       label: `Variant ID: ${data.product_variant_id}`,
+        //     }
+        //   : null;
+
         setUpdateFormData({
           id: data.id,
           product: productOption,
+          variant: data.productVariant ? `${data.productVariant.weight_per_unit} ${data.productVariant.masterUOM?.label || ""}` : "",
           store: storeOption,
           quantity: data.quantity.toString(),
         });
@@ -322,6 +335,7 @@ function StockMaster() {
     setUpdateFormData({
       id: null,
       product: null,
+      variant: null,
       store: null,
       quantity: "",
     });
@@ -470,6 +484,15 @@ function StockMaster() {
       width: 100,
       render: (_, record) => {
         return record?.product.masterBrand?.name || "N/A";
+      },
+    },
+    {
+      title: "Variant",
+      dataIndex: ["productVariant"],
+      key: "productVariant",
+      width: 150,
+      render: (_, record) => {
+        return record?.productVariant ? `${record?.productVariant.weight_per_unit} ${record?.productVariant.masterUOM?.label || ""}` : "";
       },
     },
     {
@@ -849,7 +872,7 @@ function StockMaster() {
           <Form.Item
             label={
               <span>
-                Select Product <span style={{ color: "red" }}>*</span>
+                Product <span style={{ color: "red" }}>*</span>
               </span>
             }
             validateStatus={updateErrors.product ? "error" : ""}
@@ -901,7 +924,7 @@ function StockMaster() {
           <Form.Item
             label={
               <span>
-                Select Store <span style={{ color: "red" }}>*</span>
+                Store <span style={{ color: "red" }}>*</span>
               </span>
             }
             validateStatus={updateErrors.store ? "error" : ""}
@@ -949,7 +972,22 @@ function StockMaster() {
           <Form.Item
             label={
               <span>
-                Enter Quantity <span style={{ color: "red" }}>*</span>
+                Product Variant
+              </span>
+            }
+          >
+            <Input
+              type="text"
+              value={updateFormData.variant || "N/A"}
+              disabled
+              style={{ height: "38px" }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <span>
+                Quantity <span style={{ color: "red" }}>*</span>
               </span>
             }
             validateStatus={updateErrors.quantity ? "error" : ""}

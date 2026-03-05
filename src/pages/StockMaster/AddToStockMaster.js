@@ -14,6 +14,9 @@ function StockMaster() {
     {
       id: 1,
       product: null,
+      variant: null,
+      variantOptions: [],
+      isLoadingVariants: false,
       store: null,
       quantity: "",
       buffer_size: "",
@@ -174,6 +177,9 @@ function StockMaster() {
     const newRow = {
       id: Date.now(),
       product: null,
+      variant: null,
+      variantOptions: [],
+      isLoadingVariants: false,
       store: null,
       quantity: "",
       buffer_size: "",
@@ -187,10 +193,73 @@ function StockMaster() {
     }
   };
 
+  const fetchProductVariants = async (productId, rowId) => {
+    setRows((prevRows) =>
+      prevRows.map((row) =>
+        row.id === rowId
+          ? { ...row, isLoadingVariants: true, variant: null, variantOptions: [] }
+          : row
+      )
+    );
+
+    try {
+      const response = await PrivateAxios.get(`/product/variants/${productId}`);
+      const variants = response.data?.data?.variants || [];
+
+      const variantOptions = variants.map((variant, index) => ({
+        value: variant.id,
+        label: `Variant ${index + 1} - ${variant.weight_per_unit || 0} ${variant.masterUOM?.label || ""}`.trim(),
+        variantData: variant,
+      }));
+
+      setRows((prevRows) =>
+        prevRows.map((row) =>
+          row.id === rowId
+            ? { ...row, isLoadingVariants: false, variantOptions, variant: null }
+            : row
+        )
+      );
+
+      if (variantOptions.length === 0) {
+        ErrorMessage("No variants available for selected product");
+      }
+    } catch (error) {
+      console.error("Error fetching product variants:", error);
+      setRows((prevRows) =>
+        prevRows.map((row) =>
+          row.id === rowId
+            ? { ...row, isLoadingVariants: false, variantOptions: [], variant: null }
+            : row
+        )
+      );
+      ErrorMessage("Failed to fetch product variants");
+    }
+  };
+
   const handleProductChange = (selectedOption, rowId) => {
-    setRows(
-      rows.map((row) =>
-        row.id === rowId ? { ...row, product: selectedOption } : row
+    setRows((prevRows) =>
+      prevRows.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              product: selectedOption,
+              variant: null,
+              variantOptions: [],
+              isLoadingVariants: false,
+            }
+          : row
+      )
+    );
+
+    if (selectedOption?.value) {
+      fetchProductVariants(selectedOption.value, rowId);
+    }
+  };
+
+  const handleVariantChange = (selectedOption, rowId) => {
+    setRows((prevRows) =>
+      prevRows.map((row) =>
+        row.id === rowId ? { ...row, variant: selectedOption } : row
       )
     );
   };
@@ -243,6 +312,12 @@ function StockMaster() {
         isValid = false;
       }
 
+      // Validate variant
+      if (!row.variant || !row.variant.value) {
+        rowErrors.variant = "Variant is required";
+        isValid = false;
+      }
+
       // Validate quantity
       if (!row.quantity || row.quantity.trim() === "") {
         rowErrors.quantity = "Quantity is required";
@@ -282,7 +357,16 @@ function StockMaster() {
       if (response.status === 200 || response.status === 201) {
         SuccessMessage(response.data?.message || "Bulk add to stock completed successfully.");
         setRows([
-          { id: 1, product: null, store: null, quantity: "", buffer_size: "" },
+          {
+            id: 1,
+            product: null,
+            variant: null,
+            variantOptions: [],
+            isLoadingVariants: false,
+            store: null,
+            quantity: "",
+            buffer_size: "",
+          },
         ]);
         setRowErrors({});
       }
@@ -311,6 +395,7 @@ function StockMaster() {
     // Transform rows data to API payload format
     const payload = rows.map((row) => ({
       product_id: row.product.value,
+      product_variant_id: row.variant.value,
       warehouse_id: row.store.value,
       quantity: parseFloat(row.quantity),
       buffer_size: row.buffer_size ? parseInt(row.buffer_size, 10) : null
@@ -329,6 +414,9 @@ function StockMaster() {
           {
             id: 1,
             product: null,
+            variant: null,
+            variantOptions: [],
+            isLoadingVariants: false,
             store: null,
             quantity: "",
             buffer_size: "",
@@ -406,7 +494,7 @@ function StockMaster() {
                 // bodyStyle={{ padding: "16px" }}
               >
                 <Row gutter={16} align="left">
-                  <Col xs={24} sm={24} md={6} lg={6}>
+                  <Col xs={24} sm={24} md={5} lg={5}>
                     <Form.Item
                       label="Select Product"
                       required
@@ -415,7 +503,7 @@ function StockMaster() {
                       help={rowErrors[row.id]?.product}
                     >
                       <Select
-                        placeholder="Search and select product..."
+                        placeholder="Select product..."
                         value={row.product}
                         onChange={(selectedOption) => {
                           handleProductChange(selectedOption, row.id);
@@ -457,7 +545,54 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={6} lg={6}>
+                  <Col xs={24} sm={24} md={5} lg={5}>
+                    <Form.Item
+                      label="Select Variant"
+                      required
+                      style={{ marginBottom: 0 }}
+                      validateStatus={rowErrors[row.id]?.variant ? "error" : ""}
+                      help={rowErrors[row.id]?.variant}
+                    >
+                      <Select
+                        placeholder={row.product ? "Select variant..." : "Select product first"}
+                        value={row.variant}
+                        onChange={(selectedOption) => {
+                          handleVariantChange(selectedOption, row.id);
+                          if (rowErrors[row.id]?.variant) {
+                            const newErrors = { ...rowErrors };
+                            delete newErrors[row.id]?.variant;
+                            if (Object.keys(newErrors[row.id] || {}).length === 0) {
+                              delete newErrors[row.id];
+                            }
+                            setRowErrors(newErrors);
+                          }
+                        }}
+                        options={row.variantOptions || []}
+                        isLoading={row.isLoadingVariants}
+                        isClearable
+                        isSearchable
+                        isDisabled={!row.product}
+                        noOptionsMessage={() =>
+                          row.product
+                            ? "No variants found"
+                            : "Select product first"
+                        }
+                        styles={{
+                          control: (base) => ({
+                            ...base,
+                            minHeight: "38px",
+                            borderColor: rowErrors[row.id]?.variant ? "#ff4d4f" : base.borderColor,
+                          }),
+                          menu: (base) => ({
+                            ...base,
+                            zIndex: 9999,
+                          }),
+                        }}
+                      />
+                    </Form.Item>
+                  </Col>
+
+                  <Col xs={24} sm={24} md={4} lg={4}>
                     <Form.Item
                       label="Select Store"
                       required
@@ -486,7 +621,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={5} lg={5}>
+                  <Col xs={24} sm={24} md={4} lg={4}>
                     <Form.Item
                       label="Enter Quantity"
                       required
@@ -520,7 +655,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={5} lg={5}>
+                  <Col xs={24} sm={24} md={4} lg={4}>
                     <Form.Item
                       label="Buffer Size"
                       style={{ marginBottom: 0 }}
