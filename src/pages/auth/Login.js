@@ -157,7 +157,7 @@ function Login() {
               <div className='login-right-wrap'>
                 <div className='login-quote-block'>
                   <p className='login-quote-text'>
-                    Adeya offers powerful features to simplify inventory management to track stock levels,
+                    BMS Inventory Management System (BMS-IMS) offers powerful features to simplify inventory management to track stock levels,
                     improve efficiency, and support smarter business decisions.
                   </p>
                 </div>
