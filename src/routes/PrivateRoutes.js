@@ -44,11 +44,6 @@ const PendingApprovalSales = React.lazy(() => import("../pages/sales/managment/P
 const MysalesReceivedProduct = React.lazy(() => import("../pages/sales/quotation/poUpdate/MysalesReceivedProduct.js"));
 
 
-
-// import MypurchaseList from "../pages/operations/createRFQ/MypurchaseList.js";
-// import MypurchaseList from "../pages/rfq/MypurchaseOrderListafterrecv";
-
-
 // const LandingMain = React.lazy(() => import('../LandingMain'));
 const Login = React.lazy(() => import('../pages/auth/Login'));
 const Register = React.lazy(() => import('../pages/auth/Register'));
