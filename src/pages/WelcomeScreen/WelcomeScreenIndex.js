@@ -465,8 +465,8 @@ function WelcomeScreenIndex() {
                                                 role="tabpanel"
                                                 aria-labelledby="home-tab"
                                             >
-                                                <h5>Boost your profits by up to 110% with Adeya AI 🚀</h5>
-                                                <p className='f-s-14'>Adeya AI empowers your team to perform at their best, leading to measurable increases in both revenue and profit.</p>
+                                                <h5>Boost your profits by up to 110% with Growthh 🚀</h5>
+                                                <p className='f-s-14'>BMS Inventory Management System (BMS-IMS) empowers your team to perform at their best, leading to measurable increases in both revenue and profit.</p>
                                             </div>
                                             <div
                                                 className="tab-pane"
@@ -483,8 +483,8 @@ function WelcomeScreenIndex() {
                                 </div>
                                 <div className='col-lg-12'>
                                     <div className='tour_video_wrapper'>
-                                        {/* <iframe width="100%" height="100%" src="https://www.youtube.com/embed/s5j35CQhmCk?si=C6-BEBUslXjB_pyz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe> */}
-                                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/jT1DkxcjRI8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                                        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/s5j35CQhmCk?si=C6-BEBUslXjB_pyz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                                        {/* <iframe width="100%" height="100%" src="https://www.youtube.com/embed/0NOER-Lle-0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe> */}
                                     </div>
                                 </div>
 
