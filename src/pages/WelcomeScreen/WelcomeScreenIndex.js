@@ -123,7 +123,7 @@ function WelcomeScreenIndex() {
                                     <h1 className='fs-6'>Made in India, Made with Pride
                                         <img src="https://flagcdn.com/in.svg" alt="India Flag" width="25" className='ms-2' />
                                     </h1>
-                                    <h2 className='fs-4 fw-bold'>Adeya AI – Tailored for the <span className='text-teal-dark'>Any Industry</span> 👕✨🚀</h2>
+                                    <h2 className='fs-4 fw-bold'>BMS Inventory Management System (BMS-IMS) – Tailored for the <span className='text-teal-dark'>Any Industry</span> 👕✨🚀</h2>
                                     <p className='mb-0 f-s-14'>We are glad to have you here. Explore our features and enjoy your experience.</p>
 
                                 </div>
@@ -476,7 +476,7 @@ function WelcomeScreenIndex() {
                                             >
                                                 <h5>Your data is 100% secure — protected with the same level of encryption trusted by leading email providers. 🔐</h5>
                                                 <p className='f-s-14'>
-                                                Adeya is a proudly Indian AI-Agentic platform built for MSME manufacturers. We help factories unlock profits using TOC, intelligent agents, and deep manufacturing understanding.                                                </p>
+                                                Growthh is a proudly Indian platform built for MSME manufacturers. We help factories unlock profits using TOC, intelligent agents, and deep manufacturing understanding.                                                </p>
                                             </div>
                                         </div>
                                     </div>
