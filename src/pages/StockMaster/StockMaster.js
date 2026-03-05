@@ -23,7 +23,8 @@ function StockMaster() {
     rowsPerPage: 15,
     searchKey: "",
     warehouseId: null,
-    productTypeId: null
+    productTypeId: null,
+    brandId: null,
   });
 
   // const { setIsLoading, Logout } = UserAuth();
@@ -31,8 +32,10 @@ function StockMaster() {
   const [filteredData, setFilteredData] = useState([]);
   const [storeOptions, setStoreOptions] = useState([]);
   const [productTypeOptions, setProductTypeOptions] = useState([]);
+  const [brandOptions, setBrandOptions] = useState([]);
   const [selectedStore, setSelectedStore] = useState(null);
   const [selectedProductType, setSelectedProductType] = useState(null);
+  const [selectedBrand, setSelectedBrand] = useState(null);
   const [searchKeyInput, setSearchKeyInput] = useState("");
   
   // Update modal state
@@ -87,9 +90,26 @@ function StockMaster() {
     }
   };
 
+  // Fetch brands for dropdown
+  const fetchBrands = async () => {
+    try {
+      const response = await PrivateAxios.get("/master/brand/list");
+      const brandData = response.data?.data;
+      const options = (Array.isArray(brandData) ? brandData : []).map((item) => ({
+        value: item.id,
+        label: item.name,
+      }));
+      setBrandOptions(options);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+      setBrandOptions([]);
+    }
+  };
+
   useEffect(() => {
     fetchStores();
     fetchProductTypes();
+    fetchBrands();
   }, []);
 
   // Calculate quantity colour based on percentage
@@ -113,14 +133,15 @@ function StockMaster() {
   const fetchData = useCallback(async () => {
     // setIsLoading(true);
     try {
-      const { page, rowsPerPage, searchKey, warehouseId, productTypeId } = productController;
+      const { page, rowsPerPage, searchKey, warehouseId, productTypeId, brandId } = productController;
       // Set query params
       const queryParams = new URLSearchParams({
         page,
         limit: rowsPerPage,
         ...(searchKey && { searchkey: searchKey }),
         ...(warehouseId && { warehouse_id: warehouseId }),
-        ...(productTypeId && { product_type_id: productTypeId })
+        ...(productTypeId && { product_type_id: productTypeId }),
+        ...(brandId && { brand_id: brandId }),
       }).toString();
 
       const res = await PrivateAxios.get(`product/stock-entries?${queryParams}`);
@@ -150,6 +171,7 @@ function StockMaster() {
           sku_product: item.product.sku_product || "",
           buffer_size: item.buffer_size || "",
           productType: item.product?.masterProductType?.name || "",
+          masterBrand: item.product?.masterBrand || "",
         },
         warehouse: {
           id: item.warehouse.id || "",
@@ -178,169 +200,6 @@ function StockMaster() {
     fetchData();
   }, [fetchData]);
 
-  // const handleSubmitStockUpdate = async (e) => {
-  //   e.preventDefault();
-
-  //   const isAddToStock = transferType === "add_to_stock";
-  //   const isScrapItems = transferType === "scrap_items";
-  //   const isPurchaseOrderReturn = transferType === "purchase_order_return";
-  //   const isSalesOrderReturn = transferType === "sales_order_return";
-
-
-  //   if (!isAddToStock && !isPurchaseOrderReturn && !isSalesOrderReturn && !fromStore?.id && fromStore?.value == null) {
-  //     ErrorMessage("Please select From Store.");
-  //     return;
-  //   }
-  //   if (!isScrapItems && !isPurchaseOrderReturn && !isSalesOrderReturn && !toStore?.id && toStore?.value == null) {
-  //     ErrorMessage(isAddToStock ? "Finished goods store is not configured." : "Please select To Store.");
-  //     return;
-  //   }
-
-  //   const fromStoreId = fromStore?.id ?? fromStore?.value ?? null;
-  //   const toStoreId = toStore?.id ?? toStore?.value ?? null;
-
-  //   if (!isAddToStock && !isPurchaseOrderReturn && !isSalesOrderReturn && fromStoreId === toStoreId) {
-  //     ErrorMessage("From Store and To Store must be different.");
-  //     return;
-  //   }
-
-  //   const validItems = transferItems.filter(
-  //     (item) => item.itemID != null && item.itemID !== "" && item.product != null
-  //   );
-  //   if (validItems.length === 0) {
-  //     ErrorMessage("Please select at least one product.");
-  //     return;
-  //   }
-
-  //   if (transferType === 'stock_transfer' || transferType === 'sales_order_return') {
-  //     for (let i = 0; i < validItems.length; i++) {
-  //       const item = validItems[i];
-  //       const transferQty = Number(item.transferQuantity) || 0;
-  //       const availableQty = Number(item.availableQuantity) || 0;
-
-  //       if ((!Number.isFinite(transferQty) || transferQty <= 0) && transferType === 'stock_transfer') {
-  //         ErrorMessage(`Enter a positive transfer quantity for ${item.itemName || "item"}.`);
-  //         return;
-  //       }
-  //       if (transferQty > availableQty) {
-  //         ErrorMessage(`Transfer quantity cannot exceed available stock for ${item.itemName || "item"}.`);
-  //         return;
-  //       }
-  //     }
-  //   } else if (transferType === 'add_to_stock') {
-  //     for (let i = 0; i < validItems.length; i++) {
-  //       const item = validItems[i];
-  //       const transferQty = Number(item.transferQuantity);
-  //       if (!Number.isFinite(transferQty) || transferQty <= 0) {
-  //         ErrorMessage(`Enter a positive transfer quantity for ${item.itemName || "item"}.`);
-  //         return;
-  //       }
-  //     }
-  //   } else if (transferType === 'scrap_items') {
-  //     for (let i = 0; i < validItems.length; i++) {
-  //       const item = validItems[i];
-  //       const isBatchApplicable = Number(item?.product?.is_batch_applicable) === 1;
-
-  //       if (isBatchApplicable) {
-  //         const batches = Array.isArray(item.availableBatches) ? item.availableBatches : [];
-  //         if (batches.length === 0) {
-  //           ErrorMessage(`No batches available for ${item.itemName || "item"}.`);
-  //           return;
-  //         }
-  //         const qtyMap = item.batchQuantities || {};
-  //         const entries = Object.entries(qtyMap).filter(([, q]) => Number(q) > 0);
-  //         if (entries.length === 0) {
-  //           ErrorMessage(`Enter batch quantity for ${item.itemName || "item"}.`);
-  //           return;
-  //         }
-  //         for (const [batchId, qty] of entries) {
-  //           const batch = batches.find((b) => String(b.id) === String(batchId));
-  //           const max = Number(batch?.available_quantity) || 0;
-  //           const n = Number(qty) || 0;
-  //           if (n <= 0) {
-  //             ErrorMessage(`Enter a positive batch quantity for ${item.itemName || "item"}.`);
-  //             return;
-  //           }
-  //           if (n > max) {
-  //             ErrorMessage(
-  //               `Batch quantity cannot exceed available quantity for batch ${batch?.batch_no || batchId}.`
-  //             );
-  //             return;
-  //           }
-  //         }
-  //       } else {
-  //         const transferQty = Number(item.transferQuantity);
-  //         const availableQty = Number(item.availableQuantity) || 0;
-  //         if (!Number.isFinite(transferQty) || transferQty <= 0) {
-  //           ErrorMessage(`Enter a positive transfer quantity for ${item.itemName || "item"}.`);
-  //           return;
-  //         }
-  //         if (transferQty > availableQty) {
-  //           ErrorMessage(`Transfer quantity cannot exceed available stock for ${item.itemName || "item"}.`);
-  //           return;
-  //         }
-  //       }
-  //     }
-  //   }
-
-  //   const stockTransferPayload = {
-  //     from_store: isAddToStock ? null : fromStoreId,
-  //     to_store: toStoreId ? isScrapItems ? null : toStoreId : null,
-  //     purchase_reference_number: isPurchaseOrderReturn ? poReferenceNumber : null,
-  //     sales_order_reference_number: isSalesOrderReturn ? salesOrderReferenceNumber : null,
-  //     comment: comment,
-  //     transfer_type: transferType,
-  //     products: validItems.map((item) => ({
-  //       id: item.itemID ?? item.product?.id,
-  //       // itemName: item.itemName ?? item.product?.product_name ?? "",
-  //       warehouse_id: item?.product?.warehouse_id ?? null,
-  //       transferred_quantity: Number(item.transferQuantity) || 0,
-  //       is_batch_applicable: Number(item?.product?.is_batch_applicable) === 1,
-  //       ...(["scrap_items", "purchase_order_return", "sales_order_return"].includes(transferType) && Number(item?.product?.is_batch_applicable) === 1
-  //         ? {
-  //           batches: (() => {
-  //             const batches = Array.isArray(item.availableBatches) ? item.availableBatches : [];
-  //             return Object.entries(item.batchQuantities || {})
-  //               .filter(([, q]) => Number(q) > 0)
-  //               .map(([batchId, q]) => {
-  //                 const batch = batches.find((b) => String(b.id) === String(batchId));
-  //                 return {
-  //                   id: Number(batchId),
-  //                   available_quantity: Number(batch?.available_quantity) ?? 0,
-  //                   quantity: Number(q) || 0,
-  //                 };
-  //               });
-  //           })(),
-  //         }
-  //         : { batches: [] }),
-  //       // currentQuantity: Number(item.availableQuantity) || 0,
-  //       // finalQuantity: "",
-  //       // defaultPrice: item.defaultPrice ?? 0,
-  //       // comment: item.comment || "",
-  //       // itemUnit: item.itemUnit || "",
-  //       // AdjustmentType: "StockTransfer",
-  //     })),
-  //   };
-
-  //   // console.log("stockTransferPayload", stockTransferPayload);
-
-  //   try {
-  //     const response = await PrivateAxios.post(
-  //       "/product/update-stocktransfer",
-  //       stockTransferPayload
-  //     );
-  //     if (response.status === 200) {
-  //       SuccessMessage(response.data.message);
-  //       StockTransferClose();
-  //       fetchData();
-  //     } else {
-  //       ErrorMessage("Error !! Please check again.");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error:", error);
-  //     ErrorMessage("Error !! Please check again.");
-  //   }
-  // };
 
   // Handle search button click
   const handleSearch = () => {
@@ -349,7 +208,8 @@ function StockMaster() {
       page: 1,
       searchKey: searchKeyInput.trim(),
       warehouseId: selectedStore ? selectedStore.value : null,
-      productTypeId: selectedProductType ? selectedProductType.value : null
+      productTypeId: selectedProductType ? selectedProductType.value : null,
+      brandId: selectedBrand ? selectedBrand.value : null,
     }));
   };
 
@@ -357,13 +217,15 @@ function StockMaster() {
   const handleClearFilters = () => {
     setSelectedStore(null);
     setSelectedProductType(null);
+    setSelectedBrand(null);
     setSearchKeyInput("");
     setProductController({
       page: 1,
       rowsPerPage: 15,
       searchKey: "",
       warehouseId: null,
-      productTypeId: null
+      productTypeId: null,
+      brandId: null,
     });
   };
 
@@ -601,12 +463,15 @@ function StockMaster() {
       width: 140,
       sorter: (a, b) => a.product.product_name.localeCompare(b.product.product_name),
     },
-    // {
-    //   title: "SKU",
-    //   dataIndex: ["product", "sku_product"],
-    //   key: "sku_product",
-    //   width: 100,
-    // },
+    {
+      title: "Brand",
+      dataIndex: ["product", "masterBrand", "name"],
+      key: "masterBrand",
+      width: 100,
+      render: (_, record) => {
+        return record?.product.masterBrand?.name || "N/A";
+      },
+    },
     {
       title: "Product Type",
       dataIndex: ["product", "productType"],
@@ -812,7 +677,7 @@ function StockMaster() {
                         <div className="p-3 border-bottom" style={{ position: "relative", zIndex: 1 }}>
                           <div className="row g-3 align-items-end">
 
-                            <div className="col-md-4">
+                            <div className="col-md-3">
                               <label className="form-label mb-2">Search</label>
                               <Input
                                 placeholder="Enter search key..."
@@ -824,7 +689,7 @@ function StockMaster() {
                             </div>
 
 
-                            <div className="col-md-4" style={{ position: "relative", zIndex: 1000 }}>
+                            <div className="col-md-3" style={{ position: "relative", zIndex: 1000 }}>
                               <label className="form-label mb-2">Filter by Store</label>
                               <Select
                                 placeholder="Select Store"
@@ -854,7 +719,7 @@ function StockMaster() {
                               />
                             </div>
 
-                            <div className="col-md-4" style={{ position: "relative", zIndex: 1000 }}>
+                            <div className="col-md-3" style={{ position: "relative", zIndex: 1000 }}>
                               <label className="form-label mb-2">Filter by Product Type</label>
                               <Select
                                 placeholder="Select Product Type"
@@ -886,7 +751,37 @@ function StockMaster() {
 
                         
 
-                            <div className="col-md-3">
+                            <div className="col-md-3" style={{ position: "relative", zIndex: 1000 }}>
+                              <label className="form-label mb-2">Filter by Brand</label>
+                              <Select
+                                placeholder="Select Brand"
+                                value={selectedBrand}
+                                onChange={(selectedOption) => {
+                                  setSelectedBrand(selectedOption);
+                                }}
+                                options={brandOptions}
+                                isClearable
+                                isSearchable
+                                menuPortalTarget={document.body}
+                                menuPosition="fixed"
+                                styles={{
+                                  control: (base) => ({
+                                    ...base,
+                                    minHeight: "38px",
+                                  }),
+                                  menuPortal: (base) => ({
+                                    ...base,
+                                    zIndex: 9999,
+                                  }),
+                                  menu: (base) => ({
+                                    ...base,
+                                    zIndex: 9999,
+                                  }),
+                                }}
+                              />
+                            </div>
+
+                            <div className="col-12">
                               <div className="d-flex gap-2">
                                 <Button
                                   type="primary"

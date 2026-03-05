@@ -20,6 +20,7 @@ import StoreSelect from "../filterComponents/StoreSelect";
 import VendorSelect from "../filterComponents/VendorSelect";
 import ProductSelect from "../filterComponents/ProductSelect";
 import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
+import ProductVariantSelectionModal from "../CommonComponent/ProductVariantSelectionModal";
 import SalesQuotationSelect from "../filterComponents/SalesQuotationSelect";
 // import { DropDownList } from "@progress/kendo-react-dropdowns";
 
@@ -98,9 +99,7 @@ function MyNewpurchase() {
   // Variant selection state
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [currentProductIndex, setCurrentProductIndex] = useState(null);
-  const [productVariants, setProductVariants] = useState([]);
-  const [selectedProductInfo, setSelectedProductInfo] = useState(null);
-  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [currentProductId, setCurrentProductId] = useState(null);
 
   // Handle product selection from Advanced Product Selector
   const handleProductSelectFromAdvanced = (selectedProduct) => {
@@ -163,112 +162,18 @@ function MyNewpurchase() {
     ]);
   };
 
-  // Fetch product variants
-  const fetchProductVariants = async (productId, productIndex, productData) => {
-    try {
-      setLoadingVariants(true);
-      const response = await PrivateAxios.get(`product/variants/${productId}`);
-      
-      if (response.data && response.data.status && response.data.data) {
-        const variants = response.data.data.variants || [];
-        
-        if (variants.length > 0) {
-          // Variants found - show modal for selection
-          setProductVariants(variants);
-          setSelectedProductInfo(response.data.data.product);
-          setCurrentProductIndex(productIndex);
-          
-          // Temporarily set product data (will be finalized after variant selection)
-          const newProducts = [...products];
-          newProducts[productIndex] = {
-            ...newProducts[productIndex],
-            product_id: productId,
-            description: productData?.product_name || "",
-            unit_price: productData?.regular_buying_price || 0,
-            tax: productData?.tax || 18,
-            productData: productData,
-            variant_id: null, // Will be set after selection
-          };
-          
-          // Calculate initial tax amounts
-          const qty = parseFloat(newProducts[productIndex].qty) || 0;
-          const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
-          const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
-          
-          const taxExcl = qty * unitPrice;
-          const taxAmount = (taxExcl * taxRate) / 100;
-          const taxIncl = taxExcl + taxAmount;
-          
-          newProducts[productIndex].taxExcl = taxExcl;
-          newProducts[productIndex].taxAmount = taxAmount;
-          newProducts[productIndex].taxIncl = taxIncl;
-          newProducts[productIndex].vendor_id = vendorId.vendor_id;
-          
-          setProducts(newProducts);
-          setShowVariantModal(true);
-        } else {
-          // No variants found - proceed without variant selection
-          const newProducts = [...products];
-          newProducts[productIndex] = {
-            ...newProducts[productIndex],
-            product_id: productId,
-            description: productData?.product_name || "",
-            unit_price: productData?.regular_buying_price || 0,
-            tax: productData?.tax || 18,
-            productData: productData,
-            variant_id: null,
-          };
-          
-          // Calculate tax amounts
-          const qty = parseFloat(newProducts[productIndex].qty) || 0;
-          const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
-          const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
-          
-          const taxExcl = qty * unitPrice;
-          const taxAmount = (taxExcl * taxRate) / 100;
-          const taxIncl = taxExcl + taxAmount;
-          
-          newProducts[productIndex].taxExcl = taxExcl;
-          newProducts[productIndex].taxAmount = taxAmount;
-          newProducts[productIndex].taxIncl = taxIncl;
-          newProducts[productIndex].vendor_id = vendorId.vendor_id;
-          
-          setProducts(newProducts);
-        }
-      } else {
-        // Invalid response - proceed without variant selection
-        const newProducts = [...products];
-        newProducts[productIndex] = {
-          ...newProducts[productIndex],
-          product_id: productId,
-          description: productData?.product_name || "",
-          unit_price: productData?.regular_buying_price || 0,
-          tax: productData?.tax || 18,
-          productData: productData,
-          variant_id: null,
-        };
-        
-        // Calculate tax amounts
-        const qty = parseFloat(newProducts[productIndex].qty) || 0;
-        const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
-        const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
-        
-        const taxExcl = qty * unitPrice;
-        const taxAmount = (taxExcl * taxRate) / 100;
-        const taxIncl = taxExcl + taxAmount;
-        
-        newProducts[productIndex].taxExcl = taxExcl;
-        newProducts[productIndex].taxAmount = taxAmount;
-        newProducts[productIndex].taxIncl = taxIncl;
-        newProducts[productIndex].vendor_id = vendorId.vendor_id;
-        
-        setProducts(newProducts);
-      }
-    } catch (error) {
-      console.error("Error fetching variants:", error);
-      ErrorMessage("Failed to fetch product variants");
-      // Proceed without variant selection on error
-      const newProducts = [...products];
+  // Helper function to update product with productData and calculate tax
+  const updateProductWithData = (
+    productIndex,
+    productId,
+    productData,
+    variantId = null,
+    variantData = null
+  ) => {  
+    setProducts((prevProducts) => {
+  
+      const newProducts = [...prevProducts];
+  
       newProducts[productIndex] = {
         ...newProducts[productIndex],
         product_id: productId,
@@ -276,93 +181,82 @@ function MyNewpurchase() {
         unit_price: productData?.regular_buying_price || 0,
         tax: productData?.tax || 18,
         productData: productData,
-        variant_id: null,
+        variant_id: variantId,
+        variantData: variantData,
+        vendor_id: vendorId?.vendor_id || "",
       };
-      
-      // Calculate tax amounts
+  
+      // Calculate tax
       const qty = parseFloat(newProducts[productIndex].qty) || 0;
       const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
       const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
-      
+  
       const taxExcl = qty * unitPrice;
       const taxAmount = (taxExcl * taxRate) / 100;
       const taxIncl = taxExcl + taxAmount;
-      
-      newProducts[productIndex].taxExcl = taxExcl;
-      newProducts[productIndex].taxAmount = taxAmount;
-      newProducts[productIndex].taxIncl = taxIncl;
-      newProducts[productIndex].vendor_id = vendorId.vendor_id;
-      
-      setProducts(newProducts);
-    } finally {
-      setLoadingVariants(false);
-    }
-  };
-
-  // Get current selected variant ID for highlighting
-  const getCurrentSelectedVariantId = () => {
-    if (currentProductIndex === null || !products || products.length === 0) return null;
-    
-    const product = products[currentProductIndex];
-    return product?.variant_id || null;
-  };
-
-  // Handle variant selection
-  const handleVariantSelect = (variant) => {
-    if (currentProductIndex !== null) {
-      const newProducts = [...products];
-      const productData = newProducts[currentProductIndex].productData;
-      
-      // Update product with variant information
-      newProducts[currentProductIndex] = {
-        ...newProducts[currentProductIndex],
-        product_id: productData?.id || newProducts[currentProductIndex].product_id,
-        description: productData?.product_name || newProducts[currentProductIndex].description,
-        unit_price: productData?.regular_buying_price || newProducts[currentProductIndex].unit_price,
-        tax: productData?.tax || newProducts[currentProductIndex].tax,
-        variant_id: variant.id,
-        variantData: variant,
-        vendor_id: vendorId.vendor_id,
+  
+      newProducts[productIndex] = {
+        ...newProducts[productIndex],
+        taxExcl,
+        taxAmount,
+        taxIncl
       };
-      
-      // Recalculate tax amounts
-      const qty = parseFloat(newProducts[currentProductIndex].qty) || 0;
-      const unitPrice = parseFloat(newProducts[currentProductIndex].unit_price) || 0;
-      const taxRate = parseFloat(newProducts[currentProductIndex].tax) || 0;
-      
-      const taxExcl = qty * unitPrice;
-      const taxAmount = (taxExcl * taxRate) / 100;
-      const taxIncl = taxExcl + taxAmount;
-      
-      newProducts[currentProductIndex].taxExcl = taxExcl;
-      newProducts[currentProductIndex].taxAmount = taxAmount;
-      newProducts[currentProductIndex].taxIncl = taxIncl;
-      
-      setProducts(newProducts);
+  
+      return newProducts;
+    });
+  
+  };
+  // useEffect(() => {
+  //   console.log("products updated", products);
+  // }, [products]);
+
+  // Show variant selection modal - component will handle fetching variants
+  const fetchProductVariants = (productId, productIndex, productData) => {
+    // Temporarily set product data (will be finalized after variant selection)
+    updateProductWithData(productIndex, productId, productData, null, null);
+    
+    // Show modal - component will fetch variants
+    setCurrentProductIndex(productIndex);
+    setCurrentProductId(productId);
+    setShowVariantModal(true);
+  };
+
+  // Handle variant selection from modal
+  const handleVariantSelect = (variant, productIndex) => {
+    if (productIndex !== null && products[productIndex]) {
+      const productData = products[productIndex].productData;
+      updateProductWithData(productIndex, productData?.id || products[productIndex].product_id, productData, variant.id, variant);
     }
     setShowVariantModal(false);
-    setProductVariants([]);
-    setSelectedProductInfo(null);
     setCurrentProductIndex(null);
+    setCurrentProductId(null);
   };
 
   // Handle variant modal close without selection
-  const handleVariantModalClose = () => {
+  const handleVariantModalClose = (productIndex) => {
     // If user closes without selecting, clear the product selection
-    if (currentProductIndex !== null) {
+    if (productIndex !== null) {
       const newProducts = [...products];
-      newProducts[currentProductIndex] = {
-        ...newProducts[currentProductIndex],
+      newProducts[productIndex] = {
+        ...newProducts[productIndex],
         product_id: "",
         productData: null,
         variant_id: null,
+        variantData: null,
       };
       setProducts(newProducts);
     }
     setShowVariantModal(false);
-    setProductVariants([]);
-    setSelectedProductInfo(null);
     setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  // Handle continue without variant
+  const handleContinueWithoutVariant = (productIndex) => {
+    // Product already has data set, just close modal
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
   };
 
   const removeProduct = (index) => {
@@ -676,7 +570,8 @@ function MyNewpurchase() {
                                     <div style={{ minWidth: "350px" }} className="d-flex align-items-center gap-2">
                                       <div style={{ flex: 1 }}>
                                         <ProductSelect
-                                          value={product.product_id}
+                                          value={product.product_id || (product.productData ? product.productData.id : null)}
+                                          selectedProductData={product.productData}
                                           onChange={(selectedOption) => {
                                             if (selectedOption) {
                                               const selectedProduct = selectedOption.productData;
@@ -898,16 +793,6 @@ function MyNewpurchase() {
                             <span className="fw-bold f-s-20 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().totalAmount.toFixed(2)}</span>
                           </p>
 
-
-                          {/* <p>
-                          Untaxed Amount: {getGeneralSettingssymbol}
-                          {calculateTotal().untaxedAmount.toFixed(2)}
-                        </p>
-                        <p>SGST: {getGeneralSettingssymbol}{calculateTotal().taxAmount.toFixed(2)}</p>
-                        <p>CGST: {getGeneralSettingssymbol}{calculateTotal().taxAmount.toFixed(2)}</p>
-                        <h5 className="mb-4">
-                          Total: {getGeneralSettingssymbol}{calculateTotal().totalAmount.toFixed(2)}
-                        </h5> */}
                         </div>
                       </div>
 
@@ -1028,178 +913,18 @@ function MyNewpurchase() {
       />
 
       {/* Variant Selection Modal */}
-      <Modal
-        backdrop="static"
+      <ProductVariantSelectionModal
         show={showVariantModal}
-        size="lg"
-        centered
-        onHide={handleVariantModalClose}
-        aria-labelledby="variant-selection-modal-title"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title id="variant-selection-modal-title">
-            <i className="fas fa-box me-2 text-primary"></i>
-            Select Product Variant
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
-          {loadingVariants ? (
-            <div className="text-center py-4">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading variants...</span>
-              </div>
-              <p className="mt-2">Loading variants...</p>
-            </div>
-          ) : (
-            <>
-              {selectedProductInfo && (
-                <div className="mb-3 p-3 bg-light rounded">
-                  <h6 className="mb-2">
-                    <i className="fas fa-cube me-2 text-primary"></i>
-                    Product: {selectedProductInfo.product_name || selectedProductInfo.product_code}
-                  </h6>
-                  <p className="mb-0 text-muted">
-                    <small>Code: {selectedProductInfo.product_code}</small>
-                  </p>
-                </div>
-              )}
-              
-              {productVariants.length > 0 ? (
-                <div>
-                  <h6 className="mb-3">Available Variants:</h6>
-                  <div className="row">
-                    {productVariants.map((variant, index) => {
-                      const currentSelectedVariantId = getCurrentSelectedVariantId();
-                      const isSelected = currentSelectedVariantId === variant.id;
-                      
-                      return (
-                      <div key={variant.id} className="col-md-6 mb-3">
-                        <div
-                          className="card h-100 cursor-pointer position-relative"
-                          style={{
-                            border: isSelected ? "3px solid #28a745" : "2px solid #dee2e6",
-                            backgroundColor: isSelected ? "#f0f9f4" : "#fff",
-                            transition: "all 0.3s ease",
-                            cursor: "pointer",
-                            boxShadow: isSelected ? "0 4px 12px rgba(40, 167, 69, 0.3)" : "none",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.borderColor = "#6161ff";
-                              e.currentTarget.style.boxShadow = "0 2px 8px rgba(97, 97, 255, 0.2)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.borderColor = "#dee2e6";
-                              e.currentTarget.style.boxShadow = "none";
-                            } else {
-                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(40, 167, 69, 0.3)";
-                            }
-                          }}
-                          onClick={() => handleVariantSelect(variant)}
-                        >
-                          {isSelected && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "10px",
-                                right: "10px",
-                                backgroundColor: "#28a745",
-                                color: "#fff",
-                                borderRadius: "50%",
-                                width: "28px",
-                                height: "28px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                zIndex: 10,
-                              }}
-                            >
-                              <i className="fas fa-check" style={{ fontSize: "12px" }}></i>
-                            </div>
-                          )}
-                          <div className="card-body">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <h6 className="mb-0">
-                                <i className="fas fa-tag me-2 text-primary"></i>
-                                Variant {index + 1}
-                                {isSelected && (
-                                  <span className="badge bg-success ms-2" style={{ fontSize: "10px" }}>
-                                    Selected
-                                  </span>
-                                )}
-                              </h6>
-                              {variant.status === 1 && (
-                                <span className="badge bg-success">Active</span>
-                              )}
-                            </div>
-                            <div className="mt-2">
-                              <div className="d-flex justify-content-between py-1">
-                                <span className="text-muted">Unit of Measurement:</span>
-                                <span className="fw-medium">
-                                  {variant.masterUOM?.name || "N/A"}
-                                  {variant.masterUOM?.label && (
-                                    <span className="text-muted ms-1">({variant.masterUOM.label})</span>
-                                  )}
-                                </span>
-                              </div>
-                              <div className="d-flex justify-content-between py-1">
-                                <span className="text-muted">Weight per Unit:</span>
-                                <span className="fw-medium">{variant.weight_per_unit || "N/A"}</span>
-                              </div>
-                              {variant.price_per_unit && parseFloat(variant.price_per_unit) > 0 && (
-                                <div className="d-flex justify-content-between py-1">
-                                  <span className="text-muted">Price per Unit:</span>
-                                  <span className="fw-medium text-success">
-                                    {getGeneralSettingssymbol}{parseFloat(variant.price_per_unit).toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <i className="fas fa-box-open fa-3x text-muted mb-3"></i>
-                  <p className="text-muted">No variants available for this product.</p>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                      // Proceed without variant selection
-                      if (currentProductIndex !== null) {
-                        const newProducts = [...products];
-                        newProducts[currentProductIndex] = {
-                          ...newProducts[currentProductIndex],
-                          variant_id: null,
-                        };
-                        setProducts(newProducts);
-                      }
-                      handleVariantModalClose();
-                    }}
-                  >
-                    Continue Without Variant
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleVariantModalClose}
-          >
-            Cancel
-          </button>
-        </Modal.Footer>
-      </Modal>
+        onHide={() => setShowVariantModal(false)}
+        productId={currentProductId}
+        productIndex={currentProductIndex}
+        currentVariantId={currentProductIndex !== null && products[currentProductIndex] ? products[currentProductIndex].variant_id : null}
+        onVariantSelect={handleVariantSelect}
+        onClose={handleVariantModalClose}
+        currencySymbol={getGeneralSettingssymbol}
+        allowContinueWithoutVariant={true}
+        onContinueWithoutVariant={handleContinueWithoutVariant}
+      />
 
     </React.Fragment>
   );

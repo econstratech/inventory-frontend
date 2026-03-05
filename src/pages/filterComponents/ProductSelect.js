@@ -10,6 +10,7 @@ const EMPTY_QUERY_PARAMS = {};
  * 
  * @param {Object} props
  * @param {string|number} props.value - The selected product ID
+ * @param {Object} props.selectedProductData - The full product data object for the selected product (used when product is not in current options)
  * @param {Function} props.onChange - Callback when product is selected. Receives (selectedOption) where selectedOption has { value, label, productData }
  * @param {string} props.placeholder - Placeholder text
  * @param {boolean} props.isClearable - Whether the select can be cleared
@@ -23,6 +24,7 @@ const EMPTY_QUERY_PARAMS = {};
  */
 const ProductSelect = ({
   value,
+  selectedProductData = null,
   onChange,
   placeholder = "Search and select product...",
   isClearable = true,
@@ -52,6 +54,7 @@ const ProductSelect = ({
       const params = new URLSearchParams({
         page,
         limit,
+        type: 'search',
         ...(searchKey && searchKey.trim() !== "" && { searchkey: searchKey.trim() }),
         ...queryParams,
       }).toString();
@@ -221,9 +224,31 @@ const ProductSelect = ({
     ...styles,
   };
 
+  // Create option from selectedProductData if value is not in productOptions
+  const createOptionFromProductData = (productData) => {
+    if (!productData) return null;
+    
+    let label = `${productData.product_name || "N/A"} (${productData.product_code || "N/A"})`;
+    if (productData.productAttributeValues && Array.isArray(productData.productAttributeValues)) {
+      for (const attrValue of productData.productAttributeValues) {
+        if (attrValue.productAttribute && attrValue.productAttribute.name) {
+          label += `, ${attrValue.productAttribute.name}: ${attrValue.value}`;
+        }
+      }
+    }
+    
+    return {
+      value: productData.id,
+      label: label,
+      productData: productData,
+    };
+  };
+
   // Find the selected option based on value prop
+  // If not found in options but selectedProductData is provided, create option from it
   const selectedOption = value
-    ? productOptions.find((option) => option.value === value) || null
+    ? productOptions.find((option) => option.value === value) || 
+      (selectedProductData && selectedProductData.id === value ? createOptionFromProductData(selectedProductData) : null)
     : null;
 
   return (

@@ -65,10 +65,12 @@ function InventoryMasterEditItemDetails() {
   //   dynamic_attributes: [] // dynamic attributes
   // });
   const [productTypes, setProductTypes] = useState([]);
+  const [masterBrands, setMasterBrands] = useState([]);
   const [selectedProductType, setSelectedProductType] = useState([]);
   const [selectedProductCategory, setSelectedProductCategory] = useState([]);
   const [productAttributes, setProductAttributes] = useState([]);
   const [selectedBatchApplicable, setSelectedBatchApplicable] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   // const [dynamicProductAttributes, setDynamicProductAttributes] = useState([]);
   
@@ -135,11 +137,21 @@ function InventoryMasterEditItemDetails() {
     }
   }
 
+  const fetchMasterBrands = async () => {
+    try {
+      const res = await PrivateAxios.get(`master/brand/list`);
+      setMasterBrands(res.data?.data || []);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   useEffect(() => {
     fetchUomData();
     fetchProductTypes();
     fetchProductAttributes();
     fetchProductCategories();
+    fetchMasterBrands();
   }, []);
 
   /**
@@ -248,67 +260,75 @@ function InventoryMasterEditItemDetails() {
     ));
   }, [productCategories, formData]);
 
-    // Get add item input type fields
-    const handleAddItemFormChange = (e) => {
-      const { name, value } = e.target;
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    };
-    // Get add item dropdown type fields
-    const handleAddItemSelectChange = (fieldName) => (selectedOption) => {
-      if (fieldName === 'product_type_id') {
-        setSelectedProductType(selectedOption);
-      } else if (fieldName === 'is_batch_applicable') {
-        setSelectedBatchApplicable(selectedOption.value);
-      } else if (fieldName === 'product_category_id') {
-        setSelectedProductCategory(selectedOption);
-      } 
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: selectedOption.id
-      }));
-    };
+  useEffect(() => {
+    setSelectedBrand(masterBrands?.find(
+      opt => opt.id === formData.brand_id
+    ));
+  }, [masterBrands, formData]);
+
+  // Get add item input type fields
+  const handleAddItemFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  // Get add item dropdown type fields
+  const handleAddItemSelectChange = (fieldName) => (selectedOption) => {
+    if (fieldName === 'product_type_id') {
+      setSelectedProductType(selectedOption);
+    } else if (fieldName === 'is_batch_applicable') {
+      setSelectedBatchApplicable(selectedOption.value);
+    } else if (fieldName === 'product_category_id') {
+      setSelectedProductCategory(selectedOption);
+    } else if (fieldName === 'brand_id') {
+      setSelectedBrand(selectedOption);
+    }
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: selectedOption.id
+    }));
+  };
+
+  const handleDynamicChange = (e) => {
+    const { value, dataset } = e.target;
   
-    const handleDynamicChange = (e) => {
-      const { value, dataset } = e.target;
-    
-      const attrId = Number(dataset.attrId);
-      const isRequired = Number(dataset.required);
-    
-      setFormData(prev => {
-        const existingIndex = prev.dynamic_attributes.findIndex(
-          attr => attr.id === attrId
+    const attrId = Number(dataset.attrId);
+    const isRequired = Number(dataset.required);
+  
+    setFormData(prev => {
+      const existingIndex = prev.dynamic_attributes.findIndex(
+        attr => attr.id === attrId
+      );
+  
+      let updatedAttributes;
+  
+      if (existingIndex !== -1) {
+        // Update existing attribute value
+        updatedAttributes = prev.dynamic_attributes.map(attr =>
+          attr.id === attrId
+            ? { ...attr, value }
+            : attr
         );
-    
-        let updatedAttributes;
-    
-        if (existingIndex !== -1) {
-          // Update existing attribute value
-          updatedAttributes = prev.dynamic_attributes.map(attr =>
-            attr.id === attrId
-              ? { ...attr, value }
-              : attr
-          );
-        } else {
-          // Add new attribute
-          updatedAttributes = [
-            ...prev.dynamic_attributes,
-            {
-              product_attribute_id: attrId,
-              is_required: isRequired,
-              value
-            }
-          ];
-        }
-    
-        return {
-          ...prev,
-          dynamic_attributes: updatedAttributes
-        };
-      });
-    };
+      } else {
+        // Add new attribute
+        updatedAttributes = [
+          ...prev.dynamic_attributes,
+          {
+            product_attribute_id: attrId,
+            is_required: isRequired,
+            value
+          }
+        ];
+      }
+  
+      return {
+        ...prev,
+        dynamic_attributes: updatedAttributes
+      };
+    });
+  };
 
   // Add item form validation
   const validateAddItemForm = () => {
@@ -661,6 +681,29 @@ function InventoryMasterEditItemDetails() {
                           )}
                         </div>
                       </div>
+
+                      <div className="col-md-6">
+                        <div className="form-group">
+                          <label className="form-label">
+                            Brand
+                          </label>
+                          <Select
+                            name="brand_id"
+                            id="brand_id"
+                            options={masterBrands}
+                            getOptionLabel={(option) => option.name}
+                            getOptionValue={(option) => option.id}
+                            value={selectedBrand}
+                            isDisabled={!isEditing}
+                            onChange={handleAddItemSelectChange("brand_id")}
+                          />
+                          {errorMessage?.brand_id && (
+                            <span className="error-message">{errorMessage.brand_id}</span>
+                          )}
+                        </div>
+                      </div>
+
+
                       <div className="col-md-6">
                         <div className="form-group">
                           <label className="form-label">
@@ -679,18 +722,6 @@ function InventoryMasterEditItemDetails() {
                           {errorMessage?.product_type_id && (
                             <span className="error-message">{errorMessage.product_type_id}</span>
                           )}
-                          {/* <select
-                            name="type"
-                            className="form-select"
-                            onChange={getTaskData}
-                            value={formData.type}
-                            disabled={!isEditing}
-                          >
-                            <option>Select</option>
-                            <option value="Buy">Buy</option>
-                            <option value="Sell">Sell</option>
-                            <option value="Both">Both</option>
-                          </select> */}
                         </div>
                       </div>
 

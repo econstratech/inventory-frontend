@@ -671,7 +671,7 @@ function Sidebar() {
                         || location.pathname === "/add-new-product"
                         || location.pathname === "/add-new-category"
                         || location.pathname === "/edit-category/:id"
-                        || location.pathname === "/inventory/inventory-master-edit/:id"
+                        || location.pathname.startsWith("/inventory/inventory-master-edit/")
                         || location.pathname === "/inventory/inventory-master"
                         || location.pathname === "/inventory/stock-master/add-stock"
                         ? "" : "collapsed"
@@ -702,7 +702,7 @@ function Sidebar() {
                       || location.pathname === "/add-new-category"
                       || location.pathname === "/edit-category/:id"
                       || location.pathname === "/category"
-                      || location.pathname === "/inventory/inventory-master-edit/:id"
+                      || location.pathname.startsWith("/inventory/inventory-master-edit/")
                       || location.pathname === "/inventory/floor_manager"
                       ? "show" : ""
                       } `}
@@ -725,7 +725,7 @@ function Sidebar() {
                               || location.pathname === "/inventory/barcode"
                               || location.pathname === "/inventory/stock_movement"
                               || location.pathname === "/inventory/inventory_approval"
-                              || location.pathname === "/inventory/inventory-master-edit/:id"
+                              || location.pathname.startsWith("/inventory/inventory-master-edit/")
 
                               ? "active" : ""
                               } `}
