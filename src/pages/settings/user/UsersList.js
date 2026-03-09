@@ -3,7 +3,7 @@ import { Modal, Table } from 'react-bootstrap'
  
  
  
-import { Tooltip } from 'antd';
+import { Tooltip, Pagination, Input, Button } from 'antd';
 // import CreateRole from './role/CreateRole';
 // import UpdateRole from './role/UpdateRole';
 
@@ -93,6 +93,16 @@ function UserList() {
         setPage(1);
         fetchUsers(1, newLimit, filterKey);
     }
+
+    const handlePaginationChange = (newPage, pageSize) => {
+        if (pageSize !== limit) {
+            setLimit(pageSize);
+            setPage(1);
+            fetchUsers(1, pageSize, filterKey);
+            return;
+        }
+        changePage(newPage);
+    }
  
     const [roleId, setRoleId] = useState([])
  
@@ -140,56 +150,56 @@ function UserList() {
     }
  
  
- 
- 
- 
- 
     return (
             <>
-            <div className='d-flex align-items-center justify-content-between mb-3'>
-                <h3>Users</h3>
-
-                <div className="d-flex align-items-center gap-2">
-                    <div className="input-group" style={{ width: 340 }}>
-                        <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            placeholder="Search ... "
-                            value={searchKey}
-                            onChange={(e) => setSearchKey(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") applyFilter(); }}
-                            aria-label="Filter"
-                        />
-                        <button className="btn btn-sm btn-primary" type="button" onClick={applyFilter} disabled={loading}>
-                            Filter
-                        </button>
-                        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={clearFilter} disabled={loading || !filterKey}>
-                            Clear
-                        </button>
-                    </div>
-
-                    <div className="d-flex align-items-center ms-3">
-                        <label className="me-2 mb-0">Per page:</label>
-                        <select className="form-select form-select-sm" value={limit} onChange={changeLimit} style={{ width: 90 }}>
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
             {loading ? <Loader /> :
                 <>
                     <div className='p-4'>
                         <div className='card'>
-                            {/* <div className='p-3 d-flex justify-content-end'>
-                                <button type='button' onClick={() => setCreate(true)} className='me-2 btn btn-sm btn-outline-primary ms-auto'>
-                                    <i className='fas fa-plus me-2'></i>
-                                    New
-                                </button>
-                            </div> */}
-                            <div className='compare_price_view_table'>
+                            <div className='card-body pb-0'>
+                                <div className='d-flex align-items-center justify-content-between mb-3'>
+                                    <div>
+                                        <h3 className='mb-0'>Users</h3>
+                                        <p className='text-muted mb-0'>View and manage users</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='p-3'>
+                                <div className='row g-3 align-items-end'>
+                                    <div className='col-md-4'>
+                                        <label className='form-label mb-2'>Search</label>
+                                        <Input
+                                            placeholder='Enter name or username...'
+                                            value={searchKey}
+                                            onChange={(e) => setSearchKey(e.target.value)}
+                                            onPressEnter={applyFilter}
+                                            style={{ height: '38px' }}
+                                        />
+                                    </div>
+                                    <div className='col-md-4'>
+                                        <div className='d-flex gap-2'>
+                                            <Button
+                                                type='primary'
+                                                onClick={applyFilter}
+                                                loading={loading}
+                                                style={{ height: '38px' }}
+                                            >
+                                                Search
+                                            </Button>
+                                            <Button
+                                                onClick={clearFilter}
+                                                disabled={loading || (!searchKey && !filterKey)}
+                                                style={{ height: '38px' }}
+                                            >
+                                                Clear
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+    
+                            
+                            <div className='p-3'>
                                 <Table responsive className="table-bordered primary-table-head">
                                     <thead>
                                         <tr>
@@ -227,33 +237,16 @@ function UserList() {
                                     </tbody>
                                 </Table>
 
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <button onClick={() => changePage(page - 1)} disabled={page <= 1 || loading}>
-                                    Prev
-                                    </button>
-
-                                    <span>
-                                    Page {page} of {totalPages} ({total} users)
-                                    </span>
-
-                                    <button onClick={() => changePage(page + 1)} disabled={page >= totalPages || loading}>
-                                    Next
-                                    </button>
-
-                                    {/* <div style={{ marginLeft: "auto" }}>
-                                        <label>Go to:</label>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            max={totalPages}
-                                            value={page}
-                                            onChange={(e) => {
-                                            const v = Number(e.target.value) || 1;
-                                            changePage(v);
-                                            }}
-                                            style={{ width: 70, marginLeft: 8 }}
-                                        />
-                                    </div> */}
+                                <div className='d-flex justify-content-end p-3'>
+                                    <Pagination
+                                        current={page}
+                                        total={total}
+                                        pageSize={limit}
+                                        showSizeChanger
+                                        pageSizeOptions={[5, 10, 25, 50]}
+                                        onChange={handlePaginationChange}
+                                        showTotal={(count, range) => `${range[0]}-${range[1]} of ${count} users`}
+                                    />
                                 </div>
                              
                             </div>

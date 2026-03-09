@@ -31,12 +31,7 @@ import moment from "moment";
 //   sendMail,
 // } from "../../environment/GlobalApi";
 import { useTable, useExpanded } from "react-table";
-
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
-import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
+import { Tooltip, Table as AntTable } from "antd";
 import ReceiveUpdatePageTopBar from "./ReceiveUpdatePageTopBar";
 // import ReceiveUpdateStatusBar from "./ReceiveUpdateStatusBar";
 
@@ -59,12 +54,6 @@ function RecvUpdate() {
   // const [deleteId, setDeleteId] = useState(null);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 10,
-    sort: [],
-    filter: null,
-  });
   const RemarksClose = () => setShowremark(false);
   const RemarksShow = () => setShowremark(true);
   const [getshowRemarks, setShowremark] = useState(false);
@@ -234,59 +223,29 @@ function RecvUpdate() {
     TaskData();
   }, []);
 
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
+  const renderReference = (_, record) => {
     return (
-      <td>
-        <div>
-          <span>
-            <a className="k_table_link"
-              onClick={() => {
-                RemarksShow(true);
-                getRemarks(
-                  dataItem.followup,
-                  dataItem.vendor + " - " + dataItem.reference
-                );
-              }}
-            >
-              {dataItem.reference}{" "}
-              {/* <i
-                className="fas fa-info-circle"
-                style={{
-                  fontSize: "15px",
-                  color: "#007bff",
-                  cursor: "pointer",
-                }}
-              ></i> */}
-            </a>
-          </span>
-        </div>
-      </td>
+      <div>
+        <span>
+          <a
+            className="k_table_link"
+            onClick={() => {
+              RemarksShow(true);
+              getRemarks(record.followup, record.vendor + " - " + record.reference);
+            }}
+          >
+            {record.reference}{" "}
+          </a>
+        </span>
+      </div>
     );
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
-
-  const ActionCell = (props) => {
-    const { dataItem } = props;
+  const renderAction = (_, record) => {
     return (
-      <td>
-        <div className="d-flex gap-2">
-          {dataItem.status !== 7 && dataItem.status !== 8 && (
-            <>
+      <div className="d-flex gap-2">
+        {record.status !== 7 && record.status !== 8 && (
+          <>
               {/* <Tooltip title="Check PO">
                 <Link
                   target="_blank"
@@ -299,14 +258,11 @@ function RecvUpdate() {
                 </Link>
               </Tooltip> */}
 
-              <Tooltip title="Receive Update">
-                <Link
-                  to={`/purchase-orders/recvorder/${dataItem.id}`}
-                  className="me-1 icon-btn"
-                >
-                  <i class="fas fa-tag d-flex"></i>
-                </Link>
-              </Tooltip>
+            <Tooltip title="Receive Update">
+              <Link to={`/purchase-orders/recvorder/${record.id}`} className="me-1 icon-btn">
+                <i className="fas fa-tag d-flex"></i>
+              </Link>
+            </Tooltip>
               {/* <Tooltip title="Receive Update View">
                 <button
                   onClick={() => {
@@ -331,31 +287,64 @@ function RecvUpdate() {
                   <i className="fas fa-check-circle d-flex"></i>
                 </button>
               </Tooltip> */}
-            </>
-          )}
-        </div>
-      </td>
+          </>
+        )}
+      </div>
     );
   };
+  const renderPoStatus = () => (
+    <label className="badge badge-outline-accent">
+      <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending GRN
+    </label>
+  );
 
-
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
-
-    // Access the field value directly
-    const value = dataItem[field];
-
-    return (
-      <td>
-
-        <label className="badge badge-outline-accent">
-          <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending GRN
-        </label>
-
-        {/* {value} */}
-      </td>
-    );
-  };
+  const gridColumns = [
+    {
+      title: "reference",
+      dataIndex: "reference",
+      key: "reference",
+      width: 200,
+      render: renderReference,
+    },
+    {
+      title: "vendor",
+      dataIndex: "vendor",
+      key: "vendor",
+      width: 250,
+      sorter: (a, b) => (a.vendor || "").localeCompare(b.vendor || ""),
+    },
+    {
+      title: "total",
+      dataIndex: "total",
+      key: "total",
+      width: 250,
+    },
+    {
+      title: "PO Status",
+      dataIndex: "status_return",
+      key: "status_return",
+      width: 250,
+      render: renderPoStatus,
+    },
+    {
+      title: "Expected Arrival",
+      dataIndex: "expectedArrival",
+      key: "expectedArrival",
+      width: 200,
+    },
+    {
+      title: "Created Date",
+      dataIndex: "createdDate",
+      key: "createdDate",
+      width: 200,
+    },
+    {
+      title: "action",
+      key: "action",
+      width: 250,
+      render: renderAction,
+    },
+  ];
 
 
   return (
@@ -370,65 +359,17 @@ function RecvUpdate() {
             <div className="card">
               <div className="card-body p-0">
                 <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                  <div className="table-button-group mb-2 ms-auto">
-  
-                    <GridToolbar className="border-0 gap-0">
-                      <Tooltip title="Export to PDF">
-                        <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                          <i class="far fa-file-pdf d-flex f-s-20"></i>
-                        </button>
-                      </Tooltip>
-                      <Tooltip title=" Export to Excel">
-                        <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                          <i class="far fa-file-excel d-flex f-s-20"></i>
-                        </button>
-                      </Tooltip>
-                    </GridToolbar>
-                  </div>
+                  <div className="table-button-group mb-2 ms-auto"></div>
                 </div>
                 <div className="bg_succes_table_head rounded_table">
-                  <PDFExport data={data} ref={pdfExportRef}>
-                    <ExcelExport data={data} ref={excelExportRef} >
-                      <Grid
-                        data={process(data, dataState)}  // Add fallback for undefined data
-                        filterable={false}
-                        sortable
-                        scrollable="scrollable"
-                        reorderable
-                        resizable
-                        {...dataState}
-                        onDataStateChange={(e) => setDataState(e.dataState)}
-                        loading={loading}
-                        pageable={{ buttonCount: 3, pageSizes: true }}
-                      >
-  
-  
-                        {/* Column Definitions */}
-  
-                        <GridColumn field="reference"  cell={ReferenceCell} title="reference" filterable={false} filter="text" width="200px" />
-                        <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="250px" />
-                        {/* <GridColumn field="buyer" title="buyer" filterable={false} filter="text" width="200" /> */}
-                        <GridColumn field="total" title="total" filterable={false} filter="text" width="250px" />
-                        {/* <GridColumn field="orderDeadline" title="Order Deadline" filterable={false} filter="numeric" width="200px" /> */}
-                        {/* <GridColumn field="status" title="STATUS" filter="text" filterable={false} width="200" /> */}
-                        <GridColumn
-                          field="status_return"
-                          title="PO Status"
-                          filterable={false}
-                          filter="dropdown"
-                          width="250px"
-                          // filterCell={CustomDropDownFilter}
-                          cells={{
-                            data: CustomCell
-                          }}
-                        />
-                        <GridColumn field="expectedArrival" title="Expected Arrival" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
-                        <GridColumn field="createdDate" title="Created Date" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
-
-                        <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="250px" />
-                      </Grid>
-                    </ExcelExport>
-                  </PDFExport>
+                  <AntTable
+                    columns={gridColumns}
+                    dataSource={data}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ["10", "20", "50"] }}
+                    scroll={{ x: 1400 }}
+                  />
   
   
   

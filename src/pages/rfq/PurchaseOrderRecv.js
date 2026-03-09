@@ -36,7 +36,7 @@ import {
 import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
 import VendorSelect from "../filterComponents/VendorSelect";
 import ProductSelect from "../filterComponents/ProductSelect";
-// import { calculateTotalWeight } from "../../utils/weightConverter";
+import { calculateTotalWeight } from "../../utils/weightConverter";
 import { Tooltip } from "antd";
 
 function PurchaseOrderRecv() {
@@ -168,7 +168,22 @@ function PurchaseOrderRecv() {
       manufacture_date: "",
       expiry_date: "",
       qty: 0,
+      variant_id: null,
+      variantData: null,
     });
+
+    const targetProduct = newProducts[productIndex];
+    if (isProductBatchApplicable(targetProduct)) {
+      const batchQtySum = (targetProduct.batches || []).reduce(
+        (sum, b) => sum + (parseFloat(b.qty) || 0),
+        0
+      );
+      const qty = parseFloat(targetProduct.qty) || 0;
+      const received = parseFloat(targetProduct.received) || 0;
+      targetProduct.received_now = batchQtySum;
+      targetProduct.available_qty = qty - received - batchQtySum;
+    }
+
     setProducts(newProducts);
   };
 
@@ -177,21 +192,67 @@ function PurchaseOrderRecv() {
     newProducts[productIndex].batches = newProducts[productIndex].batches.filter(
       (_, i) => i !== batchIndex
     );
+
+    const targetProduct = newProducts[productIndex];
+    if (isProductBatchApplicable(targetProduct)) {
+      const batchQtySum = (targetProduct.batches || []).reduce(
+        (sum, b) => sum + (parseFloat(b.qty) || 0),
+        0
+      );
+      const qty = parseFloat(targetProduct.qty) || 0;
+      const received = parseFloat(targetProduct.received) || 0;
+      targetProduct.received_now = batchQtySum;
+      targetProduct.available_qty = qty - received - batchQtySum;
+    }
+
     setProducts(newProducts);
   };
 
   const handleBatchChange = (productIndex, batchIndex, field, value) => {
     const newProducts = [...products];
+    const productVariants = newProducts[productIndex]?.ProductsItem?.productVariants || [];
+    const targetProduct = newProducts[productIndex];
+    const existingBatch = targetProduct?.batches?.[batchIndex];
+    if (!existingBatch) return;
+
+    if (field === "variant_id") {
+      const selectedVariantId = value ? Number(value) : null;
+      const selectedVariant =
+        productVariants.find((variant) => Number(variant.id) === selectedVariantId) || null;
+      newProducts[productIndex].batches[batchIndex] = {
+        ...existingBatch,
+        variant_id: selectedVariantId,
+        variantData: selectedVariant,
+      };
+      setProducts(newProducts);
+      return;
+    }
+
     newProducts[productIndex].batches[batchIndex] = {
-      ...newProducts[productIndex].batches[batchIndex],
+      ...existingBatch,
       [field]: value,
     };
+
+    if (isProductBatchApplicable(targetProduct)) {
+      const batchQtySum = (targetProduct.batches || []).reduce(
+        (sum, b) => sum + (parseFloat(b.qty) || 0),
+        0
+      );
+      const qty = parseFloat(targetProduct.qty) || 0;
+      const received = parseFloat(targetProduct.received) || 0;
+      targetProduct.received_now = batchQtySum;
+      targetProduct.available_qty = qty - received - batchQtySum;
+    }
+
     setProducts(newProducts);
   };
 
   const handleProductQuantityChange = (productIndex, field, value) => {
     const newProducts = [...products];
     const product = newProducts[productIndex];
+    if (field === "received_now" && isProductBatchApplicable(product)) {
+      return;
+    }
     
     // Parse the received_now value (handle empty string as 0)
     const receivedNow = value === "" || value === null || value === undefined ? 0 : parseFloat(value) || 0;
@@ -249,12 +310,18 @@ function PurchaseOrderRecv() {
           errors[`received_${index}`] = "Received quantity is required.";
         } else if (batchApplicable && received > 0) {
           const hasValidBatch = batches.some(
-            (b) => b.batch_no && b.manufacture_date && b.expiry_date
+            (b) =>
+              b.batch_no &&
+              b.manufacture_date &&
+              b.expiry_date &&
+              (b.variant_id || b.variantData?.id) &&
+              (parseFloat(b.qty) || 0) > 0
           );
           const batchQtySum = batches.reduce((sum, b) => sum + (parseFloat(b.qty) || 0), 0);
   
           if (!hasValidBatch) {
-            errors[`batch_${index}`] = "At least one batch (Batch No., Manufacture Date, Expiry Date) is required.";
+            errors[`batch_${index}`] =
+              "At least one valid batch (Variant, Batch No., Manufacture Date, Expiry Date, Qty) is required.";
           } else if (Math.abs(batchQtySum - received) > 0.01) {
             errors[`batch_${index}`] = `Sum of batch quantities (${batchQtySum}) must equal received (${received}).`;
           }
@@ -287,6 +354,7 @@ function PurchaseOrderRecv() {
           manufacture_date: b.manufacture_date,
           expiry_date: b.expiry_date,
           quantity: parseFloat(b.qty) || 0,
+          variant_id: b.variant_id || b.variantData?.id || null,
         }));
         return {
           ...product,
@@ -715,6 +783,7 @@ function PurchaseOrderRecv() {
                               <th>Unit Price</th>
                               <th>Tax (%)</th>
                               <th>Total</th>
+                              <th>Total Weight</th>
                               <th style={{ width: "210px" }}>Batches</th>
                             </tr>
                           </thead>
@@ -808,6 +877,7 @@ function PurchaseOrderRecv() {
                                       name="received_now"
                                       min="0"
                                       value={product.received_now || 0}
+                                      disabled={isProductBatchApplicable(product)}
                                       onChange={(e) =>
                                         handleProductQuantityChange(
                                           index,
@@ -852,6 +922,7 @@ function PurchaseOrderRecv() {
                                 <td>{product.unit_price || 0}</td>
                                 <td>{product.tax || 0}%</td>
                                 <td>{product.taxIncl || 0}</td>
+                                <td>{calculateTotalWeight(product.qty, product.variantData?.weight_per_unit, product.variantData?.masterUOM?.label).value} {calculateTotalWeight(product.received_now, product.variantData?.weight_per_unit, product.variantData?.masterUOM?.label).unit}</td>
                                 <td className="align-middle" style={{ whiteSpace: "nowrap" }}>
                                   {isProductBatchApplicable(product) ? (
                                   <div className="d-flex align-items-center gap-1 flex-wrap">
@@ -901,12 +972,12 @@ function PurchaseOrderRecv() {
                               {expandedBatchIndex === index && (
                                 <tr key={`batch-${index}`}>
                                   <td 
-                                  colSpan="9" 
+                                  colSpan="10" 
                                   className="p-0 bg-light"
                                   >
                                     <div className="p-3">
                                       <p className="small text-muted mb-2">
-                                        Add new batch entries. Sum of batch quantities must equal Receive Quantity ({product.received ?? 0}). Existing batches are read-only (view via icon above).
+                                        Add new batch entries. Select variant first, then enter batch details. Sum of batch quantities must equal Receive Quantity ({product.received ?? 0}). Existing batches are read-only (view via icon above).
                                       </p>
                                       {(product.batches || []).length === 0 ? (
                                         <button
@@ -922,21 +993,43 @@ function PurchaseOrderRecv() {
                                             <table className="table table-sm table-bordered">
                                               <thead>
                                                 <tr>
+                                                  <th>Select Variant</th>
                                                   <th>Batch No.</th>
                                                   <th>Manufacture Date</th>
                                                   <th>Expiry Date</th>
                                                   <th style={{ width: "200px" }}>Qty</th>
+                                                  <th>Total Weight</th>
                                                   <th style={{ width: "50px" }}></th>
                                                 </tr>
                                               </thead>
                                               <tbody>
                                                 {(product.batches || []).map((batch, batchIdx) => (
                                                   <tr key={batchIdx}>
+                               
+                                                    <td>
+                                                      <select className="form-control form-control-sm"
+                                                      value={batch.variant_id || ""}
+                                                      onChange={(e) =>
+                                                        handleBatchChange(
+                                                          index,
+                                                          batchIdx,
+                                                          "variant_id",
+                                                          e.target.value
+                                                        )
+                                                      }>
+                                                        <option value="">Select Variant</option>
+                                                        {(product.ProductsItem?.productVariants || []).map((variant) => (
+                                                          <option key={variant.id} value={variant.id}>{variant.weight_per_unit} {variant.masterUOM?.label || ''}</option>
+                                                        ))}
+                                                      </select>
+                                                    </td>
+
                                                     <td>
                                                       <input
                                                         type="text"
                                                         className="form-control form-control-sm"
                                                         value={batch.batch_no || ""}
+                                                        disabled={!batch.variant_id}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -948,11 +1041,13 @@ function PurchaseOrderRecv() {
                                                         placeholder="Batch No."
                                                       />
                                                     </td>
+
                                                     <td>
                                                       <input
                                                         type="date"
                                                         className="form-control form-control-sm"
                                                         value={batch.manufacture_date || ""}
+                                                        disabled={!batch.variant_id}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -968,6 +1063,7 @@ function PurchaseOrderRecv() {
                                                         type="date"
                                                         className="form-control form-control-sm"
                                                         value={batch.expiry_date || ""}
+                                                        disabled={!batch.variant_id}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -984,6 +1080,7 @@ function PurchaseOrderRecv() {
                                                         className="form-control form-control-sm"
                                                         min="0"
                                                         value={batch.qty || ""}
+                                                        disabled={!batch.variant_id}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -994,6 +1091,28 @@ function PurchaseOrderRecv() {
                                                         }
                                                         placeholder="0"
                                                       />
+                                                    </td>
+                                                    <td>
+                                                      {(batch.variantData ||
+                                                        (product.ProductsItem?.productVariants || []).find(
+                                                          (variant) =>
+                                                            Number(variant.id) === Number(batch.variant_id)
+                                                        ))
+                                                        ? (() => {
+                                                            const activeVariant =
+                                                              batch.variantData ||
+                                                              (product.ProductsItem?.productVariants || []).find(
+                                                                (variant) =>
+                                                                  Number(variant.id) === Number(batch.variant_id)
+                                                              );
+                                                            const converted = calculateTotalWeight(
+                                                              batch.qty,
+                                                              activeVariant?.weight_per_unit,
+                                                              activeVariant?.masterUOM?.label
+                                                            );
+                                                            return `${converted.value} ${converted.unit}`.trim();
+                                                          })()
+                                                        : "Select variant"}
                                                     </td>
                                                     <td>
                                                       <button
@@ -1118,7 +1237,9 @@ function PurchaseOrderRecv() {
                   <th>Batch No.</th>
                   <th>Manufacture Date</th>
                   <th>Expiry Date</th>
+                  <th>Weight Per Unit</th>
                   <th>Quantity</th>
+                  <th>Total Weight</th>
                 </tr>
               </thead>
               <tbody>
@@ -1127,7 +1248,9 @@ function PurchaseOrderRecv() {
                     <td>{batch.batch_no ?? "—"}</td>
                     <td>{batch.manufacture_date ? moment(batch.manufacture_date).format("DD/MM/YYYY") : "—"}</td>
                     <td>{batch.expiry_date ? moment(batch.expiry_date).format("DD/MM/YYYY") : "—"}</td>
+                    <td>{batch.productVariant?.weight_per_unit} {batch.productVariant?.masterUOM?.label || ''}</td>
                     <td>{batch.quantity ?? batch.qty ?? "—"}</td>
+                    <td>{calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).value} {calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).unit}</td>
                   </tr>
                 ))}
               </tbody>

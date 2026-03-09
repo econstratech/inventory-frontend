@@ -2,11 +2,8 @@ import React, { useEffect, useState } from "react";
 import {
   Grid,
   GridColumn,
-  GridToolbar,
 } from "@progress/kendo-react-grid";
 import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
 
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -113,21 +110,6 @@ const StatusCell = (props) => {
     TaskData();
   }, []);
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
-
   const ActionCell = (props) => {
     const { dataItem } = props;
     return (
@@ -160,95 +142,78 @@ const StatusCell = (props) => {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-3 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className="table-export-btn" onClick={handleExportPDF}>
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className="table-export-btn" onClick={handleExportExcel}>
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
+                <div className="table-button-group mb-2 ms-auto"></div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport ref={pdfExportRef}>
-                      <ExcelExport data={data} ref={excelExportRef}>
-                      <Grid
-                      data={process(data, dataState)}  // Add fallback for undefined data
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      {...dataState}
-                      onDataStateChange={(e) => setDataState(e.dataState)}
-                      loading={loading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-                          <GridColumn
-                            field="slNo"
-                            title="Sl No."
-                            filter="text"
-                            width="100px"
-                            filterable={false}
-                          />
-                          <GridColumn
-                            field="reference"
-                            title="Reference"
-                            filter="text"
-                            width="250px"
-                          />
-                          <GridColumn
-                            field="vendor"
-                            title="Vendor"
-                            filter="text"
-                            width="250px"
-                          />
-                          <GridColumn
-                            field="buyer"
-                            title="Buyer"
-                            filter="text"
-                            width="250px"
-                          />
-                          <GridColumn
-                            field="expectedArrival"
-                            title="Expected Arrival"
-                            filter="text"
-                            width="250px"
-                          />
-                          <GridColumn
-                            field="store"
-                            title="Store"
-                            filter="text"
-                            width="250px"
-                          />
-                          <GridColumn
-                            field="total"
-                            title="Total"
-                            filter="text"
-                            width="150px"
-                          />
-                         <GridColumn
-                          field="status_return"
-                          title="Status"
-                          width="180px"
-                          cell={StatusCell} // Use custom cell renderer
-                        />
-                          <GridColumn
-                            title="Action"
-                            filter="text"
-                            cell={ActionCell}
-                            filterable={false}
-                            width="150px"
-                          />
-                        </Grid>
-                      </ExcelExport>
-                    </PDFExport>
+                <Grid
+                  data={process(data, dataState)}  // Add fallback for undefined data
+                  filterable={false}
+                  sortable
+                  scrollable="scrollable"
+                  reorderable
+                  resizable
+                  {...dataState}
+                  onDataStateChange={(e) => setDataState(e.dataState)}
+                  loading={loading}
+                  pageable={{ buttonCount: 3, pageSizes: true }}
+                >
+                  <GridColumn
+                    field="slNo"
+                    title="Sl No."
+                    filter="text"
+                    width="100px"
+                    filterable={false}
+                  />
+                  <GridColumn
+                    field="reference"
+                    title="Reference"
+                    filter="text"
+                    width="250px"
+                  />
+                  <GridColumn
+                    field="vendor"
+                    title="Vendor"
+                    filter="text"
+                    width="250px"
+                  />
+                  <GridColumn
+                    field="buyer"
+                    title="Buyer"
+                    filter="text"
+                    width="250px"
+                  />
+                  <GridColumn
+                    field="expectedArrival"
+                    title="Expected Arrival"
+                    filter="text"
+                    width="250px"
+                  />
+                  <GridColumn
+                    field="store"
+                    title="Store"
+                    filter="text"
+                    width="250px"
+                  />
+                  <GridColumn
+                    field="total"
+                    title="Total"
+                    filter="text"
+                    width="150px"
+                  />
+                  <GridColumn
+                    field="status_return"
+                    title="Status"
+                    width="180px"
+                    cell={StatusCell} // Use custom cell renderer
+                  />
+                  <GridColumn
+                    title="Action"
+                    filter="text"
+                    cell={ActionCell}
+                    filterable={false}
+                    width="150px"
+                  />
+                </Grid>
 
 
               </div>

@@ -10,6 +10,7 @@ import { PrivateAxios } from "../../environment/AxiosInstance";
 const initialTransferItem = {
   key: 1,
   itemId: null,
+  selectedVariantId: null,
   itemName: "",
   defaultPrice: 0,
   currentQuantity: "",
@@ -22,6 +23,7 @@ const initialTransferItem = {
   transferQuantity: "",
   itemUnit: "",
   disableTransferQuantity: true,
+  availableVariants: [],
   batchesLoading: false,
   availableBatches: [],
   batchQuantities: {},
@@ -46,6 +48,17 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
   const [salesOrderSearchLoading, setSalesOrderSearchLoading] = useState(false);
   const [stores, setStores] = useState([]);
   const [products, setProducts] = useState([]);
+  const [productsPagination, setProductsPagination] = useState({
+    totalRecords: 0,
+    totalPages: 1,
+    currentPage: 1,
+    perPage: 25,
+    hasNextPage: false,
+    hasPrevPage: false,
+    nextPage: null,
+    prevPage: null,
+  });
+  const [productsLoading, setProductsLoading] = useState(false);
 
   const fgStore = useMemo(
     () => stores.find((s) => Number(s.is_fg_store) === 1 || String(s.is_fg_store) === "1"),
@@ -93,23 +106,129 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     }
   }, [show, transferType, fgStore]);
 
-  const FetchProduct = (fromStoreId = null, page = 1, limit = 25) => {
+  const getActiveStoreId = () =>
+    transferType === "add_to_stock"
+      ? toStore?.id ?? toStore?.value ?? null
+      : fromStore?.id ?? fromStore?.value ?? null;
+
+  const mapStorewiseProducts = (rows = []) =>
+    (Array.isArray(rows) ? rows : []).map((row) => {
+      const stockEntries = Array.isArray(row?.productStockEntries)
+        ? row.productStockEntries
+        : [];
+      const variantsMap = new Map();
+      stockEntries.forEach((entry) => {
+        const variant = entry?.productVariant;
+        if (!variant?.id) return;
+        const variantId = String(variant.id);
+        const qty = Number(entry?.quantity) || 0;
+        const variantUnit =
+          variant?.masterUOM?.label || variant?.masterUOM?.name || "";
+        const variantLabel = `${variant?.weight_per_unit ?? ""} ${variantUnit}`.trim();
+        if (!variantsMap.has(variantId)) {
+          variantsMap.set(variantId, {
+            value: variant.id,
+            label: variantLabel || `Variant #${variant.id}`,
+            quantity: qty,
+            itemUnit: variantUnit,
+          });
+        } else {
+          const prev = variantsMap.get(variantId);
+          variantsMap.set(variantId, {
+            ...prev,
+            quantity: (Number(prev.quantity) || 0) + qty,
+          });
+        }
+      });
+      const availableVariants = Array.from(variantsMap.values());
+      const availableQty = stockEntries.reduce(
+        (sum, entry) => sum + (Number(entry?.quantity) || 0),
+        0
+      );
+      const firstVariant = stockEntries[0]?.productVariant;
+      const itemUnit =
+        firstVariant?.masterUOM?.label || firstVariant?.masterUOM?.name || "";
+
+      return {
+        value: row?.id,
+        label: `${row?.product_name || ""} (${row?.product_code || ""})`,
+        product: {
+          id: row?.id,
+          product_name: row?.product_name || "",
+          product_code: row?.product_code || "",
+          is_batch_applicable: row?.is_batch_applicable ?? 0,
+        },
+        quantity: availableQty,
+        itemUnit,
+        availableVariants,
+        productStockEntries: stockEntries,
+      };
+    });
+
+  const FetchProduct = async (fromStoreId = null, page = 1, limit = 25, append = false) => {
     if (!fromStoreId) {
       setProducts([]);
+      setProductsPagination({
+        totalRecords: 0,
+        totalPages: 1,
+        currentPage: 1,
+        perPage: limit,
+        hasNextPage: false,
+        hasPrevPage: false,
+        nextPage: null,
+        prevPage: null,
+      });
       return;
     }
     const params = { page, limit };
     const queryParams = new URLSearchParams(params).toString();
-    PrivateAxios.get(`/product/storewise-all-products/${fromStoreId}?${queryParams}`)
-      .then((response) => setProducts(response.data?.data?.rows ?? []))
-      .catch(() => setProducts([]));
+    setProductsLoading(true);
+    try {
+      const response = await PrivateAxios.get(
+        `/product/storewise-all-products/${fromStoreId}?${queryParams}`
+      );
+      const data = response.data?.data || {};
+      const pagination = data?.pagination || {};
+      const mappedRows = mapStorewiseProducts(data?.rows || []);
+
+      setProducts((prev) => {
+        if (!append) return mappedRows;
+        const existingIds = new Set(prev.map((item) => String(item.value)));
+        const uniqueNewRows = mappedRows.filter(
+          (item) => !existingIds.has(String(item.value))
+        );
+        return [...prev, ...uniqueNewRows];
+      });
+
+      setProductsPagination({
+        totalRecords: Number(pagination?.total_records) || 0,
+        totalPages: Number(pagination?.total_pages) || 1,
+        currentPage: Number(pagination?.current_page) || page,
+        perPage: Number(pagination?.per_page) || limit,
+        hasNextPage: Boolean(pagination?.has_next_page),
+        hasPrevPage: Boolean(pagination?.has_prev_page),
+        nextPage: pagination?.next_page ?? null,
+        prevPage: pagination?.prev_page ?? null,
+      });
+    } catch (e) {
+      setProducts([]);
+      setProductsPagination({
+        totalRecords: 0,
+        totalPages: 1,
+        currentPage: 1,
+        perPage: limit,
+        hasNextPage: false,
+        hasPrevPage: false,
+        nextPage: null,
+        prevPage: null,
+      });
+    } finally {
+      setProductsLoading(false);
+    }
   };
 
   useEffect(() => {
-    const storeId =
-      transferType === "add_to_stock"
-        ? toStore?.id ?? toStore?.value ?? toStore
-        : fromStore?.id ?? fromStore?.value ?? fromStore;
+    const storeId = getActiveStoreId();
     if (storeId) FetchProduct(storeId);
     else setProducts([]);
   }, [fromStore, toStore, transferType]);
@@ -173,6 +292,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         return {
           key: baseKey + i,
           itemId: product.id,
+          selectedVariantId: null,
           itemName: product.product_name || "",
           product: { ...product, is_batch_applicable: product.is_batch_applicable },
           availableQuantity: availableQty,
@@ -184,6 +304,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           itemID: product.id,
           defaultPrice: Number(rp.unit_price) || 0,
           itemUnit: "",
+          availableVariants: [],
           currentQuantity: String(availableQty),
           finalQuantity: "",
           changeQuantity: 1,
@@ -243,6 +364,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         return {
           key: baseKey + i,
           itemId: productId,
+          selectedVariantId: null,
           itemName: product.product_name || sp.description || "",
           product,
           availableQuantity: qty,
@@ -254,6 +376,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           itemID: productId,
           defaultPrice: Number(sp.unit_price) || 0,
           itemUnit: "",
+          availableVariants: [],
           currentQuantity: String(qty),
           finalQuantity: "",
           changeQuantity: 1,
@@ -328,6 +451,18 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
 
   const handleProductChangeUpdate = (selectedProductId, key) => {
     if (selectedProductId == null) return;
+    if (selectedProductId.value === "__load_more__") {
+      const storeId = getActiveStoreId();
+      if (storeId && productsPagination.hasNextPage) {
+        FetchProduct(
+          storeId,
+          productsPagination.nextPage || productsPagination.currentPage + 1,
+          productsPagination.perPage || 25,
+          true
+        );
+      }
+      return;
+    }
     const storeId =
       transferType === "add_to_stock"
         ? toStore?.id ?? toStore?.value
@@ -336,37 +471,25 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     const updatedItems = transferItems.map((item) => {
       if (item.key !== key) return item;
       const selectedProduct = products.find(
-        (ps) => parseInt(ps.product?.id) === parseInt(selectedProductId.value)
+        (ps) => parseInt(ps.value) === parseInt(selectedProductId.value)
       );
 
       if (!selectedProduct || storeId == null) return item;
       let availableQty = Number(selectedProduct.quantity);
       if (
         !Number.isFinite(availableQty) &&
-        Array.isArray(selectedProduct.TrackProductStock)
+        Array.isArray(selectedProduct.productStockEntries)
       ) {
-        const inQty = selectedProduct.TrackProductStock
-          .filter(
-            (s) =>
-              Number(s.store_id) === Number(storeId) &&
-              String(s.status_in_out) === "1"
-          )
-          .reduce((sum, s) => sum + (Number(s.quantity_changed) || 0), 0);
-        const outQty = selectedProduct.TrackProductStock
-          .filter(
-            (s) =>
-              Number(s.store_id) === Number(storeId) &&
-              String(s.status_in_out) === "0"
-          )
-          .reduce((sum, s) => sum + (Number(s.quantity_changed) || 0), 0);
-        availableQty = Math.max(0, inQty - outQty);
+        availableQty = selectedProduct.productStockEntries.reduce(
+          (sum, s) => sum + (Number(s?.quantity) || 0),
+          0
+        );
       }
       availableQty = Number.isFinite(availableQty) ? availableQty : 0;
-      const product = selectedProduct.product || selectedProduct;
-      const itemUnit =
-        selectedProduct.Masteruom?.unit_name ||
-        selectedProduct.product?.Masteruom?.unit_name ||
-        "";
+      const product = selectedProduct.product;
+      const availableVariants = Array.isArray(selectedProduct.availableVariants)
+        ? selectedProduct.availableVariants
+        : [];
       const isBatchApplicable = Number(product?.is_batch_applicable) === 1;
       if (transferType === "scrap_items" && isBatchApplicable) {
         batchFetchProductId = product.id;
@@ -374,19 +497,19 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       return {
         ...item,
         itemId: product.id,
+        selectedVariantId: null,
         itemName: product.product_name || "",
         product,
-        availableQuantity: availableQty,
-        transferQuantity:
-          isBatchApplicable && transferType === "scrap_items" ? "0" : "",
-        currentQuantity: String(availableQty),
+        availableQuantity: "",
+        transferQuantity: "",
+        currentQuantity: "",
         finalQuantity: "",
-        itemUnit,
+        itemUnit: "",
         defaultPrice: selectedProduct.product_price ?? 0,
         storeId,
         itemID: product.id,
-        disableTransferQuantity:
-          (isBatchApplicable && transferType === "scrap_items") || availableQty <= 0,
+        disableTransferQuantity: true,
+        availableVariants,
         batchesLoading: false,
         availableBatches: [],
         batchQuantities: {},
@@ -404,6 +527,40 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         return next;
       });
     }
+  };
+
+  const handleVariantChange = (selectedVariant, key) => {
+    setTransferItems((prev) =>
+      prev.map((item) => {
+        if (item.key !== key) return item;
+        if (!selectedVariant || selectedVariant.value == null) {
+          return {
+            ...item,
+            selectedVariantId: null,
+            availableQuantity: "",
+            currentQuantity: "",
+            transferQuantity: "",
+            itemUnit: "",
+            disableTransferQuantity: true,
+          };
+        }
+
+        const availableQty = Number(selectedVariant.quantity) || 0;
+        const isBatchApplicable = Number(item?.product?.is_batch_applicable) === 1;
+        return {
+          ...item,
+          selectedVariantId: selectedVariant.value,
+          availableQuantity: availableQty,
+          currentQuantity: String(availableQty),
+          transferQuantity:
+            isBatchApplicable && transferType === "scrap_items" ? "0" : "",
+          itemUnit: selectedVariant.itemUnit || "",
+          disableTransferQuantity:
+            (isBatchApplicable && transferType === "scrap_items") || availableQty <= 0,
+          batchQuantities: {},
+        };
+      })
+    );
   };
 
   const handleInputChange = (index, field, value) => {
@@ -526,6 +683,14 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     if (transferType === "stock_transfer" || transferType === "sales_order_return") {
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
+        if (
+          Array.isArray(item.availableVariants) &&
+          item.availableVariants.length > 0 &&
+          !item.selectedVariantId
+        ) {
+          ErrorMessage(`Please select a variant for ${item.itemName || "item"}.`);
+          return;
+        }
         const transferQty = Number(item.transferQuantity) || 0;
         const availableQty = Number(item.availableQuantity) || 0;
         if (
@@ -547,6 +712,14 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     } else if (transferType === "add_to_stock") {
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
+        if (
+          Array.isArray(item.availableVariants) &&
+          item.availableVariants.length > 0 &&
+          !item.selectedVariantId
+        ) {
+          ErrorMessage(`Please select a variant for ${item.itemName || "item"}.`);
+          return;
+        }
         const transferQty = Number(item.transferQuantity);
         if (!Number.isFinite(transferQty) || transferQty <= 0) {
           ErrorMessage(
@@ -558,6 +731,14 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     } else if (transferType === "scrap_items") {
       for (let i = 0; i < validItems.length; i++) {
         const item = validItems[i];
+        if (
+          Array.isArray(item.availableVariants) &&
+          item.availableVariants.length > 0 &&
+          !item.selectedVariantId
+        ) {
+          ErrorMessage(`Please select a variant for ${item.itemName || "item"}.`);
+          return;
+        }
         const isBatchApplicable = Number(item?.product?.is_batch_applicable) === 1;
         if (isBatchApplicable) {
           const batches = Array.isArray(item.availableBatches) ? item.availableBatches : [];
@@ -616,6 +797,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       transfer_type: transferType,
       products: validItems.map((item) => ({
         id: item.itemID ?? item.product?.id,
+        product_variant_id: item.selectedVariantId ?? null,
         warehouse_id: item?.product?.warehouse_id ?? null,
         transferred_quantity: Number(item.transferQuantity) || 0,
         is_batch_applicable: Number(item?.product?.is_batch_applicable) === 1,
@@ -777,10 +959,22 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
                   : null
               }
               onChange={(e) => handleProductChangeUpdate(e.value, record.key)}
-              data={products.map((stockEntry) => ({
-                value: stockEntry.product.id,
-                label: `${stockEntry.product.product_name} (${stockEntry.product.product_code})`,
-              }))}
+              data={[
+                ...products.map((productOption) => ({
+                  value: productOption.value,
+                  label: productOption.label,
+                })),
+                ...(productsPagination.hasNextPage
+                  ? [
+                      {
+                        value: "__load_more__",
+                        label: productsLoading
+                          ? "Loading..."
+                          : "Load more products...",
+                      },
+                    ]
+                  : []),
+              ]}
               textField="label"
               valueField="value"
             />
@@ -801,6 +995,33 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
             title={record.itemName}
           />
         ),
+      },
+      {
+        title: "Variant",
+        dataIndex: "selectedVariantId",
+        key: "selectedVariantId",
+        width: 220,
+        render: (_, record) => {
+          const variants = Array.isArray(record.availableVariants)
+            ? record.availableVariants
+            : [];
+          const selectedVariant =
+            variants.find((v) => String(v.value) === String(record.selectedVariantId)) || null;
+          return (
+            <div className="custom-select-wrap">
+              <DropDownList
+                className="custom_keno_dropdown"
+                value={selectedVariant}
+                placeholder="Select Variant"
+                onChange={(e) => handleVariantChange(e.value, record.key)}
+                data={variants ?? [{ value: null, label: "No variants available" }]}
+                textField="label"
+                valueField="value"
+                disabled={!record.itemId || variants.length === 0}
+              />
+            </div>
+          );
+        },
       },
       {
         title: "Available Quantity",
@@ -826,6 +1047,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
             <Input
               type="number"
               value={record.transferQuantity}
+              placeholder="Enter Qty"
               onChange={(e) =>
                 handleInputChange(index, "transferQuantity", e.target.value)
               }
@@ -836,7 +1058,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
               }}
               disabled={record.disableTransferQuantity}
             />
-            <span>{record.itemUnit}</span>
+            {/* <span>{record.itemUnit}</span> */}
             <br />
             {rowErrors[index] === "exceed" && (
               <div style={{ color: "red", marginTop: "5px" }}>
@@ -1118,18 +1340,6 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
                 rowKey={(record, index) => record.key ?? index}
                 pagination={{ pageSize: 10, current: 1 }}
                 expandable={transferTableExpandable}
-                onChange={(pagination) => {
-                  const storeId =
-                    transferType === "add_to_stock"
-                      ? toStore?.id ?? toStore?.value
-                      : fromStore?.id ?? fromStore?.value;
-                  if (storeId && pagination)
-                    FetchProduct(
-                      storeId,
-                      pagination.current ?? 1,
-                      pagination.pageSize ?? 10
-                    );
-                }}
               />
             </div>
 
