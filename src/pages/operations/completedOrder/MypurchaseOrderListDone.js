@@ -21,11 +21,8 @@ import { useTable, useExpanded } from 'react-table';
 import {
   Grid,
   GridColumn,
-  GridToolbar,
 } from "@progress/kendo-react-grid";
 // import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
 import { Tooltip } from "antd";
 import OperationsPageTopBar from "../OperationsPageTopBar";
 import PORemarksModalComponent from "../../ModalComponents/PORemarksModalComponent";
@@ -250,23 +247,6 @@ function MypurchaseOrderListDone() {
     TaskData(newPageState);
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-
-
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
-
   const StatusCell = (props) => {
     return (
       <td
@@ -439,60 +419,42 @@ function MypurchaseOrderListDone() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
+                <div className="table-button-group mb-2 ms-auto"></div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef} >
-                  <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      // filterable={false}
-                      sortable
-                      // scrollable="scrollable"
-                      // reorderable
-                      // resizable
-                      // {...dataState}
-                      onDataStateChange={(e) => setDataState(e.dataState)}
-                      loading={loading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-                      {/* Column Definitions */}
+                <Grid
+                  data={data}
+                  skip={pageState.skip}
+                  take={pageState.take}
+                  total={totalCount}
+                  onPageChange={handlePageChange}
+                  // filterable={false}
+                  sortable
+                  // scrollable="scrollable"
+                  // reorderable
+                  // resizable
+                  // {...dataState}
+                  onDataStateChange={(e) => setDataState(e.dataState)}
+                  loading={loading}
+                  pageable={{ buttonCount: 3, pageSizes: true }}
+                >
+                  {/* Column Definitions */}
 
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
+                  <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
 
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
-                      <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="created_by" title="created by" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="expected_arrival" title="Expected Arrival" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
-                      <GridColumn field="total" title="total" filterable={false} filter="text" width="250px" />
-                      <GridColumn
-                      field="status_return"
-                      title="Status"
-                      width="180px"
-                      cell={StatusCell} // Use custom cell renderer
-                      />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
+                  <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
+                  <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="200px" />
+                  <GridColumn field="created_by" title="created by" filterable={false} filter="text" width="200px" />
+                  <GridColumn field="expected_arrival" title="Expected Arrival" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
+                  <GridColumn field="total" title="total" filterable={false} filter="text" width="250px" />
+                  <GridColumn
+                    field="status_return"
+                    title="Status"
+                    width="180px"
+                    cell={StatusCell} // Use custom cell renderer
+                  />
+                  <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
+                </Grid>
 
 
 

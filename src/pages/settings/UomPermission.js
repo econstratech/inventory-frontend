@@ -146,7 +146,7 @@ function WarehousesPermission() {
                 </button>
               </div>
               <div className="card-body p-0">
-                <div className="">
+                <div className="p-3">
                   <Table responsive className="table-bordered primary-table-head">
                     <thead>
                       <tr>

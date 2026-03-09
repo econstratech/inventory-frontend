@@ -131,52 +131,53 @@ function Department() {
                                 {/* <button type='button' className="btn btn-exp-purple btn-sm" aria-controls="example-collapse-text" aria-expanded="false" onClick={filterModalShow}><i className="fas fa-filter me-2" ></i>Filter</button> */}
                             </div>
 
-
-                            <div className='compare_price_view_table'>
-                                <Table responsive className="table-bordered primary-table-head">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">SL.NO</th>
-                                            <th scope="col">Name</th>
-                                            <th scope="col">Status</th>
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {department.map((data, i) => (
+                            <div className='card-body'>
+                                <div className='compare_price_view_table'>
+                                    <Table responsive className="table-bordered primary-table-head">
+                                        <thead>
                                             <tr>
-                                                <td scope="row">{i + 1}</td>
-                                                <td>{data.title}</td>
-                                                <td>
-                                                    <div className='form-group mb-0'>
-                                                        <label className="custom-switch" >
-                                                            <input type="checkbox" checked={data.status == 1} onChange={(e) => statusChange(data, e)} />
-                                                            <div className="switch-slider switch-round" />
-                                                        </label>
-                                                    </div>
-                                                    {/* {
-                                            data.status == 1 ? <span className='badge bg-success'>Active</span> : <span className='badge bg-danger'>Inactive</span>
-                                        } */}
-                                                </td>
-                                                <td>
-                                                    <div className="d-flex">
-                                                        <Tooltip title='Edit'>
-                                                            <button type='button' onClick={() => { setDepartmentValue(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
-                                                                <i className='fas fa-pen'></i>
-                                                            </button>
-                                                        </Tooltip>
-
-                                                        <Tooltip title='Delete'>
-                                                            <button type='button' onClick={() => { setDeleteShow(true); setDeleteId(data.id) }} className="me-1 icon-btn" >
-                                                                <i class="fas fa-trash-alt text-danger f-s-14"></i>
-                                                            </button>
-                                                        </Tooltip>
-                                                    </div>
-                                                </td>
+                                                <th scope="col">SL.NO</th>
+                                                <th scope="col">Name</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Action</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </thead>
+                                        <tbody>
+                                            {department.map((data, i) => (
+                                                <tr>
+                                                    <td scope="row">{i + 1}</td>
+                                                    <td>{data.title}</td>
+                                                    <td>
+                                                        <div className='form-group mb-0'>
+                                                            <label className="custom-switch" >
+                                                                <input type="checkbox" checked={data.status == 1} onChange={(e) => statusChange(data, e)} />
+                                                                <div className="switch-slider switch-round" />
+                                                            </label>
+                                                        </div>
+                                                        {/* {
+                                                data.status == 1 ? <span className='badge bg-success'>Active</span> : <span className='badge bg-danger'>Inactive</span>
+                                            } */}
+                                                    </td>
+                                                    <td>
+                                                        <div className="d-flex">
+                                                            <Tooltip title='Edit'>
+                                                                <button type='button' onClick={() => { setDepartmentValue(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
+                                                                    <i className='fas fa-pen'></i>
+                                                                </button>
+                                                            </Tooltip>
+
+                                                            <Tooltip title='Delete'>
+                                                                <button type='button' onClick={() => { setDeleteShow(true); setDeleteId(data.id) }} className="me-1 icon-btn" >
+                                                                    <i class="fas fa-trash-alt text-danger f-s-14"></i>
+                                                                </button>
+                                                            </Tooltip>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -2,11 +2,8 @@ import React, { useEffect, useState } from "react";
 import {
   Grid,
   GridColumn,
-  GridToolbar,
 } from "@progress/kendo-react-grid";
 import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
 
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -455,24 +452,6 @@ function SendToManagement() {
   };
 
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (data && data.length > 0) {
-      excelExportRef.current.save();
-    } else {
-      alert("No data available for export.");
-    }
-  };
-
   const ActionCell = (props) => {
     const { dataItem } = props || {}; // Ensure props and dataItem exist
     if (!dataItem) return null;
@@ -612,37 +591,21 @@ function SendToManagement() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
+                <div className="table-button-group mb-2 ms-auto"></div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef} >
-                    <Grid
-                      data={process(data, dataState)}  // Add fallback for undefined data
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      {...dataState}
-                      onDataStateChange={(e) => setDataState(e.dataState)}
-                      loading={loading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
+                <Grid
+                  data={process(data, dataState)}  // Add fallback for undefined data
+                  filterable={false}
+                  sortable
+                  scrollable="scrollable"
+                  reorderable
+                  resizable
+                  {...dataState}
+                  onDataStateChange={(e) => setDataState(e.dataState)}
+                  loading={loading}
+                  pageable={{ buttonCount: 3, pageSizes: true }}
+                >
 
 
                       {/* Column Definitions */}
@@ -667,9 +630,7 @@ function SendToManagement() {
                         }}
                       />
                       <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
+                </Grid>
 
 
 

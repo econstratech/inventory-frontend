@@ -10,6 +10,7 @@ import { Tooltip } from 'antd';
 function Brands() {
     const [loading, setLoading] = useState(false);
     const [brands, setBrands] = useState([]);
+    const [searchBrandName, setSearchBrandName] = useState('');
     const [update, setUpdate] = useState(false)
     const [create, setCreate] = useState(false)
     const [deleteShow, setDeleteShow] = useState(false)
@@ -20,10 +21,17 @@ function Brands() {
         "description": ""
     })
 
-    const fetchBrands = async () => {
+    const fetchBrands = async (brandName = searchBrandName) => {
         setLoading(true)
         try {
-            const response = await PrivateAxios.get('/master/brand/list');
+            const queryParams = {};
+            if (brandName?.trim()) {
+                queryParams.brandName = brandName.trim();
+            }
+
+            const response = await PrivateAxios.get('/master/brand/list', {
+                params: queryParams,
+            });
             setLoading(false)
             setBrands(response.data.data);
         } catch (error) {
@@ -36,6 +44,15 @@ function Brands() {
     useEffect(() => {
         fetchBrands();
     }, [])
+
+    const handleSearchBrands = () => {
+        fetchBrands(searchBrandName);
+    };
+
+    const handleClearSearch = () => {
+        setSearchBrandName('');
+        fetchBrands('');
+    };
 
     const brandUpdateModelClose = () => {
         setUpdate(false);
@@ -117,12 +134,34 @@ function Brands() {
                     <SettingsPageTopBar />
                     <div className='p-4'>
                         <div className='card'>
-                            <div className='p-3 d-flex justify-content-end'>
+                            <div className='p-3 d-flex justify-content-end align-items-center gap-2'>
+                                <input
+                                    type='text'
+                                    className='form-control form-control-sm'
+                                    placeholder='Search brand'
+                                    value={searchBrandName}
+                                    onChange={(e) => setSearchBrandName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleSearchBrands();
+                                        }
+                                    }}
+                                    style={{ maxWidth: '220px' }}
+                                />
+                                <button type='button' onClick={handleSearchBrands} className='btn btn-sm btn-outline-secondary'>
+                                    Search
+                                </button>
+                                {searchBrandName && (
+                                    <button type='button' onClick={handleClearSearch} className='btn btn-sm btn-outline-secondary'>
+                                        Clear
+                                    </button>
+                                )}
                                 <button type='button' onClick={() => setCreate(true)} className='me-2 btn btn-sm btn-outline-primary ms-auto'>
                                     <i className='fas fa-plus me-2'></i>
                                     New
                                 </button>
                             </div>
+                            <div className='card-body'>
                             <div className='compare_price_view_table'>
                                 <Table responsive className="table-bordered primary-table-head">
                                     <thead>
@@ -158,6 +197,7 @@ function Brands() {
                                         ))}
                                     </tbody>
                                 </Table>
+                            </div>
                             </div>
                         </div>
                     </div>
