@@ -1037,22 +1037,22 @@ function EditMyPurchase() {
                           {error.products}
                         </Alert>
                       )}
-                      <div className="">
-                        <Table responsive className="table-bordered primary-table-head">
+                      <div className="table-responsive">
+                        <Table responsive className="table-bordered primary-table-head" style={{ minWidth: "1680px" }}>
                           <thead>
                             <tr>
-                              <th>Product</th>
-                              <th width="50px">Quantity</th>
-                              <th>Weight Per Unit</th>
-                              <th>Total Weight</th>
-                              <th>Unit Price</th>
-                              <th>Taxes (%)</th>
-                              <th>Tax Excl.</th>
-                              <th>Tax Amt.</th>
-                              <th>Total Amount</th>
+                              <th style={{ width: "300px" }}>Product</th>
+                              <th style={{ width: "130px" }}>Quantity</th>
+                              <th style={{ width: "170px" }}>Weight Per Unit</th>
+                              <th style={{ width: "150px" }}>Total Weight</th>
+                              <th style={{ width: "130px" }}>Unit Price</th>
+                              <th style={{ width: "120px" }}>Taxes (%)</th>
+                              <th style={{ width: "140px" }}>Tax Excl.</th>
+                              <th style={{ width: "140px" }}>Tax Amt.</th>
+                              <th style={{ width: "140px" }}>Total Amount</th>
                               <th style={{ width: "120px" }}>Batches</th>
                               {!isPOCompleted && (
-                                <th>Actions</th>
+                                <th style={{ width: "80px" }}>Actions</th>
                               )}
                             </tr>
                           </thead>
@@ -1200,23 +1200,25 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  <input
-                                    type="number"
-                                    name="qty"
-                                    value={product.qty}
-                                    disabled={isPOCompleted}
-                                    onChange={(e) =>
-                                      handleProductChange(
-                                        index,
-                                        "qty",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="form-control"
-                                  />
+                                  <div style={{ minWidth: "120px" }}>
+                                    <input
+                                      type="number"
+                                      name="qty"
+                                      value={product.qty}
+                                      disabled={isPOCompleted}
+                                      onChange={(e) =>
+                                        handleProductChange(
+                                          index,
+                                          "qty",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="form-control"
+                                    />
+                                  </div>
                                 </td>
                                 <td>
-                                  <div className="d-flex align-items-center gap-2">
+                                  <div className="d-flex align-items-center gap-2" style={{ minWidth: "160px" }}>
                                     <span>
                                       {(() => {
                                         const currentVariant = getCurrentVariant(product);
@@ -1237,62 +1239,78 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  {(() => {
-                                    const currentVariant = getCurrentVariant(product);
-                                    if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
-                                      const totalWeightResult = calculateTotalWeight(
-                                        product.qty,
-                                        currentVariant.weight_per_unit,
-                                        currentVariant.masterUOM.label
-                                      );
-                                      return totalWeightResult.display || 'N/A';
-                                    }
-                                    return 'N/A';
-                                  })()}
+                                  <div style={{ minWidth: "130px" }}>
+                                    {(() => {
+                                      const currentVariant = getCurrentVariant(product);
+                                      if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
+                                        const totalWeightResult = calculateTotalWeight(
+                                          product.qty,
+                                          currentVariant.weight_per_unit,
+                                          currentVariant.masterUOM.label
+                                        );
+                                        return totalWeightResult.display || 'N/A';
+                                      }
+                                      return 'N/A';
+                                    })()}
+                                  </div>
                                 </td>
                                 <td>
-                                  <input
-                                    type="number"
-                                    name="unit_price"
-                                    value={product.unit_price}
-                                    disabled={isPOCompleted}
-                                    onChange={(e) =>
-                                      handleProductChange(
-                                        index,
-                                        "unit_price",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="form-control"
-                                  />
+                                  <div style={{ minWidth: "120px" }}>
+                                    <input
+                                      type="number"
+                                      name="unit_price"
+                                      value={product.unit_price}
+                                      disabled={isPOCompleted}
+                                      onChange={(e) =>
+                                        handleProductChange(
+                                          index,
+                                          "unit_price",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="form-control"
+                                    />
+                                  </div>
                                 </td>
                                 <td>
-                                  <input
-                                    type="number"
-                                    name="tax"
-                                    value={product.tax}
-                                    disabled={isPOCompleted}
-                                    onChange={(e) =>
-                                      handleProductChange(
-                                        index,
-                                        "tax",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="form-control"
-                                  />
+                                  <div style={{ minWidth: "110px" }}>
+                                    <input
+                                      type="number"
+                                      name="tax"
+                                      value={product.tax}
+                                      disabled={isPOCompleted}
+                                      onChange={(e) =>
+                                        handleProductChange(
+                                          index,
+                                          "tax",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="form-control"
+                                    />
+                                  </div>
                                 </td>
-                                <td>{Number(product.taxExcl).toFixed(2) || 0}</td>
                                 <td>
-                                  <input
-                                  type="number"
-                                  className="form-control"
-                                  value={Number(product.taxAmount || 0).toFixed(2)}
-                                  disabled
-                                  onChange={(e) => handleProductChange(index, 'tax', e.target.value)}
-                                />
+                                  <div style={{ minWidth: "120px" }}>
+                                    {Number(product.taxExcl).toFixed(2) || 0}
+                                  </div>
                                 </td>
-                                <td>{Number(product.taxIncl).toFixed(2) || 0}</td>
+                                <td>
+                                  <div style={{ minWidth: "120px" }}>
+                                    <input
+                                      type="number"
+                                      className="form-control"
+                                      value={Number(product.taxAmount || 0).toFixed(2)}
+                                      disabled
+                                      onChange={(e) => handleProductChange(index, 'tax', e.target.value)}
+                                    />
+                                  </div>
+                                </td>
+                                <td>
+                                  <div style={{ minWidth: "120px" }}>
+                                    {Number(product.taxIncl).toFixed(2) || 0}
+                                  </div>
+                                </td>
                                 <td className="align-middle">
                                   {(product.existingBatches || []).length > 0 ? (
                                     <span

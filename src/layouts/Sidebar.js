@@ -568,6 +568,7 @@ function Sidebar() {
                                     className={`sidebar-nav-link 
                                       ${location.pathname === "/sales/quotation" ||
                                       location.pathname === "/sales/quotation/rejected" ||
+                                      (location.pathname.startsWith("/sales/") && location.pathname.split("/").length === 3) ||
                                       location.pathname === "/sales/quotation"
                                       ? "active" : ""
 

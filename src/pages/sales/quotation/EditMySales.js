@@ -27,7 +27,7 @@ import {
   ErrorMessage,
   SuccessMessage,
 } from "../../../environment/ToastMessage";
-import { UserAuth } from "../../auth/Auth";
+// import { UserAuth } from "../../auth/Auth";
 import {
   // AllUser,
   // AllCategories,
@@ -44,25 +44,24 @@ import StoreSelect from "../../filterComponents/StoreSelect";
 import ProductSelect from "../../filterComponents/ProductSelect";
 import CustomerSelect from "../../filterComponents/CustomerSelect";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
+import ProductVariantSelectionModal from "../../CommonComponent/ProductVariantSelectionModal";
+import { calculateTotalWeight } from "../../../utils/weightConverter";
 
 
 
 function EditMyPurchase() {
   const { id } = useParams();
-  // const [total, setTotal] = useState("");
-  const { getGeneralSettingssymbol } = UserAuth();
+
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+
   const [selectedOption, setSelectedOption] = useState("");
-  // const [isCheckedReminder, setIsCheckedReminder] = useState(false);
-  // const [isFileRequired, setIsFileRequired] = useState(false);
+
   const [error, setError] = useState({});
   const [alert, setAlert] = useState("");
   const [show, setShow] = useState(false);
-  // const [showPrice, setShowPrice] = useState(false);
-  // const [catProduct, setCategory] = useState([
-  //   { value: "select", label: "-Select-" },
-  // ]);
+
   const [products, setProducts] = useState([]);
-  // const [purchaseName, setPurchaseName] = useState("");
   const [vendorId, setVendor] = useState({});
   const [orderDeadline, setOrderDeadline] = useState("");
   const [vendorReference, setVendorReference] = useState("");
@@ -76,6 +75,16 @@ function EditMyPurchase() {
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
   const [store, setStore] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [currentProductIndex, setCurrentProductIndex] = useState(null);
+  const [currentProductId, setCurrentProductId] = useState(null);
+  const [variantModalBackup, setVariantModalBackup] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+    }
+  }, [user]);
 
 
   useEffect(() => {
@@ -84,7 +93,7 @@ function EditMyPurchase() {
         const response = await PrivateAxios.get(`/sales/sales/${id}`);
         const data = response.data.data;
 
-        setVendor({ customer_id: data.customer_id });
+        setVendor({ customer_id: data.customer.id });
         if (data.customer_id) {
           setSelectedCustomer(
             data.customer
@@ -99,7 +108,17 @@ function EditMyPurchase() {
         setSourceDocument(data.source_document);
         setPaymentTerms(data.payment_terms);
         // console.log("Products", data.products);
-        setProducts(data.products);
+        const mappedProducts = (data.products || []).map((product) => {
+          const variantData = product.variantData || product.productVariant || null;
+          const variant_id = product.variant_id || product.product_variant_id || variantData?.id || null;
+          return {
+            ...product,
+            productData: product.productData || product.ProductsItem || product.product || null,
+            variant_id,
+            variantData,
+          };
+        });
+        setProducts(mappedProducts);
         setStatus(data.status);
         // setExpectedDeliveryDate(moment(data.expected_delivery_date).format("DD/MM/YYYY"));
         setExpectedDeliveryDate(
@@ -198,10 +217,125 @@ function EditMyPurchase() {
         unit_price: 0,
         vendor_id: vendorId.customer_id,
         tax: 18,
-
+        productData: null,
+        variant_id: null,
+        variantData: null,
         taxExcl: 0, // Initialize taxExcl as a number
       },
     ]);
+  };
+
+  const updateProductWithData = (
+    productIndex,
+    productId,
+    selectedProductData,
+    variantId = null,
+    selectedVariantData = null
+  ) => {
+    setProducts((prevProducts) => {
+      const newProducts = [...prevProducts];
+      newProducts[productIndex] = {
+        ...newProducts[productIndex],
+        product_id: productId,
+        description: selectedProductData?.product_name || "",
+        unit_price: selectedProductData?.regular_selling_price || 0,
+        tax: selectedProductData?.tax || 18,
+        productData: selectedProductData || null,
+        variant_id: variantId,
+        variantData: selectedVariantData,
+      };
+
+      const qty = parseFloat(newProducts[productIndex].qty) || 0;
+      const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
+      const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
+      const taxExcl = qty * unitPrice;
+      const taxAmount = (taxExcl * taxRate) / 100;
+      const taxIncl = taxExcl + taxAmount;
+
+      newProducts[productIndex].taxExcl = taxExcl;
+      newProducts[productIndex].taxAmount = taxAmount;
+      newProducts[productIndex].taxIncl = taxIncl;
+      newProducts[productIndex].vendor_id = vendorId.customer_id;
+
+      return newProducts;
+    });
+  };
+
+  const fetchProductVariants = (productId, productIndex, selectedProductData) => {
+    const existingRow = products[productIndex];
+    setVariantModalBackup({
+      productIndex,
+      rowData: existingRow ? { ...existingRow } : null,
+    });
+
+    const existingVariantId =
+      existingRow?.variant_id ||
+      existingRow?.product_variant_id ||
+      existingRow?.variantData?.id ||
+      existingRow?.productVariant?.id ||
+      null;
+    updateProductWithData(productIndex, productId, selectedProductData, null, null);
+    if (existingVariantId) {
+      setProducts((prevProducts) => {
+        const next = [...prevProducts];
+        if (!next[productIndex]) return prevProducts;
+        next[productIndex] = {
+          ...next[productIndex],
+          variant_id: existingVariantId,
+        };
+        return next;
+      });
+    }
+    setCurrentProductIndex(productIndex);
+    setCurrentProductId(productId);
+    setShowVariantModal(true);
+  };
+
+  const handleVariantSelect = (variant, productIndex) => {
+    if (productIndex !== null && products[productIndex]) {
+      const rowProductData = products[productIndex].productData;
+      updateProductWithData(
+        productIndex,
+        rowProductData?.id || products[productIndex].product_id,
+        rowProductData,
+        variant.id,
+        variant
+      );
+    }
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  const handleVariantModalClose = (productIndex) => {
+    if (
+      variantModalBackup &&
+      variantModalBackup.productIndex === productIndex &&
+      variantModalBackup.rowData
+    ) {
+      setProducts((prevProducts) => {
+        const next = [...prevProducts];
+        next[productIndex] = variantModalBackup.rowData;
+        return next;
+      });
+    }
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  const handleContinueWithoutVariant = () => {
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  const getCurrentVariant = (product) => {
+    if (product?.variantData) return product.variantData;
+    return null;
   };
 
   const removeProduct = (index) => {
@@ -275,6 +409,7 @@ function EditMyPurchase() {
       const updatedProducts = products.map((product) => ({
         ...product,
         customer_id: vendorId.customer_id,
+        product_variant_id: product.variant_id || null,
       }));
       const data = {
         customer_id: vendorId.customer_id,
@@ -296,16 +431,14 @@ function EditMyPurchase() {
         total_amount: totalAmount.toFixed(2),
       };
 
-      // console.log("Payload Data", data);
-
       const response = await PrivateAxios.put(`sales/update/${id}`, data);
 
       if (response.status === 200) {
-        SuccessMessage("Quotation has been successfully updated.");
+        SuccessMessage("Sales order has been updated successfully.");
         navigate("/sales/quotation");
       } else {
         console.log(response.status);
-        ErrorMessage("Failed to update quotation");
+        ErrorMessage("Failed to update sales order");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -375,7 +508,7 @@ function EditMyPurchase() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">
-              Quotation Update 
+              Sales Order Update 
               (<span className="text-primary">{vendorReference}</span>)
             </h3>
           </div>
@@ -522,6 +655,8 @@ function EditMyPurchase() {
                               <th>Product</th>
                               <th>Description</th>
                               <th>Quantity</th>
+                              <th>Weight Per Unit</th>
+                              <th>Total Weight</th>
                               <th>Unit Price</th>
                               <th>Taxes (%)</th>
                               <th>Tax Excl.</th>
@@ -532,41 +667,15 @@ function EditMyPurchase() {
                             {products.map((product, index) => (
                               <tr key={index}>
                                 <td>
-                                  <div style={{ minWidth: "350px" }} className="d-flex align-items-center gap-2">
+                                  <div style={{ minWidth: "350px" }} className="d-flex align-items-start gap-2">
                                     <div style={{ flex: 1 }}>
                                       <ProductSelect
                                         value={product.product_id}
                                         onChange={(selectedOption) => {
                                           if (selectedOption) {
                                             const selectedProduct = selectedOption.productData;
-                                            // console.log("Selected Product", selectedProduct);
-                                            handleProductChange(index, "product_id", selectedOption.value);
-                                            // Update unit_price and tax from selected product
                                             if (selectedProduct) {
-                                              const newProducts = [...products];
-                                              newProducts[index] = {
-                                                ...newProducts[index],
-                                                product_id: selectedOption.value,
-                                                unit_price: selectedProduct.regular_buying_price || 0,
-                                                tax: selectedProduct.tax || 18,
-                                                description: selectedProduct.product_name || "",
-                                                productData: selectedProduct,
-                                              };
-                                              
-                                              const qty = parseFloat(newProducts[index].qty) || 0;
-                                              const unitPrice = parseFloat(newProducts[index].unit_price) || 0;
-                                              const taxRate = parseFloat(newProducts[index].tax) || 0;
-                                              
-                                              const taxExcl = qty * unitPrice;
-                                              const taxAmount = (taxExcl * taxRate) / 100;
-                                              const taxIncl = taxExcl + taxAmount;
-                                              
-                                              newProducts[index].taxExcl = taxExcl;
-                                              newProducts[index].taxAmount = taxAmount;
-                                              newProducts[index].taxIncl = taxIncl;
-                                              newProducts[index].vendor_id = vendorId.customer_id;
-                                              
-                                              setProducts(newProducts);
+                                              fetchProductVariants(selectedOption.value, index, selectedProduct);
                                             }
                                           } else {
                                             // Handle clear selection
@@ -577,12 +686,11 @@ function EditMyPurchase() {
                                               unit_price: 0,
                                               tax: 18,
                                               productData: null,
+                                              variant_id: null,
+                                              variantData: null,
                                             };
                                             setProducts(newProducts);
                                           }
-                                        }}
-                                        queryParams={{
-                                          type: "dropDown"
                                         }}
                                         styles={{
                                           control: (base, state) => ({
@@ -591,6 +699,22 @@ function EditMyPurchase() {
                                           }),
                                         }}
                                       />
+                                      {product.variant_id && product.variantData && (
+                                        <div className="mt-1">
+                                          <small className="text-muted">
+                                            <i className="fas fa-tag me-1"></i>
+                                            Variant: {product.variantData.masterUOM?.name || "N/A"}
+                                            {product.variantData.masterUOM?.label && (
+                                              <span className="ms-1">({product.variantData.masterUOM.label})</span>
+                                            )}
+                                            {product.variantData.weight_per_unit && (
+                                              <span className="ms-2">
+                                                • Weight: {product.variantData.weight_per_unit}
+                                              </span>
+                                            )}
+                                          </small>
+                                        </div>
+                                      )}
                                     </div>
                                     {product.product_id && product.productData && (
                                       <OverlayTrigger
@@ -615,7 +739,7 @@ function EditMyPurchase() {
                                           role="button"
                                           tabIndex={0}
                                           className="text-primary"
-                                          style={{ cursor: "pointer", flexShrink: 0 }}
+                                          style={{ cursor: "pointer", flexShrink: 0, marginTop: "8px" }}
                                           title="View product details"
                                           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.click()}
                                         >
@@ -643,7 +767,7 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  <div style={{ minWidth: "200px" }}>
+                                  <div style={{ minWidth: "120px" }}>
                                     <input
                                       type="number"
                                       name="qty"
@@ -660,7 +784,45 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  <div style={{ minWidth: "200px" }}>
+                                  <div style={{ minWidth: "120px" }} className="d-flex align-items-center gap-2">
+                                    <span>
+                                      {(() => {
+                                        const currentVariant = getCurrentVariant(product);
+                                        return currentVariant
+                                          ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ""}`
+                                          : "N/A";
+                                      })()}
+                                    </span>
+                                    {product.product_id && (
+                                      <div
+                                        className="btn-sm cursor-pointer"
+                                        onClick={() => fetchProductVariants(product.product_id, index, product.productData)}
+                                        title="Click to change variant"
+                                      >
+                                        <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <div style={{ minWidth: "120px" }}>
+                                    {(() => {
+                                      const currentVariant = getCurrentVariant(product);
+                                      if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
+                                        const totalWeightResult = calculateTotalWeight(
+                                          product.qty,
+                                          currentVariant.weight_per_unit,
+                                          currentVariant.masterUOM.label
+                                        );
+                                        return totalWeightResult.display || "N/A";
+                                      }
+                                      return "N/A";
+                                    })()}
+                                  </div>
+                                </td>
+                            
+                                <td>
+                                  <div style={{ minWidth: "120px" }}>
                                     <input
                                       type="number"
                                       name="unit_price"
@@ -677,7 +839,7 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  <div style={{ minWidth: "200px" }}>
+                                  <div style={{ minWidth: "120px" }}>
                                     <input
                                       type="number"
                                       name="tax"
@@ -699,7 +861,7 @@ function EditMyPurchase() {
                                   </div>
                                 </td>
                                 <td>
-                                  <div style={{ minWidth: "200px" }}>
+                                  <div style={{ minWidth: "100px" }}>
                                     <Tooltip title="Remove">
                                       <button
                                         type="button"
@@ -832,6 +994,29 @@ function EditMyPurchase() {
           </Modal.Footer>
         </form>
       </Modal>
+
+      <ProductVariantSelectionModal
+        show={showVariantModal}
+        onHide={() => setShowVariantModal(false)}
+        productId={currentProductId}
+        productIndex={currentProductIndex}
+        currentVariantId={
+          currentProductIndex !== null && products[currentProductIndex]
+            ? (
+                products[currentProductIndex].variant_id ||
+                products[currentProductIndex].product_variant_id ||
+                products[currentProductIndex].variantData?.id ||
+                products[currentProductIndex].productVariant?.id ||
+                null
+              )
+            : null
+        }
+        onVariantSelect={handleVariantSelect}
+        onClose={handleVariantModalClose}
+        currencySymbol={getGeneralSettingssymbol}
+        allowContinueWithoutVariant={true}
+        onContinueWithoutVariant={handleContinueWithoutVariant}
+      />
     </React.Fragment>
   );
 }

@@ -7,11 +7,12 @@ import {
   ErrorMessage,
   SuccessMessage,
 } from "../../../environment/ToastMessage";
-import { UserAuth } from "../../auth/Auth";
+// import { UserAuth } from "../../auth/Auth";
 import {
   formatDateTimeForMySQL,
 } from "../../../environment/GlobalApi";
 import "../../global.css";
+import { calculateTotalWeight } from "../../../utils/weightConverter";
 import {
   PrivateAxios,
 } from "../../../environment/AxiosInstance";
@@ -20,8 +21,57 @@ import StoreSelect from "../../filterComponents/StoreSelect";
 import ProductSelect from "../../filterComponents/ProductSelect";
 import CustomerSelect from "../../filterComponents/CustomerSelect";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
+import ProductVariantSelectionModal from "../../CommonComponent/ProductVariantSelectionModal";
 
 function MyNewpurchase() {
+  // Set reminder
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
+  const [store, setStore] = useState(null);
+  const [error, setError] = useState({});
+
+  const [show, setShow] = useState(false);
+
+  const [products, setProducts] = useState([
+    {
+      product_id: "",
+      description: "",
+      qty: 1,
+      unit_price: 0,
+      tax: 18,
+      taxExcl: 0,
+      customer_id: "",
+      productData: null,
+      variant_id: null,
+      variantData: null,
+    },
+  ]);
+
+  const [vendorId, setVendor] = useState({
+    customer_id: "",
+  });
+
+  const navigate = useNavigate();
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [productData, setProductData] = useState([]);
+  const [alert, setAlert] = useState("");
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [currentProductIndex, setCurrentProductIndex] = useState(null);
+  const [currentProductId, setCurrentProductId] = useState(null);
+
+  useEffect(() => {
+    setProductData([]);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+    }
+  }, [user]);
+
   const calculateTotal = () => {
     let untaxedAmount = 0;
     let totalTaxAmount = 0;
@@ -51,64 +101,6 @@ function MyNewpurchase() {
   const handleClick = () => {
     ErrorMessage("Please add primary vendor data first.");
   };
-  // Set reminder
-  const { userDetails, getGeneralSettingssymbol } = UserAuth();
-
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
-  const [store, setStore] = useState(null);
-  const [error, setError] = useState({});
-
-  const [show, setShow] = useState(false);
-
-  // const [catProduct, setcategory] = useState([
-  //   { value: "select", label: "-Select-" },
-  // ]);
-  const [products, setProducts] = useState([
-    {
-      product_id: "",
-      description: "",
-      qty: 1,
-      unit_price: 0,
-      tax: 18,
-      taxExcl: 0,
-      customer_id: "",
-    },
-  ]);
-
-  // const [purchaseName, setPurchaseName] = useState("");
-  const [vendorId, setVendor] = useState({
-    customer_id: "",
-  });
-  // const getCurrentDateTime = () => {
-  //   const now = new Date();
-  //   const year = now.getFullYear();
-  //   const month = String(now.getMonth() + 1).padStart(2, "0");
-  //   const day = String(now.getDate()).padStart(2, "0");
-  //   const hours = String(now.getHours()).padStart(2, "0");
-  //   const minutes = String(now.getMinutes()).padStart(2, "0");
-  //   const seconds = String(now.getSeconds()).padStart(2, "0");
-  //   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-  // };
-  const navigate = useNavigate();
-  // const [orderDeadline, setOrderDeadline] = useState(getCurrentDateTime());
-  // const [vendorReference, setVendorReference] = useState("");
-
-  // const [expectedArrival, setExpectedArrival] = useState("");
-  // const [buyer, setBuyer] = useState(userDetails.name);
-  // const [sourceDocument, setSourceDocument] = useState("");
-  const [paymentTerms, setPaymentTerms] = useState("");
-  const [productData, setProductData] = useState([]);
-  const [alert, setAlert] = useState("");
-
-  useEffect(() => {
-    // const fetchProductData = async () => {
-    //   const response = await PrivateAxios.get("products");
-    //   setProductData(response.data);
-    // };
-    // fetchProductData();
-    setProductData([]);
-  }, []);
 
   const handleProductChange = (index, field, value) => {
     const newProducts = [...products];
@@ -153,8 +145,95 @@ function MyNewpurchase() {
         qty: 1,
         unit_price: 0,
         tax: 18,
+        productData: null,
+        variant_id: null,
+        variantData: null,
       },
     ]);
+  };
+
+  const updateProductWithData = (
+    productIndex,
+    productId,
+    selectedProductData,
+    variantId = null,
+    selectedVariantData = null
+  ) => {
+    setProducts((prevProducts) => {
+      const newProducts = [...prevProducts];
+      newProducts[productIndex] = {
+        ...newProducts[productIndex],
+        product_id: productId,
+        description: selectedProductData?.product_name || "",
+        unit_price: selectedProductData?.regular_selling_price || 0,
+        tax: selectedProductData?.tax || 18,
+        productData: selectedProductData || null,
+        variant_id: variantId,
+        variantData: selectedVariantData,
+      };
+
+      const qty = parseFloat(newProducts[productIndex].qty) || 0;
+      const unitPrice = parseFloat(newProducts[productIndex].unit_price) || 0;
+      const taxRate = parseFloat(newProducts[productIndex].tax) || 0;
+      const taxExcl = qty * unitPrice;
+      const taxAmount = (taxExcl * taxRate) / 100;
+      const taxIncl = taxExcl + taxAmount;
+
+      newProducts[productIndex].taxExcl = taxExcl;
+      newProducts[productIndex].taxAmount = taxAmount;
+      newProducts[productIndex].taxIncl = taxIncl;
+      newProducts[productIndex].vendor_id = vendorId.vendor_id;
+
+      return newProducts;
+    });
+  };
+
+  const fetchProductVariants = (productId, productIndex, selectedProductData) => {
+    updateProductWithData(productIndex, productId, selectedProductData, null, null);
+    setCurrentProductIndex(productIndex);
+    setCurrentProductId(productId);
+    setShowVariantModal(true);
+  };
+
+  const handleVariantSelect = (variant, productIndex) => {
+    if (productIndex !== null && products[productIndex]) {
+      const rowProductData = products[productIndex].productData;
+      updateProductWithData(
+        productIndex,
+        rowProductData?.id || products[productIndex].product_id,
+        rowProductData,
+        variant.id,
+        variant
+      );
+    }
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  const handleVariantModalClose = (productIndex) => {
+    if (productIndex !== null) {
+      const newProducts = [...products];
+      newProducts[productIndex] = {
+        ...newProducts[productIndex],
+        product_id: "",
+        unit_price: 0,
+        tax: 18,
+        productData: null,
+        variant_id: null,
+        variantData: null,
+      };
+      setProducts(newProducts);
+    }
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
+  };
+
+  const handleContinueWithoutVariant = () => {
+    setShowVariantModal(false);
+    setCurrentProductIndex(null);
+    setCurrentProductId(null);
   };
 
   const removeProduct = (index) => {
@@ -249,7 +328,7 @@ function MyNewpurchase() {
       const response = await PrivateAxios.post("sales/add", data);
 
       if (response.status === 201) {
-        SuccessMessage("Data saved successfully");
+        SuccessMessage("Sales order has been created successfully");
         navigate("/sales/quotation");
       } else {
         console.error("Failed to save data");
@@ -420,6 +499,7 @@ function MyNewpurchase() {
                                 <th>Product</th>
                                 <th>Description</th>
                                 <th>Quantity</th>
+                                <th>Total Weight</th>
                                 <th>Unit Price</th>
                                 <th>Taxes (%)</th>
                                 <th>Tax Excl.</th>
@@ -430,41 +510,15 @@ function MyNewpurchase() {
                               {products.map((product, index) => (
                                 <tr key={index}>
                                   <td>
-                                    <div style={{ minWidth: "350px" }} className="d-flex align-items-center gap-2">
+                                    <div style={{ minWidth: "350px" }} className="d-flex align-items-start gap-2">
                                       <div style={{ flex: 1 }}>
                                         <ProductSelect
                                           value={product.product_id}
                                           onChange={(selectedOption) => {
                                             if (selectedOption) {
                                               const selectedProduct = selectedOption.productData;
-                                              // console.log("Selected Product", selectedProduct);
-                                              handleProductChange(index, "product_id", selectedOption.value);
-                                              // Update unit_price and tax from selected product
                                               if (selectedProduct) {
-                                                const newProducts = [...products];
-                                                newProducts[index] = {
-                                                  ...newProducts[index],
-                                                  product_id: selectedOption.value,
-                                                  unit_price: selectedProduct.regular_buying_price || 0,
-                                                  tax: selectedProduct.tax || 18,
-                                                  description: selectedProduct.product_name || "",
-                                                  productData: selectedProduct,
-                                                };
-                                                
-                                                const qty = parseFloat(newProducts[index].qty) || 0;
-                                                const unitPrice = parseFloat(newProducts[index].unit_price) || 0;
-                                                const taxRate = parseFloat(newProducts[index].tax) || 0;
-                                                
-                                                const taxExcl = qty * unitPrice;
-                                                const taxAmount = (taxExcl * taxRate) / 100;
-                                                const taxIncl = taxExcl + taxAmount;
-                                                
-                                                newProducts[index].taxExcl = taxExcl;
-                                                newProducts[index].taxAmount = taxAmount;
-                                                newProducts[index].taxIncl = taxIncl;
-                                                newProducts[index].vendor_id = vendorId.vendor_id;
-                                                
-                                                setProducts(newProducts);
+                                                fetchProductVariants(selectedOption.value, index, selectedProduct);
                                               }
                                             } else {
                                               // Handle clear selection
@@ -475,6 +529,8 @@ function MyNewpurchase() {
                                                 unit_price: 0,
                                                 tax: 18,
                                                 productData: null,
+                                                variant_id: null,
+                                                variantData: null,
                                               };
                                               setProducts(newProducts);
                                             }
@@ -486,6 +542,22 @@ function MyNewpurchase() {
                                             }),
                                           }}
                                         />
+                                        {product.variant_id && product.variantData && (
+                                          <div className="mt-1">
+                                            <small className="text-muted">
+                                              <i className="fas fa-tag me-1"></i>
+                                              Variant: {product.variantData.masterUOM?.name || "N/A"}
+                                              {product.variantData.masterUOM?.label && (
+                                                <span className="ms-1">({product.variantData.masterUOM.label})</span>
+                                              )}
+                                              {product.variantData.weight_per_unit && (
+                                                <span className="ms-2">
+                                                  • Weight: {product.variantData.weight_per_unit}
+                                                </span>
+                                              )}
+                                            </small>
+                                          </div>
+                                        )}
                                       </div>
                                       {product.product_id && product.productData && (
                                         <OverlayTrigger
@@ -510,7 +582,7 @@ function MyNewpurchase() {
                                             role="button"
                                             tabIndex={0}
                                             className="text-primary"
-                                            style={{ cursor: "pointer", flexShrink: 0 }}
+                                            style={{ cursor: "pointer", flexShrink: 0, marginTop: "8px" }}
                                             title="View product details"
                                             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.click()}
                                           >
@@ -553,6 +625,24 @@ function MyNewpurchase() {
                                           {error[`product_qty_${index}`]}
                                         </div>
                                       )}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div style={{ minWidth: "150px" }}>
+                                      <input
+                                        type="text"
+                                        className="form-control"
+                                        value={
+                                          product.variantData
+                                            ? calculateTotalWeight(
+                                                product.qty,
+                                                product.variantData?.weight_per_unit,
+                                                product.variantData?.masterUOM?.label
+                                              ).display
+                                            : "N/A"
+                                        }
+                                        disabled
+                                      />
                                     </div>
                                   </td>
                                   <td>
@@ -763,6 +853,23 @@ function MyNewpurchase() {
           </button>
         </Modal.Footer>
       </Modal>
+
+      <ProductVariantSelectionModal
+        show={showVariantModal}
+        onHide={() => setShowVariantModal(false)}
+        productId={currentProductId}
+        productIndex={currentProductIndex}
+        currentVariantId={
+          currentProductIndex !== null && products[currentProductIndex]
+            ? products[currentProductIndex].variant_id
+            : null
+        }
+        onVariantSelect={handleVariantSelect}
+        onClose={handleVariantModalClose}
+        currencySymbol={getGeneralSettingssymbol}
+        allowContinueWithoutVariant={true}
+        onContinueWithoutVariant={handleContinueWithoutVariant}
+      />
     </React.Fragment>
   );
 }
