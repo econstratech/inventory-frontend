@@ -177,6 +177,26 @@ function ProductVariantSelectionModal({
                 <p className="mb-0 text-muted">
                   <small>Code: {selectedProductInfo.product_code}</small>
                 </p>
+                <div className="row mt-2 g-2">
+                  <div className="col-md-4">
+                    <small className="text-muted d-block">Category</small>
+                    <span className="fw-medium">
+                      {selectedProductInfo.productCategory?.title || "N/A"}
+                    </span>
+                  </div>
+                  <div className="col-md-4">
+                    <small className="text-muted d-block">Brand</small>
+                    <span className="fw-medium">
+                      {selectedProductInfo.masterBrand?.name || "N/A"}
+                    </span>
+                  </div>
+                  <div className="col-md-4">
+                    <small className="text-muted d-block">Product Type</small>
+                    <span className="fw-medium">
+                      {selectedProductInfo.masterProductType?.name || "N/A"}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -244,9 +264,18 @@ function ProductVariantSelectionModal({
                     </span>
                   )}
                 </div>
+                {currentVariantId != null && (
+                  <div className="alert alert-success py-2 px-3 mb-3">
+                    <small className="mb-0">
+                      <i className="fas fa-check-circle me-1"></i>
+                      Current selected variant is highlighted below.
+                    </small>
+                  </div>
+                )}
                 <div className="row">
                   {productVariants.map((variant, index) => {
-                    const isSelected = currentVariantId === variant.id;
+                    const isSelected =
+                      String(currentVariantId ?? "") === String(variant.id ?? "");
                     
                     return (
                       <div key={variant.id} className="col-md-6 mb-3">
