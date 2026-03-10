@@ -390,14 +390,14 @@ function MypurchaseList() {
   );
 
   const columns = [
-    { title: "sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
-    { title: "reference", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
-    { title: "vendor", dataIndex: "vendor", key: "vendor", width: 200 },
-    { title: "created by", dataIndex: "created_by", key: "created_by", width: 200 },
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
+    { title: "Reference", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Vendor", dataIndex: "vendor", key: "vendor", width: 200 },
+    { title: "Created By", dataIndex: "created_by", key: "created_by", width: 200 },
     { title: "Expected Arrival", dataIndex: "expected_arrival", key: "expected_arrival", width: 200 },
-    { title: "total", dataIndex: "total", key: "total", width: 150 },
-    { title: "status", dataIndex: "status_return", key: "status_return", width: 150, render: renderStatus },
-    { title: "action", key: "action", width: 250, render: renderAction },
+    { title: "Total", dataIndex: "total", key: "total", width: 150 },
+    { title: "Status", dataIndex: "status_return", key: "status_return", width: 150, render: renderStatus },
+    { title: "Action", key: "action", width: 250, render: renderAction },
   ];
 
   return (

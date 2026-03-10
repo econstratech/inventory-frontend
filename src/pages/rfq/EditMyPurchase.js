@@ -13,6 +13,7 @@ import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Table, Alert, Modal, OverlayTrigger, Popover, Tooltip } from "react-bootstrap";
+import moment from "moment";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import { UserAuth } from "../auth/Auth";
 import StoreSelect from "../filterComponents/StoreSelect";
@@ -76,6 +77,8 @@ function EditMyPurchase() {
   });
   const [hasInitialLoaded, setHasInitialLoaded] = useState(false);
   const [isPOCompleted, setIsPOCompleted] = useState(false);
+  const [purchaseData, setPurchaseData] = useState(null);
+  const [existingBatchesModalIndex, setExistingBatchesModalIndex] = useState(null);
 
   // Variant selection state
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -326,6 +329,7 @@ function EditMyPurchase() {
     try {
       const response = await PrivateAxios.get(`/purchase/purchase/${id}`);
       const data = response.data;
+      setPurchaseData(data);
 
       //check if PO is completed
       if (data.status === 10) {
@@ -353,6 +357,7 @@ function EditMyPurchase() {
         // Include variant data if available
         const variantData = product.productVariant || null;
         const variant_id = product.variant_id || product.productVariant?.id || null;
+        const existingBatches = Array.isArray(product.batches) ? product.batches : [];
 
         return {
           ...product,
@@ -361,6 +366,7 @@ function EditMyPurchase() {
           taxIncl,
           variant_id,
           variantData,
+          existingBatches,
         };
       });
       setProducts(recalculatedProducts);
@@ -457,6 +463,7 @@ function EditMyPurchase() {
         tax: 18,
         variant_id: null,
         variantData: null,
+        existingBatches: [],
         taxExcl: 0, // Initialize taxExcl as a number
       },
     ]);
@@ -934,6 +941,58 @@ function EditMyPurchase() {
               </div>
 
               <div className="col-12 mt-4">
+                {purchaseData?.recv && Array.isArray(purchaseData.recv) && purchaseData.recv.length > 0 && (
+                  <div className="col-12 mb-3">
+                    <h5 className="mb-3">Previous received</h5>
+                    {purchaseData.recv.map((rec, idx) => (
+                      <div key={rec.id || idx} className="card mb-3 shadow-sm">
+                        <div className="card-header py-3 px-3 bg-light">
+                          <div className="row g-3 align-items-center" style={{ fontSize: "15px" }}>
+                            <div className="col-md-4 col-12">
+                              <span className="text-muted d-block mb-0" style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Bill No.</span>
+                              <span className="fw-medium">{rec.bill_number ?? "—"}</span>
+                            </div>
+                            <div className="col-md-4 col-12">
+                              <span className="text-muted d-block mb-0" style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Received By</span>
+                              <span className="fw-medium">{rec.receivedBy?.name ?? "—"}</span>
+                            </div>
+                            <div className="col-md-4 col-12">
+                              <span className="text-muted d-block mb-0" style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Received On</span>
+                              <span className="fw-medium">{rec.bill_date ? moment(rec.bill_date).format("DD/MM/YYYY") : "—"}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="card-body p-0">
+                          <Table responsive bordered size="sm" className="mb-0 primary-table-head">
+                            <thead>
+                              <tr>
+                                <th>Product Name</th>
+                                <th>Product Code</th>
+                                <th>Received Quantity</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.isArray(rec.receivedProducts) && rec.receivedProducts.length > 0 ? (
+                                rec.receivedProducts.map((rp) => (
+                                  <tr key={rp.id}>
+                                    <td>{rp.product?.product_name ?? "—"}</td>
+                                    <td>{rp.product?.product_code ?? "—"}</td>
+                                    <td>{rp.qty ?? 0}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={3} className="text-muted">No products</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="w-100">
                   <ul class="nav nav-tabs gth-tabs" id="myTab" role="tablist">
                     <li class="nav-item" role="presentation">
@@ -991,6 +1050,7 @@ function EditMyPurchase() {
                               <th>Tax Excl.</th>
                               <th>Tax Amt.</th>
                               <th>Total Amount</th>
+                              <th style={{ width: "120px" }}>Batches</th>
                               {!isPOCompleted && (
                                 <th>Actions</th>
                               )}
@@ -1024,6 +1084,7 @@ function EditMyPurchase() {
                                                 ProductsItem: selectedProduct,
                                                 variant_id: null,
                                                 variantData: null,
+                                              existingBatches: [],
                                               };
                                               
                                               const qty = parseFloat(newProducts[index].qty) || 0;
@@ -1062,6 +1123,7 @@ function EditMyPurchase() {
                                               ProductsItem: null,
                                               variant_id: null,
                                               variantData: null,
+                                              existingBatches: [],
                                             };
                                             setProducts(newProducts);
                                           }
@@ -1073,6 +1135,7 @@ function EditMyPurchase() {
                                         isLoading={isLoadingProducts}
                                         isClearable
                                         isSearchable
+                                        isDisabled={isPOCompleted}
                                         filterOption={() => true}
                                         components={{ MenuList: ProductsMenuList }}
                                         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
@@ -1141,6 +1204,7 @@ function EditMyPurchase() {
                                     type="number"
                                     name="qty"
                                     value={product.qty}
+                                    disabled={isPOCompleted}
                                     onChange={(e) =>
                                       handleProductChange(
                                         index,
@@ -1161,7 +1225,7 @@ function EditMyPurchase() {
                                           : 'N/A';
                                       })()}
                                     </span>
-                                    {product.product_id && (
+                                    {product.product_id && !isPOCompleted && (
                                       <div 
                                         className="btn-sm cursor-pointer"
                                         onClick={() => fetchProductVariants(product.product_id, index, product.ProductsItem)}
@@ -1191,6 +1255,7 @@ function EditMyPurchase() {
                                     type="number"
                                     name="unit_price"
                                     value={product.unit_price}
+                                    disabled={isPOCompleted}
                                     onChange={(e) =>
                                       handleProductChange(
                                         index,
@@ -1206,6 +1271,7 @@ function EditMyPurchase() {
                                     type="number"
                                     name="tax"
                                     value={product.tax}
+                                    disabled={isPOCompleted}
                                     onChange={(e) =>
                                       handleProductChange(
                                         index,
@@ -1227,15 +1293,37 @@ function EditMyPurchase() {
                                 />
                                 </td>
                                 <td>{Number(product.taxIncl).toFixed(2) || 0}</td>
-                                <td>
-                                  {!isPOCompleted && (
-                                  <i
-                                    class="fas fa-trash-alt text-danger"
-                                    onClick={() => removeProduct(index)}
-                                    style={{ cursor: "pointer" }}
-                                  ></i>
+                                <td className="align-middle">
+                                  {(product.existingBatches || []).length > 0 ? (
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      className="text-primary d-inline-flex align-items-center"
+                                      style={{ cursor: "pointer", fontSize: "0.875rem" }}
+                                      title="View batches"
+                                      onClick={() => setExistingBatchesModalIndex(index)}
+                                      onKeyDown={(e) => e.key === "Enter" && setExistingBatchesModalIndex(index)}
+                                    >
+                                      <i className="fas fa-list-alt me-1"></i>
+                                      <span className="badge bg-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.35rem", minWidth: "auto" }}>
+                                        {(product.existingBatches || []).length}
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-secondary" style={{ fontSize: "0.7rem", padding: "0.15rem 0.35rem", minWidth: "auto" }}>
+                                      N/A
+                                    </span>
                                   )}
                                 </td>
+                                {!isPOCompleted && (
+                                  <td>
+                                    <i
+                                      class="fas fa-trash-alt text-danger"
+                                      onClick={() => removeProduct(index)}
+                                      style={{ cursor: "pointer" }}
+                                    ></i>
+                                  </td>
+                                )}
                               </tr>
                             ))}
                           </tbody>
@@ -1553,6 +1641,69 @@ function EditMyPurchase() {
             </tbody>
           </Table>
         </Modal.Body>
+      </Modal>
+
+      <Modal
+        show={existingBatchesModalIndex != null}
+        onHide={() => setExistingBatchesModalIndex(null)}
+        centered
+        size="lg"
+        backdrop="static"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-list-alt me-2"></i>
+            Received Batches
+            {existingBatchesModalIndex != null && products[existingBatchesModalIndex] && (
+              <span className="text-muted fw-normal fs-6 ms-2">
+                — {products[existingBatchesModalIndex].ProductsItem?.product_name ?? ""} ({products[existingBatchesModalIndex].ProductsItem?.product_code ?? ""})
+              </span>
+            )}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {existingBatchesModalIndex != null && products[existingBatchesModalIndex] && (
+            <p className="ms-3 text-muted mb-3">
+              Previously received batches for this PO.
+            </p>
+          )}
+          {existingBatchesModalIndex != null && products[existingBatchesModalIndex] && (
+            <Table responsive bordered size="md">
+              <thead>
+                <tr>
+                  <th>Batch No.</th>
+                  <th>Manufacture Date</th>
+                  <th>Expiry Date</th>
+                  <th>Weight Per Unit</th>
+                  <th>Quantity</th>
+                  <th>Total Weight</th>
+                </tr>
+              </thead>
+              <tbody>
+                {((products[existingBatchesModalIndex]?.existingBatches) || []).map((batch, idx) => (
+                  <tr key={batch.id ?? idx}>
+                    <td>{batch.batch_no ?? "—"}</td>
+                    <td>{batch.manufacture_date ? moment(batch.manufacture_date).format("DD/MM/YYYY") : "—"}</td>
+                    <td>{batch.expiry_date ? moment(batch.expiry_date).format("DD/MM/YYYY") : "—"}</td>
+                    <td>{batch.productVariant?.weight_per_unit} {batch.productVariant?.masterUOM?.label || 'N/A'}</td>
+                    <td>{batch.quantity ?? batch.qty ?? "—"}</td>
+                    <td>{calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).value} {calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).unit}</td>
+
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setExistingBatchesModalIndex(null)}
+          >
+            Close
+          </button>
+        </Modal.Footer>
       </Modal>
 
       {/* Variant Selection Modal */}

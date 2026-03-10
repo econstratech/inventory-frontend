@@ -4,11 +4,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Table, Alert, Modal, OverlayTrigger, Popover } from "react-bootstrap";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
-import { UserAuth } from "../auth/Auth";
 import {
-  // AllUser,
-  // AllCategories,
-  // GetTaskRemainder,
   formatDateTimeForMySQL,
 } from "../../environment/GlobalApi";
 import "../global.css";
@@ -22,7 +18,6 @@ import ProductSelect from "../filterComponents/ProductSelect";
 import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
 import ProductVariantSelectionModal from "../CommonComponent/ProductVariantSelectionModal";
 import SalesQuotationSelect from "../filterComponents/SalesQuotationSelect";
-// import { DropDownList } from "@progress/kendo-react-dropdowns";
 
 function MyNewpurchase() {
 
@@ -56,17 +51,17 @@ function MyNewpurchase() {
   const handleClick = () => {
     ErrorMessage("Please add primary vendor data first.");
   };
-  // Set reminder
-  const { getGeneralSettingssymbol } = UserAuth();
-  // const [isCheckedReminder, setIsCheckedReminder] = useState(false);
-  // const [isFileRequired, setIsFileRequired] = useState(false);
-  // const [error, setError] = useState({});
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+    }
+  }, [user]);
 
   const [show, setShow] = useState(false);
 
-  // const [catProduct, setcategory] = useState([
-  //   { value: "select", label: "-Select-" },
-  // ]);
   const [products, setProducts] = useState([
     {
       product_id: "",
@@ -81,14 +76,12 @@ function MyNewpurchase() {
     },
   ]);
 
-  // const [purchaseName, setPurchaseName] = useState("");
   const [vendorId, setVendorId] = useState({
     vendor_id: "",
   });
 
   const navigate = useNavigate();
   const [expectedArrival, setExpectedArrival] = useState("");
-  // const [buyer, setBuyer] = useState(userDetails.name);
   const [alert, setAlert] = useState("");
   const [error, setError] = useState({});
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -116,20 +109,7 @@ function MyNewpurchase() {
   const handleProductChange = (index, field, value) => {
     const newProducts = [...products];
 
-    // if (field === "product_id") {
-    //   const selectedProduct = productData.find((p) => p.id === value);
-    //   if (selectedProduct) {
-    //     newProducts[index] = {
-    //       ...newProducts[index],
-    //       product_id: value,
-    //       unit_price: selectedProduct.regular_buying_price || 0,
-    //       tax: selectedProduct.tax || 0,
-        
-    //     };
-    //   }
-    // } else {
-      newProducts[index][field] = value;
-    // }
+    newProducts[index][field] = value;
 
     const qty = parseFloat(newProducts[index].qty) || 0;
     const unitPrice = parseFloat(newProducts[index].unit_price) || 0;
@@ -206,9 +186,6 @@ function MyNewpurchase() {
     });
   
   };
-  // useEffect(() => {
-  //   console.log("products updated", products);
-  // }, [products]);
 
   // Show variant selection modal - component will handle fetching variants
   const fetchProductVariants = (productId, productIndex, productData) => {
