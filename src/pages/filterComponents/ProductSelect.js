@@ -65,6 +65,7 @@ const ProductSelect = ({
       if (productData && productData.rows) {
         const options = productData.rows.map((item) => {
           let label = `${item.product_name || "N/A"} (${item.product_code || "N/A"})`;
+          label += `, Brand: ${item.masterBrand?.name || "N/A"}`;
           if (item.productAttributeValues && Array.isArray(item.productAttributeValues)) {
             for (const attrValue of item.productAttributeValues) {
               if (attrValue.productAttribute && attrValue.productAttribute.name) {
