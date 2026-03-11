@@ -46,6 +46,7 @@ const MysalesReceivedProduct = React.lazy(() => import("../pages/sales/quotation
 
 // const LandingMain = React.lazy(() => import('../LandingMain'));
 const Login = React.lazy(() => import('../pages/auth/Login'));
+const AuthenticateUser = React.lazy(() => import('../pages/auth/AuthenticateUser'));
 const Register = React.lazy(() => import('../pages/auth/Register'));
 const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
 const ProtectedRoute = React.lazy(() => import("./ProtectedRoute"));
@@ -241,6 +242,7 @@ function PrivateRoutes() {
       <Routes>
         {/* <Route path="/" element={<LandingMain />} /> */}
         <Route path="/" element={isLoggedIn ? <Navigate to="/welcome" /> : <Login />} />
+        <Route path="/authenticate" element={isLoggedIn ? <Navigate to="/welcome" /> : <AuthenticateUser />} />
         <Route path="/reset-password" element={isLoggedIn ? <Navigate to="/welcome" /> : <ForgotPassword />} />
         <Route path="/register" element={isLoggedIn ? <Navigate to="/welcome" /> : <Register />} />
 

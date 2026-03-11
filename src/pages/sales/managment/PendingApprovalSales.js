@@ -7,11 +7,14 @@ import {
   Modal,
   Button,
   Alert,
+  OverlayTrigger,
+  Popover,
+  // Tooltip,
 } from "react-bootstrap";
 
 import "handsontable/dist/handsontable.full.min.css";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
-import { UserAuth } from "../../auth/Auth";
+// import { UserAuth } from "../../auth/Auth";
 import Loader from "../../../environment/Loader";
 
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
@@ -34,16 +37,23 @@ import { ExcelExport } from "@progress/kendo-react-excel-export";
 import { PDFExport } from "@progress/kendo-react-pdf";
 import { Tooltip } from "antd";
 import SalesManagementPageTopBar from "./SalesManagementPageTopBar";
+import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
+import ProductSelect from "../../filterComponents/ProductSelect";
+import ProductVariantSelectionModal from "../../CommonComponent/ProductVariantSelectionModal";
+import { calculateTotalWeight } from "../../../utils/weightConverter";
 
 
 
 function PendingApprovalSales() {
-  const { isLoading, setIsLoading, getGeneralSettingssymbol } = UserAuth();
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
   // const { id } = useParams();
+
   //for-data table
   const [editorContent, setEditorContent] = useState("");
   const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
 
   const [getPid, setPid] = useState(false);
@@ -54,6 +64,10 @@ function PendingApprovalSales() {
   const [getReff, setReff] = useState('');
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { qty, unit_price } }
   const [remarks, setRemarks] = useState(''); // Remarks textarea value
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [currentProductRowId, setCurrentProductRowId] = useState(null);
+  const [currentSelectedProductId, setCurrentSelectedProductId] = useState(null);
+  const [variantModalBackup, setVariantModalBackup] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // Store the action to perform after confirmation
   const [pendingStatus, setPendingStatus] = useState(null); // Store the status for the confirmation message
@@ -69,13 +83,11 @@ function PendingApprovalSales() {
   const [data, setData] = useState([]);
 
 
-  // const [loading, setLoading] = useState(true);
-  // const [dataState, setDataState] = useState({
-  //   skip: 0,
-  //   take: 10,
-  //   sort: [],
-  //   filter: null,
-  // });
+  useEffect(() => {
+    if (user) {
+      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+    }
+  }, [user]);
 
   const handleEditorChange = (content) => {
     setEditorContent(content);
@@ -89,41 +101,6 @@ function PendingApprovalSales() {
     getremarkdata(rmks)
     getremarksRef(refid)
   }
-  // const handleSubmit = (e) => {
-  //   e.preventDefault();
-  //   const dataToSend = {
-  //     getPid,
-  //     editorContent,
-  //   };
-  //   // console.log(dataToSend);
-  //   PrivateAxios.post("sales/addremarks", dataToSend)
-  //     .then((res) => {
-  //       if (res.status === 201) {
-  //         setEditorContent('');
-  //         handleClose(true)
-  //         SuccessMessage("Remarks added successfully");
-  //         TaskData()
-  //         setShowPrice(true);
-  //       }
-  //     })
-  //     .catch((err) => {
-  //       ErrorMessage(
-  //         "Error: Server busy please try again after some time later"
-  //       );
-  //     });
-  // };
-  // const changeStatusfromAdmin = async (id, sid, oid) => {
-
-  //   const response = await PrivateAxios.put(
-  //     `sales/statuschangefromadmin/${id}/${sid}`
-  //   );
-  //   // const jsonData = response.data;
-  //   if (response.status == 200) {
-  //     SuccessMessage("Approved Successfully.!");
-  //     setShowPrice(false);
-  //     TaskData();
-  //   }
-  // };
 
   const PriceCompare = async (ida) => {
     try {
@@ -144,6 +121,15 @@ function PendingApprovalSales() {
               initialEditedProducts[product.id] = {
                 qty: product.qty,
                 unit_price: product.unit_price,
+                product_id: product.product_id,
+                productData: product.productData || product.product || null,
+                variant_id:
+                  product.variant_id ||
+                  product.product_variant_id ||
+                  product.productVariant?.id ||
+                  null,
+                variantData: product.variantData || product.productVariant || null,
+                tax: product.tax,
               };
             });
           }
@@ -184,10 +170,10 @@ function PendingApprovalSales() {
     let grandTotal = 0;
     
     salesQuotation.products?.forEach((product) => {
-      const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price };
+      const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price, tax: product.tax };
       const qty = parseFloat(editedProduct.qty) || 0;
       const unitPrice = parseFloat(editedProduct.unit_price) || 0;
-      const tax = parseFloat(product.tax) || 0;
+      const tax = parseFloat(editedProduct.tax ?? product.tax) || 0;
       
       const priceExclTax = qty * unitPrice;
       const lineItemTotal = priceExclTax * (1 + tax / 100);
@@ -213,10 +199,10 @@ function PendingApprovalSales() {
 
   // Get calculated values for a product
   const getProductCalculations = (product) => {
-    const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price };
+    const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price, tax: product.tax };
     const qty = parseFloat(editedProduct.qty) || 0;
     const unitPrice = parseFloat(editedProduct.unit_price) || 0;
-    const tax = parseFloat(product.tax) || 0;
+    const tax = parseFloat(editedProduct.tax ?? product.tax) || 0;
     
     const priceExclTax = qty * unitPrice;
     const lineItemTotal = priceExclTax * (1 + tax / 100);
@@ -227,19 +213,133 @@ function PendingApprovalSales() {
     };
   };
 
+  const getProductRowData = (product) => {
+    const editedProduct = editedProducts[product.id] || {};
+    return {
+      productData: editedProduct.productData || product.productData || product.product || null,
+      productId: editedProduct.product_id || product.product_id || null,
+      variantData: editedProduct.variantData || product.variantData || product.productVariant || null,
+      variantId:
+        editedProduct.variant_id ||
+        editedProduct.variantData?.id ||
+        product.variant_id ||
+        product.product_variant_id ||
+        product.productVariant?.id ||
+        null,
+      qty: editedProduct.qty ?? product.qty,
+      unitPrice: editedProduct.unit_price ?? product.unit_price,
+      tax: editedProduct.tax ?? product.tax,
+    };
+  };
+
+  const updateEditedProductWithSelection = (
+    product,
+    selectedProductData,
+    variantId = null,
+    selectedVariantData = null
+  ) => {
+    setEditedProducts((prev) => ({
+      ...prev,
+      [product.id]: {
+        ...(prev[product.id] || {}),
+        qty: prev[product.id]?.qty ?? product.qty,
+        unit_price:
+          selectedProductData?.regular_selling_price ??
+          prev[product.id]?.unit_price ??
+          product.unit_price,
+        tax: selectedProductData?.tax ?? prev[product.id]?.tax ?? product.tax,
+        product_id: selectedProductData?.id ?? product.product_id,
+        productData: selectedProductData || product.productData || product.product || null,
+        variant_id: variantId,
+        variantData: selectedVariantData,
+      },
+    }));
+  };
+
+  const openVariantSelector = (product, selectedProductData) => {
+    const existingEdited = editedProducts[product.id] || {};
+    setVariantModalBackup({
+      rowId: product.id,
+      data: {
+        qty: existingEdited.qty ?? product.qty,
+        unit_price: existingEdited.unit_price ?? product.unit_price,
+        tax: existingEdited.tax ?? product.tax,
+        product_id: existingEdited.product_id ?? product.product_id,
+        productData: existingEdited.productData || product.productData || product.product || null,
+        variant_id:
+          existingEdited.variant_id ||
+          existingEdited.variantData?.id ||
+          product.variant_id ||
+          product.product_variant_id ||
+          product.productVariant?.id ||
+          null,
+        variantData: existingEdited.variantData || product.variantData || product.productVariant || null,
+      },
+    });
+
+    updateEditedProductWithSelection(product, selectedProductData, null, null);
+    setCurrentProductRowId(product.id);
+    setCurrentSelectedProductId(selectedProductData?.id || product.product_id);
+    setShowVariantModal(true);
+  };
+
+  const handleVariantSelect = (variant, productRowId) => {
+    const baseProduct = ProductCompare?.[0]?.products?.find((p) => p.id === productRowId);
+    if (baseProduct) {
+      const currentEdited = editedProducts[productRowId] || {};
+      const selectedProductData =
+        currentEdited.productData || baseProduct.productData || baseProduct.product || null;
+      updateEditedProductWithSelection(
+        baseProduct,
+        selectedProductData,
+        variant?.id || null,
+        variant || null
+      );
+    }
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductRowId(null);
+    setCurrentSelectedProductId(null);
+  };
+
+  const handleVariantModalClose = (productRowId) => {
+    if (
+      variantModalBackup &&
+      variantModalBackup.rowId === productRowId &&
+      variantModalBackup.data
+    ) {
+      setEditedProducts((prev) => ({
+        ...prev,
+        [productRowId]: variantModalBackup.data,
+      }));
+    }
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductRowId(null);
+    setCurrentSelectedProductId(null);
+  };
+
+  const handleContinueWithoutVariant = () => {
+    setVariantModalBackup(null);
+    setShowVariantModal(false);
+    setCurrentProductRowId(null);
+    setCurrentSelectedProductId(null);
+  };
+
   // Handle approve by management
   const handleApproveByManagement = async () => {
     if (!ProductCompare || ProductCompare.length === 0) return;
     
     const salesQuotation = ProductCompare[0];
     const productsToUpdate = salesQuotation.products?.map((product) => {
-      const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price };
+      const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price, tax: product.tax };
       return {
         id: product.id,
-        product_id: product.product_id,
-        qty: parseInt(editedProduct.qty),
+        product_id: editedProduct.product_id || product.product_id,
+        product_variant_id: editedProduct.variant_id || null,
+        qty: parseFloat(editedProduct.qty),
         unit_price: parseFloat(editedProduct.unit_price),
-        tax: parseInt(product.tax),
+        tax: parseFloat(editedProduct.tax ?? product.tax),
       };
     });
 
@@ -781,6 +881,8 @@ function PendingApprovalSales() {
                         <th>Product Name</th>
                         <th>Product Code</th>
                         <th>Quantity</th>
+                        <th>Weight Per Unit</th>
+                        <th>Total Weight</th>
                         <th>Unit of Measure</th>
                         <th>Unit Price</th>
                         <th>Tax (%)</th>
@@ -791,12 +893,106 @@ function PendingApprovalSales() {
                     <tbody>
                       {ProductCompare[0].products?.map((product) => {
                         const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price };
+                        const row = getProductRowData(product);
                         const calculations = getProductCalculations(product);
                         
                         return (
                           <tr key={product.id}>
-                            <td>{product.productData?.product_name || product.productData?.product_code || 'N/A'}</td>
-                            <td>{product.productData?.product_code || 'N/A'}</td>
+                            <td>
+                              <div style={{ minWidth: "250px" }} className="d-flex align-items-start gap-2">
+                                <div style={{ flex: 1 }}>
+                                  <ProductSelect
+                                    value={row.productId}
+                                    selectedProductData={row.productData}
+                                    onChange={(selectedOption) => {
+                                      if (selectedOption?.productData) {
+                                        openVariantSelector(product, selectedOption.productData);
+                                      }
+                                    }}
+                                    queryParams={{
+                                      type: "dropDown",
+                                    }}
+                                    styles={{
+                                      control: (base) => ({
+                                        ...base,
+                                        minHeight: "34px",
+                                        fontSize: "14px",
+                                      }),
+                                    }}
+                                  />
+                                  {row.variantData && (
+                                    <div className="mt-1">
+                                      <small className="text-muted">
+                                        <i className="fas fa-tag me-1"></i>
+                                        Variant: {row.variantData.masterUOM?.name || "N/A"}
+                                        {row.variantData.masterUOM?.label && (
+                                          <span className="ms-1">({row.variantData.masterUOM.label})</span>
+                                        )}
+                                        {row.variantData.weight_per_unit && (
+                                          <span className="ms-2">• Weight: {row.variantData.weight_per_unit}</span>
+                                        )}
+                                      </small>
+                                    </div>
+                                  )}
+                                </div>
+                                {row.productId && row.productData && (
+                                  <OverlayTrigger
+                                    trigger="click"
+                                    placement="right"
+                                    rootClose
+                                    container={typeof document !== "undefined" ? document.body : undefined}
+                                    popperConfig={{
+                                      modifiers: [
+                                        {
+                                          name: "flip",
+                                          options: {
+                                            fallbackPlacements: ["left", "right"],
+                                          },
+                                        },
+                                        {
+                                          name: "preventOverflow",
+                                          options: {
+                                            boundary: "viewport",
+                                          },
+                                        },
+                                        {
+                                          name: "offset",
+                                          options: {
+                                            offset: [0, 8],
+                                          },
+                                        },
+                                      ],
+                                    }}
+                                    overlay={
+                                      <Popover id={`product-details-${product.id}`} style={{ maxWidth: "450px", zIndex: 1060 }}>
+                                        <Popover.Header as="h6" className="d-flex align-items-center">
+                                          <i className="fas fa-info-circle text-primary me-2"></i>
+                                          Product Details
+                                        </Popover.Header>
+                                        <Popover.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
+                                          <ProductDetailsContent
+                                            productData={row.productData}
+                                          />
+                                        </Popover.Body>
+                                      </Popover>
+                                    }
+                                  >
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      className="text-primary"
+                                      style={{ cursor: "pointer", flexShrink: 0, marginTop: "8px" }}
+                                      title="View product details"
+                                      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.click()}
+                                    >
+                                      <i className="fas fa-info-circle fa-lg"></i>
+                                    </span>
+                                  </OverlayTrigger>
+                                )}
+                              </div>
+                              
+                            </td>
+                            <td>{row.productData?.product_code || 'N/A'}</td>
                             <td>
                               <input
                                 type="number"
@@ -807,7 +1003,41 @@ function PendingApprovalSales() {
                                 step="0.01"
                               />
                             </td>
-                            <td>{product.productData?.masterUOM?.label || product.productData?.masterUOM?.name || 'N/A'}</td>
+                            <td>
+                              <div className="d-flex align-items-center gap-2" style={{ minWidth: "100px" }}>
+                                <span>
+                                  {row.variantData
+                                    ? `${row.variantData.weight_per_unit || "N/A"} ${row.variantData.masterUOM?.label || ""}`.trim()
+                                    : "N/A"}
+                                </span>
+                                {row.productId && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link btn-sm p-0"
+                                    onClick={() => openVariantSelector(product, row.productData)}
+                                    title="Change variant"
+                                  >
+                                    <i className="fas fa-edit text-primary"></i>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              {row.variantData
+                                ? calculateTotalWeight(
+                                    editedProduct.qty,
+                                    row.variantData?.weight_per_unit,
+                                    row.variantData?.masterUOM?.label
+                                  ).display
+                                : "N/A"}
+                            </td>
+                            <td>
+                              {row.variantData?.masterUOM?.label ||
+                                row.variantData?.masterUOM?.name ||
+                                row.productData?.masterUOM?.label ||
+                                row.productData?.masterUOM?.name ||
+                                'N/A'}
+                            </td>
                             <td>
                               <input
                                 type="number"
@@ -818,18 +1048,18 @@ function PendingApprovalSales() {
                                 step="0.01"
                               />
                             </td>
-                            <td>{product.tax}%</td>
+                            <td>{row.tax}%</td>
                             <td>
                               {getGeneralSettingssymbol} {calculations.priceExclTax}
                             </td>
-                            <td>
+                            <td style={{ minWidth: "120px" }}>
                               {getGeneralSettingssymbol} {calculations.lineItemTotal}
                             </td>
                           </tr>
                         );
                       })}
                       <tr>
-                        <td colSpan={8} align="right">
+                        <td colSpan={10} align="right">
                           <h6 className="mb-0 text-muted">
                             Grand Total: <span className="text-dark f-s-20">{getGeneralSettingssymbol} {formattedTotalAmount}</span>
                           </h6>
@@ -865,6 +1095,10 @@ function PendingApprovalSales() {
               setShowPrice(false);
               setEditedProducts({});
               setRemarks('');
+              setShowVariantModal(false);
+              setCurrentProductRowId(null);
+              setCurrentSelectedProductId(null);
+              setVariantModalBackup(null);
             }}
           >
             Cancel
@@ -892,6 +1126,30 @@ function PendingApprovalSales() {
           </button>
         </Modal.Footer>
       </Modal>
+
+      <ProductVariantSelectionModal
+        show={showVariantModal}
+        onHide={() => handleVariantModalClose(currentProductRowId)}
+        productId={currentSelectedProductId}
+        productIndex={currentProductRowId}
+        currentVariantId={
+          currentProductRowId != null
+            ? (
+                editedProducts[currentProductRowId]?.variant_id ||
+                editedProducts[currentProductRowId]?.variantData?.id ||
+                ProductCompare?.[0]?.products?.find((p) => p.id === currentProductRowId)?.variant_id ||
+                ProductCompare?.[0]?.products?.find((p) => p.id === currentProductRowId)?.product_variant_id ||
+                ProductCompare?.[0]?.products?.find((p) => p.id === currentProductRowId)?.productVariant?.id ||
+                null
+              )
+            : null
+        }
+        onVariantSelect={handleVariantSelect}
+        onClose={handleVariantModalClose}
+        currencySymbol={getGeneralSettingssymbol}
+        allowContinueWithoutVariant={true}
+        onContinueWithoutVariant={handleContinueWithoutVariant}
+      />
 
       {/* <Modal show={show} onHide={handleClose} closeButton backdrop="static"
         centered
