@@ -55,7 +55,7 @@ function AuthenticateUser() {
       const payload = {
         service_name: "BMS Task Management Login",
         service_method: "POST",
-        service_url: `${erpBaseUrl}/user/validate-third-party-user`,
+        service_url: `${erpBaseUrl}user/validate-third-party-user`,
         token_hash: token,
       }
       const res = await Axios.post("/user/validate-third-party-user", payload);
@@ -68,6 +68,9 @@ function AuthenticateUser() {
         setAuthUser(authData);
         SuccessMessage(res.data.message);
         navigate("/welcome");
+      } else {
+        ErrorMessage("You're not authorized to access this system.");
+        navigate("/login");
       }
     } catch (err) {
       const message =
