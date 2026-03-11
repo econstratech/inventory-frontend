@@ -74,11 +74,12 @@ function AuthenticateUser() {
         navigate("/login");
       }
     } catch (err) {
-      const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Token validation failed. Please try again.";
-      ErrorMessage(message);
+      if (err?.response?.data?.message) {
+        setUserFetchError("Sorry, You're not authorized to access this system.");
+      } else {
+        setUserFetchError("Token validation failed. Please try again.");
+      }
+
     } finally {
       setIsSubmitting(false);
     }
