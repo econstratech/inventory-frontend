@@ -611,10 +611,14 @@ function Sidebar() {
                         {/* operation end*/}
                         {/* management */}
                         {MatchPermission(["Approve Quotation Sales"]) ?
-                          <div className={`sidebar-item ${location.pathname === "/sales/pending-approval/reviewing" ? "active" : ""}`}>
+                          <div className={`sidebar-item`}>
                             <Link
                               to="/sales/pending-approval/reviewing"
-                              className="sidebar-nav-link subMenu_item"
+                              className={`sidebar-nav-link subMenu_item ${location.pathname === "/sales/pending-approval/reviewing" ||
+                                (location.pathname.startsWith("/sales/") && location.pathname.split("/").length === 3) ||
+                                location.pathname === "/sales/quotation"
+                                ? "active" : ""
+                                }`}
                             >
                               <p>Approve SO</p>
                             </Link>
