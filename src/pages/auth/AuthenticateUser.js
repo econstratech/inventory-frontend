@@ -69,7 +69,8 @@ function AuthenticateUser() {
         SuccessMessage(res.data.message);
         navigate("/welcome");
       } else {
-        ErrorMessage("You're not authorized to access this system.");
+        // ErrorMessage("You're not authorized to access this system.");
+        setUserFetchError("Sorry, You're not authorized to access this system.");
         navigate("/login");
       }
     } catch (err) {
@@ -106,6 +107,7 @@ function AuthenticateUser() {
                   <strong> REACT_APP_BMS_ERP_API_URL</strong> in environment.
                 </div>
               )}
+
               {isFetchingUser && (
                 <div className="alert alert-info mb-4">Fetching user details...</div>
               )}
