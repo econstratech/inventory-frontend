@@ -100,7 +100,6 @@ function Sidebar() {
                       location.pathname === "/operation/rejected-orders/rejected" ||
                       location.pathname === "/followup/order-followup/nothing-bill" ||
                       location.pathname === "/bill/purchase-orders-recved/items-received-done" ||
-                      // location.pathname === "/pending-approval" ||
                       location.pathname === "/purchase" ||
                       location.pathname === "/rejected-purchase" ||
                       location.pathname === "/purchase-orders" ||
@@ -192,23 +191,7 @@ function Sidebar() {
                         >
                           <div className="accordion-body">
                             <ul className="sidebar-submenu">
-                              {/* <li className="sidebar-item">
-                                <Link
-                                  to="/operation/purchase_ledger"
-                                  className={`sidebar-nav-link ${
-                                    location.pathname === "/operation/create-rfq-pending" ||
-                                    location.pathname === "/operation/create-rfq-billed" ||
-                                    location.pathname === "/operation/create-rfq-quotation" ||
-                                    location.pathname === "/operation/create-rfq-management" ||
-                                    location.pathname === "/operation/purchase_ledger"
-                                    ? "active"
-                                    : ""
-                                    }`}
-                                >
-                                  <p>Purchase Ledger</p>
-                                </Link>
-                              </li> */}
-                              {MatchPermission(["Create RFQ"]) ?
+                              {MatchPermission(["Create PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/purchase/new"
@@ -219,7 +202,7 @@ function Sidebar() {
                                 </li>
                                 : ""}
 
-                              {MatchPermission(["Create RFQ"]) ?
+                              {MatchPermission(["Create PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/create-rfq-active"
@@ -237,24 +220,7 @@ function Sidebar() {
                                 </li>
                               : ""}
 
-
-                                {/* {MatchPermission(["Purchase Order"]) ?
-                                  <li className="sidebar-item">
-                                    <Link
-                                      to="/operation/purchase-orders/received-done"
-                                      className={`sidebar-nav-link ${location.pathname === "/operation/purchase-orders/received-done" ||
-                                        location.pathname === "/operation/purchase-orders/done" ||
-                                        location.pathname === "/operation/purchase-orders/nothing-to-bill" ||
-                                        location.pathname === "/operation/purchase-orders/sales-orders"
-                                        ? "active"
-                                        : ""
-                                        }`}
-                                    >
-                                      <p>Pending Approval</p>
-                                    </Link>
-                                  </li>
-                                  : ""} */}
-                              {MatchPermission(["Completed Orders"]) ?
+                              {MatchPermission(["Completed PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/complete-orders/received-done"
@@ -268,7 +234,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Rejected Orders"]) ?
+                              {MatchPermission(["Rejected PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/rejected-orders/rejected"

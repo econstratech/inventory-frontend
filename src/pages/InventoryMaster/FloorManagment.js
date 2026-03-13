@@ -1,40 +1,25 @@
 import React, { useEffect, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-// import jsPDF from "jspdf";
 import "jspdf-autotable";
-// import DataTable, { createTheme } from "react-data-table-component";
-// import { Link } from "react-router-dom";
-// import Handsontable from "handsontable/base";
-// import { HotTable } from "@handsontable/react";
-// import { registerAllModules } from "handsontable/registry";
 import "handsontable/dist/handsontable.full.min.css";
 
 import moment from "moment";
 
-// import { useTable, useExpanded } from "react-table";
-
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
+import { Tooltip, Table as AntTable } from "antd";
 
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
-// import InventoryMasterPageTopBar from "./itemMaster/InventoryMasterPageTopBar";
-// import ItemMasterStatusBar from "./itemMaster/ItemMasterStatusBar";
-import { UserAuth } from "../auth/Auth";
 
-// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Loader from "../../environment/Loader";
+import { logoutAndRedirect } from "../../utils/logout";
 import SaleOrderDetailsModal from "../CommonComponent/SaleOrderDetailsModal";
 import SaleOrderRemarksModal from "../CommonComponent/SaleOrderRemarksModal";
 
 function MypurchaseList() {
-  const { isLoading, setIsLoading, Logout } = UserAuth();
 
   const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [showPrice, setShowPrice] = useState(false);
   const [remarksModalOpen, setRemarksModalOpen] = useState(false);
@@ -47,35 +32,9 @@ function MypurchaseList() {
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
 
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
+  const ReferenceCell = (dataItem) => {
     return (
-      <td>
-        <div>
-          <span>
-            <a
-              className="k_table_link"
-              onClick={() => {
-                // setShowPrice(true);
-                // PriceCompare(dataItem.id);
-              }}
-            >
-              {dataItem.reference}
-              {/* {dataItem.is_parent === 1 && "   "}
-              {dataItem.is_parent == 1 && (
-                <i
-                  className="fas fa-info-circle"
-                  style={{
-                    fontSize: "15px",
-                    color: "#007bff",
-                    cursor: "pointer",
-                  }}
-                ></i>
-              )} */}
-            </a>
-          </span>
-        </div>
-      </td>
+      <span className="k_table_link">{dataItem.reference}</span>
     );
   };
   const PriceCompare = async (id) => {
@@ -168,46 +127,6 @@ function MypurchaseList() {
     );
   };
 
-
-
-
-
-  //end pdf
-  // const handleStatusChange = async (id, sid) => {
-  //   const response = await PrivateAxios.put(`sales/statuschange/${id}/${sid}`);
-  //   // const jsonData = response.data;
-  //   if (response.status == 200) {
-  //     SuccessMessage("Status Changed Successfully.!");
-  //     TaskData();
-  //   }
-  // };
-  // const columns = React.useMemo(
-  //   () => [
-  //     { Header: "Bill Number", accessor: "bill_number" },
-  //     { Header: "Bill Date", accessor: "bill_date" },
-  //     { Header: "Buyer", accessor: "buyer" },
-  //     { Header: "Untaxed Amount", accessor: "untaxed_amount" },
-  //     { Header: "Total Amount", accessor: "total_amount" },
-  //     {
-  //       Header: "Details",
-  //       id: "details",
-  //       Cell: ({ row }) => (
-  //         <button type="button" onClick={() => handleToggle(row.original.id)}>
-  //           {expandedRows[row.original.id] ? "Hide Details" : "Show Details"}
-  //         </button>
-  //       ),
-  //     },
-  //   ],
-  //   [expandedRows]
-  // );
-
-  // const handleToggle = (rowId) => {
-  //   setExpandedRows((prev) => ({
-  //     ...prev,
-  //     [rowId]: !prev[rowId],
-  //   }));
-  // };
-
   // Handle filter button click
   const handleFilter = () => {
     const newPageState = { ...pageState, skip: 0 }; // Reset to first page when filtering
@@ -230,21 +149,16 @@ function MypurchaseList() {
     TaskData(resetPageState, resetReferenceFilter, resetDateRangeFilter);
   };
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
     // Fetch data with updated pagination and current filter
     TaskData(newPageState, null, null); // Pass null to use current filter values from state
   };
-
-  // const tableInstance = useTable(
-  //   { columns, data: datavalue },
-  //   useExpanded // Use the useExpanded plugin hook
-  // );
 
   const getSalesStatus = (status) => {
     let statusLabel = "";
@@ -386,7 +300,7 @@ function MypurchaseList() {
       .catch((err) => {
         setIsLoading(false);
         if (err.response?.data == 401) {
-          Logout();
+          logoutAndRedirect();
         }
       });
   };
@@ -395,10 +309,8 @@ function MypurchaseList() {
     TaskData();
   }, []);
 
-  const ActionCell = (props) => {
-    const { dataItem } = props;
+  const ActionCell = (dataItem) => {
     return (
-      <td>
         <div className="d-flex gap-2">
           <Tooltip title="Dispatched">
             <button
@@ -412,6 +324,17 @@ function MypurchaseList() {
               <i class="fa fa-truck"></i>
             </button>
           </Tooltip>
+
+          <Tooltip title="View Pdf">
+            <button
+              className="me-1 icon-btn"
+              onClick={() => generatePDF(dataItem.id, dataItem.reference)}
+            >
+              <i class="fas fa-file-pdf"></i>
+            </button>
+          </Tooltip>
+
+
           <Tooltip title="View remarks">
             <button
               className="me-1 icon-btn"
@@ -451,31 +374,82 @@ function MypurchaseList() {
             </Tooltip>
           )} */}
         </div>
-      </td>
     );
   };
 
-  const CustomCell = (props) => {
+  const CustomCell = (value) => {
     return (
-      <td
-        dangerouslySetInnerHTML={{ __html: props.dataItem[props.field] }}
-      ></td>
+      <div dangerouslySetInnerHTML={{ __html: value }}></div>
     );
   };
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
 
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
+  const generatePDF = async (id, val) => {
+    setIsLoading(true);
+    try {
+      // Assuming the filename is constructed as `purchase_order_${val}.pdf`
+      const response = await PrivateAxios.get(`sales/generatePDFForvendor/${id}`, {
+        responseType: 'blob',
+      });
+
+      if (response.status !== 200) {
+        throw new Error('Unable to generate PDF');
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      // Open the PDF in a new tab
+      window.open(url);
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      // Optionally handle the error state
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
+  const tableColumns = [
+    { title: "SL No.", dataIndex: "slNo", key: "slNo", width: 100, fixed: "left" },
+    {
+      title: "Reference No.",
+      dataIndex: "reference",
+      key: "reference",
+      width: 120,
+      render: (_, record) => ReferenceCell(record),
+    },
+    {
+      title: "Delivery Date",
+      dataIndex: "expectedDeliveryDate",
+      key: "expectedDeliveryDate",
+      width: 180,
+    },
+    { title: "Creation Date", dataIndex: "creationDate", key: "creationDate", width: 150 },
+    { title: "Customer", dataIndex: "customer", key: "customer", width: 180 },
+    { title: "Store", dataIndex: "storeName", key: "storeName", width: 180 },
+    { title: "Sales Person", dataIndex: "salesPerson", key: "salesPerson", width: 200 },
+    { title: "Payment Terms (Days)", dataIndex: "paymentTerms", key: "paymentTerms", width: 200 },
+    {
+      title: "Purchase Reference",
+      dataIndex: "purchaseReferences",
+      key: "purchaseReferences",
+      width: 260,
+      render: (value) => CustomCell(value),
+    },
+    { title: "Total Amount", dataIndex: "total", key: "total", width: 160 },
+    {
+      title: "Status",
+      dataIndex: "status_return",
+      key: "status_return",
+      width: 250,
+      render: (value) => CustomCell(value),
+    },
+    {
+      title: "Action",
+      key: "action",
+      width: 170,
+      render: (_, record) => ActionCell(record),
+    },
+  ];
 
   return (
     <React.Fragment>
@@ -559,78 +533,24 @@ function MypurchaseList() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button
-                        type="button"
-                        className=" table-export-btn"
-                        onClick={handleExportPDF}
-                      >
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button
-                        type="button"
-                        className=" table-export-btn"
-                        onClick={handleExportExcel}
-                      >
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef}>
-                    <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      loading={isLoading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-                      {/* Column Definitions */}
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" width="100px" cell={ReferenceCell} />
-                      <GridColumn field="expectedDeliveryDate" title="Delivery Date" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="creationDate" title="Creation Date" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="customer" title="Customer" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="storeName" title="Store" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="salesPerson" title="Sales Person" filter="text" filterable={false} width="200" />
-                      <GridColumn field="paymentTerms" title="Payment Terms (Days)" filterable={false} filter="text" width="200px" />
-                      <GridColumn
-                        field="purchaseReferences"
-                        title="Purchase Reference"
-                        filterable={false}
-                        width="260px"
-                        cells={{ data: CustomCell }}
-                      />
-                      <GridColumn field="total" title="total" filter="text" filterable={false} width="150px" />
-                      <GridColumn
-                        field="status_return"
-                        title="Status"
-                        filter="dropdown"
-                        width="250px"
-                        filterable={false}
-                        cells={{
-                          data: CustomCell
-                        }}
-                      />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
+                <AntTable
+                  rowKey="id"
+                  dataSource={data}
+                  columns={tableColumns}
+                  loading={isLoading}
+                  pagination={{
+                    current: Math.floor(pageState.skip / pageState.take) + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: [10, 15, 25, 50],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1900 }}
+                />
               </div>
             </div>
           </div>
