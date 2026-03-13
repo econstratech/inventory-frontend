@@ -1,126 +1,44 @@
 import React, { useEffect, useState } from "react";
-// import Select from "react-select";
-// import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-// import jsPDF from "jspdf";
 import "jspdf-autotable";
-// import DataTable, { createTheme } from "react-data-table-component";
-import { Link } from "react-router-dom";
-// import { Modal, Table } from "react-bootstrap";
 import DatePicker from "react-datepicker";
-// import Handsontable from "handsontable/base";
-// import { HotTable } from "@handsontable/react";
-// import { registerAllModules } from "handsontable/registry";
 import "handsontable/dist/handsontable.full.min.css";
 import { PrivateAxios, url } from "../../../../environment/AxiosInstance";
-import { UserAuth } from "../../../auth/Auth";
 
-// import {
-//   exportExcel,
-//   exportPDF,
-//   printTable,
-// } from "../../../../environment/exportTable";
 import moment from "moment";
 import {
-  // ErrorMessage,
   SuccessMessage,
 } from "../../../../environment/ToastMessage";
-// import {
-//   AllUser,
-//   GetTaskPriority,
-//   GetTaskStatus,
-//   sendMail,
-// } from "../../../../environment/GlobalApi";
-// import { useTable, useExpanded } from "react-table";
 
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
-// import SalesOrder from "../../../managment/approveQuotation/SalesOrder";
+import { Tooltip, Table as AntTable } from "antd";
 import SalesQuotationPageTopBar from "../SalesQuotationPageTopBar";
-// import SalesManagementStatusBar from "../../managment/SalesManagementStatusBar";
-import SalesOrdersStatusBar from "./SalesOrdersStatusBar";
 import Loader from "../../../../environment/Loader";
+import { logoutAndRedirect } from "../../../../utils/logout";
+
 import FinalSaleOrderDispatchModal from "../../../CommonComponent/FinalSaleOrderDispatchModal";
-// import SaleOrderDetailsModal from "../../../CommonComponent/SaleOrderDetailsModal";
+import SaleOrderRemarksModal from "../../../CommonComponent/SaleOrderRemarksModal";
 
 function CompletedSalesOrdersList() {
-  const { isLoading, setIsLoading, Logout, getGeneralSettingssymbol } =
-    UserAuth();
-  //for-data table
-  // const [value, setValue] = useState(true);
-  // const [grid, setGrid] = useState(false);
-  // const [doerShow, setDoerShow] = useState(false);
-  // const [detailsShow, setDetailsShow] = useState(false);
-  // const [deleteShow, setDeleteShow] = useState(false);
-  // const [descriptionShow, setDescriptionShow] = useState(false);
-  // const [descriptionData, setDescriptionData] = useState("");
-  // const [tableData, setTableData] = useState([]);
-  const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
-  // const [deleteId, setDeleteId] = useState(null);
+
   const [data, setData] = useState([]);
-  // const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const [generalSettingsSymbol, setGeneralSettingsSymbol] = useState(null);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
   const [totalCount, setTotalCount] = useState(0);
-  const [show, setShow] = useState(false);
-  const [getReff, setReff] = useState("");
-  // const [datavalue, setDatavalue] = useState([]);
-  const [expandedRows, setExpandedRows] = React.useState([]);
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
-  const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
   const [showFinalSaleOrderDispatchModal, setShowFinalSaleOrderDispatchModal] = useState(false);
+  const [remarksModalSaleOrderId, setRemarksModalSaleOrderId] = useState(null);
+  const [remarksModalSaleOrderRef, setRemarksModalSaleOrderRef] = useState("");
+  const [remarksModalOpen, setRemarksModalOpen] = useState(false);
 
-  // const generatePDF = async (id, val) => {
-  //   setIsLoading(true);
-  //   try {
-  //     // Assuming the filename is constructed as `purchase_order_${val}.pdf`
-  //     const filename = `purchase_order_${val}.pdf`;
-  //     const response = await PrivateAxios.get(
-  //       `sales/generatePDFForvendor/${id}`,
-  //       {
-  //         responseType: "blob",
-  //       }
-  //     );
-
-  //     if (response.status !== 200) {
-  //       throw new Error("Network response was not ok");
-  //     }
-
-  //     const blob = new Blob([response.data], { type: "application/pdf" });
-  //     const url = window.URL.createObjectURL(blob);
-
-  //     // Open the PDF in a new tab
-  //     window.open(url);
-  //   } catch (error) {
-  //     console.error("Error opening PDF:", error);
-  //     // Optionally handle the error state
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-  // //pdf
-  // const sendMailByPO = async (id) => {
-  //   try {
-  //     setIsLoading(true);
-  //     const response = await PrivateAxios.post(`sales/emailsend/${id}`);
-  //     if (response.status === 200) {
-  //       await PrivateAxios.post(`sales/emailsendupdate/${id}`);
-  //       setIsLoading(false);
-  //       SuccessMessage("Email send successfully.");
-  //       TaskData();
-  //       handleStatusChange(id, 5);
-  //     }
-  //   } catch (error) {
-  //     setIsLoading(false);
-  //     console.error("Error fetching data:", error);
-  //     ErrorMessage("Something Wrong !..");
-  //   }
-  // };
+  useEffect(() => {
+    if (user) {
+      setGeneralSettingsSymbol(user.company.generalSettings.symbol);
+    }
+  }, [user]);
 
 
   //end pdf
@@ -150,111 +68,6 @@ function CompletedSalesOrdersList() {
     }
   };
 
-  // Get status label
-  // const getStatusLabel = (status) => {
-  //   const statusLabel = {
-  //     10: "Dispatched",
-  //     11: "Production",
-  //   };
-  //   return statusLabel[status] || "Pending";
-  // };
-
-  // Handler to update warehouse when store is changed
-  // const handleStoreChange = (purchaseId, productId, selectedStore) => {
-  //   setProductCompare((prev) =>
-  //     prev.map((purchase) => {
-  //       if (purchase.id !== purchaseId) return purchase;
-
-  //       return {
-  //         ...purchase,
-  //         warehouse: selectedStore ? selectedStore.warehouse : purchase.warehouse,
-  //       };
-  //     })
-  //   );
-  // };
-
-  // Handler for product-wise status change
-  // const handleStatusChangeproductwise = async (salesid, sid, spid) => {
-  //   const response = await PrivateAxios.put(`/sales/dispatch-product/${salesid}/${sid}/${spid}`);
-  //   if (response.status === 200) {
-  //     SuccessMessage("Product is dispatched Successfully.!");
-
-  //     const responseData = response.data.data;
-  //     if (responseData.allDispatched) {
-  //       // close the modal & hide the current product row
-  //       setShowPrice(false);
-  //       setProductCompare((prev) =>
-  //         prev.filter((purchase) => purchase.id !== salesid)
-  //       );
-  //       TaskData();
-  //     } else {
-  //       // Update local ProductCompare state
-  //       setProductCompare((prev) =>
-  //         prev.map((purchase) => {
-  //           if (purchase.id !== salesid) return purchase;
-
-  //           return {
-  //             ...purchase,
-  //             products: purchase.products.map((product) =>
-  //               product.id === spid ? { ...product, status: sid } : product
-  //             ),
-  //           };
-  //         })
-  //       );
-  //     }
-  //   }
-  // };
-  // const columns = React.useMemo(
-  //   () => [
-  //     { Header: "Bill Number", accessor: "bill_number" },
-  //     { Header: "Bill Date", accessor: "bill_date" },
-  //     { Header: "Buyer", accessor: "buyer" },
-  //     { Header: "Untaxed Amount", accessor: "untaxed_amount" },
-  //     { Header: "Total Amount", accessor: "total_amount" },
-  //     {
-  //       Header: "Details",
-  //       id: "details",
-  //       Cell: ({ row }) => (
-  //         <button type="button" onClick={() => handleToggle(row.original.id)}>
-  //           {expandedRows[row.original.id] ? "Hide Details" : "Show Details"}
-  //         </button>
-  //       ),
-  //     },
-  //   ],
-  //   [expandedRows]
-  // );
-
-  const handleToggle = (rowId) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [rowId]: !prev[rowId],
-    }));
-  };
-
-  // const tableInstance = useTable(
-  //   { columns, data: datavalue },
-  //   useExpanded // Use the useExpanded plugin hook
-  // );
-
-  // const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-  //   tableInstance;
-  // Calculate total received and rejected
-  // const calculateTotals = () => {
-  //   let totalReceived = 0;
-  //   let totalRejected = 0;
-
-  //   datavalue.forEach((bill) => {
-  //     bill.recvPro.forEach((pro) => {
-  //       totalReceived += pro.received || 0; // Use pro.received if it's available
-  //       totalRejected += pro.rejected || 0; // Use pro.rejected if it's available
-  //     });
-  //   });
-
-  //   return { totalReceived, totalRejected };
-  // };
-
-  // const { totalReceived, totalRejected } = calculateTotals();
-
   const TaskData = async (customPageState = null, customReferenceFilter = null, customDateRangeFilter = null) => {
     setIsLoading(true);
 
@@ -271,9 +84,12 @@ function CompletedSalesOrdersList() {
       ...(currentDateRangeFilter[0] && { expected_delivery_date_start: moment(currentDateRangeFilter[0]).format("YYYY-MM-DD") }),
       ...(currentDateRangeFilter[1] && { expected_delivery_date_end: moment(currentDateRangeFilter[1]).format("YYYY-MM-DD") })
     });
-    // PrivateAxios.get("sales/getallpurchaseorder")
     PrivateAxios.get(`sales/all-sale-quotation?${urlParams.toString()}`)
       .then((res) => {
+        const safeCurrencySymbol =
+          generalSettingsSymbol ??
+          user?.company?.generalSettings?.symbol ??
+          "";
         const responseData = res.data.data || [];
         setTotalCount(responseData.pagination?.total_records || 0);
         const currentPage = responseData.pagination?.current_page || 1;
@@ -290,8 +106,7 @@ function CompletedSalesOrdersList() {
           customer: item.customer && item.customer.name,
           salesPerson: item.createdBy?.name,
           storeName: item.warehouse?.name,
-          // buyer: item.buyer,
-          total: `${getGeneralSettingssymbol}${item.total_amount}`,
+          total: `${safeCurrencySymbol}${Number(item.total_amount || 0).toFixed(2)}`,
           status: item.status,
           is_parent: item.is_parent,
           is_parent_id: item.is_parent_id,
@@ -300,32 +115,8 @@ function CompletedSalesOrdersList() {
           payment_terms: item.payment_terms,
           products: item.products,
           productsreprodut: item.productsreprodut,
-          // source_document: item.productsreprodut,
           untaxed_amount: item.untaxed_amount,
-          // uploadpo: item.uploadpo,
           user_id: item.user_id,
-          // status_return:
-          //   item.status === 1
-          //     ? "Active"
-          //     : item.status === 2
-          //       ? "RFQ"
-          //       : item.status === 3
-          //         ? "Send to management"
-          //         : item.status === 4
-          //           ? "Sales Order"
-          //           : item.status === 5
-          //             ? "Nothing to Bill"
-          //             : item.status === 6
-          //               ? "Fully Billed"
-          //               : item.status === 7
-          //                 ? "Done"
-          //                 : item.status === 8
-          //                   ? "Rejected from Admin"
-          //                   : item.status === 9
-          //                     ? "Send Floor Manager"
-          //                     : item.status === 10
-          //                       ? "Items Received Done"
-          //                       : "Unknown",
         }));
 
         setData(transformedData);
@@ -335,7 +126,7 @@ function CompletedSalesOrdersList() {
       .catch((err) => {
         setIsLoading(false);
         if (err.response.data == 401) {
-          Logout();
+          logoutAndRedirect();
         }
       });
   };
@@ -344,15 +135,14 @@ function CompletedSalesOrdersList() {
     TaskData();
   }, []);
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
-    // Fetch data with updated pagination and current filter
-    TaskData(newPageState, null, null); // Pass null to use current filter values from state
+    TaskData(newPageState, null, null);
   };
 
   // Handle filter button click
@@ -377,25 +167,33 @@ function CompletedSalesOrdersList() {
     TaskData(resetPageState, resetReferenceFilter, resetDateRangeFilter);
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
+  const generatePDF = async (id, val) => {
+    setIsLoading(true);
+    try {
+      // Assuming the filename is constructed as `purchase_order_${val}.pdf`
+      const response = await PrivateAxios.get(`sales/generatePDFForvendor/${id}`, {
+        responseType: 'blob',
+      });
 
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
+      if (response.status !== 200) {
+        throw new Error('Unable to generate PDF');
+      }
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+
+      // Open the PDF in a new tab
+      window.open(url);
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      // Optionally handle the error state
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
-
-  const ActionCell = (props) => {
-    const { dataItem } = props;
+  const ActionCell = (dataItem) => {
     return (
-      <td>
         <div className="d-flex gap-2">
           {dataItem.status !== 11 ? (
             <>
@@ -431,16 +229,30 @@ function CompletedSalesOrdersList() {
                 <i class="fa fa-eye"></i>
               </button>
             </Tooltip>
+
+            <Tooltip title="View remarks">
+              <button
+                className="me-1 icon-btn"
+                onClick={() => {
+                  setRemarksModalSaleOrderId(dataItem.id);
+                  setRemarksModalSaleOrderRef(dataItem.reference || "");
+                  setRemarksModalOpen(true);
+                }}
+              >
+                <i className="fas fa-comment-dots"></i>
+              </button>
+            </Tooltip>
+            <Tooltip title="View Pdf">
+              <button
+                className="me-1 icon-btn"
+                onClick={() => generatePDF(dataItem.id, dataItem.reference)}
+              >
+                <i class="fas fa-file-pdf"></i>
+              </button>
+            </Tooltip>
             </>
           )}
-          {/* <Tooltip title="View Pdf">
-            <button
-              className="me-1 icon-btn"
-              onClick={() => generatePDF(dataItem.id, dataItem.reference)}
-            >
-              <i class="fas fa-eye"></i>
-            </button>
-          </Tooltip>
+          {/*
            {dataItem.mailsend_status !== 1 ? (
             <Tooltip title="Send SO by Email">
               <button
@@ -464,38 +276,57 @@ function CompletedSalesOrdersList() {
             </Tooltip>
           )} */}
         </div>
-      </td>
     );
   };
 
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
-
-    // Access the field value directly
-    // const value = dataItem[field];
-
+  const CustomCell = () => {
     return (
-      <td>
           <label className="badge badge-outline-green mb-0">
             <i className="fas fa-circle f-s-8 d-flex me-1"></i>Completed
           </label>
-      </td>
     );
   };
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
+  const ReferenceCell = (dataItem) => {
     return (
-      <td>
         <span className="text-primary">{dataItem.reference}</span>
-      </td>
     );
   };
+
+  const tableColumns = [
+    { title: "SL No.", dataIndex: "slNo", key: "slNo", width: 100, fixed: "left" },
+    {
+      title: "Reference No.",
+      dataIndex: "reference",
+      key: "reference",
+      width: 150,
+      render: (_, record) => ReferenceCell(record),
+    },
+    { title: "Delivery Date", dataIndex: "expectedDeliveryDate", key: "expectedDeliveryDate", width: 200 },
+    { title: "Creation", dataIndex: "creation", key: "creation", width: 200 },
+    { title: "Customer", dataIndex: "customer", key: "customer", width: 200 },
+    { title: "Sales Person", dataIndex: "salesPerson", key: "salesPerson", width: 200 },
+    { title: "Payment Terms (Days)", dataIndex: "paymentTerms", key: "paymentTerms", width: 200 },
+    { title: "Total Amount", dataIndex: "total", key: "total", width: 200 },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 250,
+      render: () => CustomCell(),
+    },
+    {
+      title: "Action",
+      dataIndex: "action",
+      key: "action",
+      width: 250,
+      render: (_, record) => ActionCell(record),
+    },
+  ];
 
   return (
     <React.Fragment>
       {isLoading && <Loader />}
       <SalesQuotationPageTopBar />
-      <SalesOrdersStatusBar />
 
       <div className="bg-white border-bottom">
         <div className="d-flex gap-3 px-4 justify-content-between align-items-center py-3">
@@ -573,141 +404,24 @@ function CompletedSalesOrdersList() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-                  
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button
-                        type="button"
-                        className=" table-export-btn"
-                        onClick={handleExportPDF}
-                      >
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button
-                        type="button"
-                        className=" table-export-btn"
-                        onClick={handleExportExcel}
-                      >
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef}>
-                  <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      loading={isLoading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-
-                      <GridColumn
-                        field="reference"
-                        title="reference"
-                        filterable={false}
-                        filter="text"
-                        width="150px"
-                        cell={ReferenceCell}
-                      />
-                      <GridColumn 
-                      field="expectedDeliveryDate" 
-                      title="Delivery Date" 
-                      filterable={false} 
-                      filter="text" 
-                      width="200px" 
-                      />
-                      <GridColumn
-                        field="creation"
-                        title="Creation"
-                        filterable={false}
-                        filter="numeric"
-                        width="200px"
-                      />
-                      <GridColumn
-                        field="customer"
-                        title="Customer"
-                        filterable={false}
-                        filter="text"
-                        width="200px"
-                      />
-                      {/* <GridColumn 
-                      field="storeName" 
-                      title="Store" 
-                      filterable={false} 
-                      filter="text" 
-                      width="150px" 
-                      /> */}
-                      <GridColumn 
-                      field="salesPerson" 
-                      title="Sales Person" 
-                      filter="text" 
-                      filterable={false} 
-                      width="200" 
-                      />
-                      <GridColumn 
-                      field="paymentTerms" 
-                      title="Payment Terms (Days)" 
-                      filterable={false} 
-                      filter="text" 
-                      width="200px" 
-                      />
-                      {/* <GridColumn
-                        field="buyer"
-                        title="buyer"
-                        filter="text"
-                        filterable={false}
-                        width="200"
-                      /> */}
-                      <GridColumn
-                        field="total"
-                        title="total"
-                        filter="text"
-                        filterable={false}
-                        width="200px"
-                      />
-                      <GridColumn
-                        field="status_return"
-                        title="Status"
-                        filter="dropdown"
-                        width="250px"
-                        filterable={false}
-                        cells={{
-                          data: CustomCell,
-                        }}
-                      />
-                      {/* <GridColumn
-                        field="expiration"
-                        title="Expiration"
-                        filterable={false}
-                        filter="numeric"
-                        width="200px"
-                      /> */}
-                      <GridColumn
-                        title="action"
-                        filter="text"
-                        cell={ActionCell}
-                        filterable={false}
-                        width="250px"
-                      />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
+                <AntTable
+                  rowKey="id"
+                  dataSource={data}
+                  columns={tableColumns}
+                  loading={isLoading}
+                  pagination={{
+                    current: Math.floor(pageState.skip / pageState.take) + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: [10, 15, 25, 50],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1700 }}
+                />
               </div>
             </div>
           </div>
@@ -720,13 +434,24 @@ function CompletedSalesOrdersList() {
         productCompare={ProductCompare}
       />
 
+      <SaleOrderRemarksModal
+        open={remarksModalOpen}
+        onClose={() => {
+          setRemarksModalOpen(false);
+          setRemarksModalSaleOrderId(null);
+          setRemarksModalSaleOrderRef("");
+        }}
+        saleOrderId={remarksModalSaleOrderId}
+        saleOrderReferenceNumber={remarksModalSaleOrderRef}
+      />
+
       {/* <SaleOrderDetailsModal
         show={showPrice}
         onHide={() => setShowPrice(false)}
         productCompare={ProductCompare}
         onStoreChange={handleStoreChange}
         onStatusChange={handleStatusChangeproductwise}
-        currencySymbol={getGeneralSettingssymbol}
+        currencySymbol={generalSettingsSymbol}
         getStatusLabel={getStatusLabel}
       /> */}
 

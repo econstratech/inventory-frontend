@@ -8,7 +8,7 @@ function UpdateRole({ departmentUpdateModelClose, update,setLoading,data,fetchMo
     const [groups, setGroups] = useState([])
     const GetAllPermission = async () => {
         setLoading(true)
-        await PrivateAxios.get("all-permission")
+        await PrivateAxios.get("get-all-permissions")
             .then((res) => {
                 setLoading(false)
                 setGroups(res.data.data);
@@ -50,7 +50,7 @@ function UpdateRole({ departmentUpdateModelClose, update,setLoading,data,fetchMo
 
     const [selectAll, setSelectAll] = useState(false);
     const [allPermission, setAllPermission] = useState([]);
-    const [allModule, setAllModule] = useState([]);
+    // const [allModule, setAllModule] = useState([]);
     const [adminName, setAdminName] = useState('');
 
     const handleSelectAllChange = (e) => {

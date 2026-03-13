@@ -59,7 +59,7 @@ function SaleOrderRemarksModal({
         </Button>,
       ]}
       width={760}
-      destroyOnClose
+      destroyOnHidden
     >
       {loading ? (
         <div className="py-4 d-flex justify-content-center">
