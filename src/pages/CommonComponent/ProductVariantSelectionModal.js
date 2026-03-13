@@ -88,12 +88,13 @@ function ProductVariantSelectionModal({
         setProductVariants([]);
         setSelectedProductInfo(null);
       }
+      setLoadingVariants(false);
+
     } catch (error) {
       console.error("Error fetching variants:", error);
       ErrorMessage("Failed to fetch product variants");
       setProductVariants([]);
       setSelectedProductInfo(null);
-    } finally {
       setLoadingVariants(false);
     }
   };
@@ -254,7 +255,7 @@ function ProductVariantSelectionModal({
               </div>
             </div>
             
-            {productVariants.length > 0 ? (
+            {!loadingVariants &&productVariants.length > 0 ? (
               <div>
                 <div className="d-flex align-items-center justify-content-between mb-3">
                   <h6 className="mb-0">Available Variants:</h6>

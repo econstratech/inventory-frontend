@@ -242,7 +242,7 @@ function PrivateRoutes() {
       <Routes>
         {/* <Route path="/" element={<LandingMain />} /> */}
         <Route path="/" element={isLoggedIn ? <Navigate to="/welcome" /> : <Login />} />
-        <Route path="/authenticate" element={isLoggedIn ? <Navigate to="/welcome" /> : <AuthenticateUser />} />
+        <Route path="/authenticate" element={<AuthenticateUser />} />
         <Route path="/reset-password" element={isLoggedIn ? <Navigate to="/welcome" /> : <ForgotPassword />} />
         <Route path="/register" element={isLoggedIn ? <Navigate to="/welcome" /> : <Register />} />
 
