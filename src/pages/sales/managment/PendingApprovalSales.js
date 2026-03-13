@@ -20,10 +20,10 @@ import Loader from "../../../environment/Loader";
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
 
 import moment from "moment";
-import {
-  BrowserRouter as Router,
-  useNavigate,
-} from "react-router-dom";
+// import {
+//   BrowserRouter as Router,
+//   useNavigate,
+// } from "react-router-dom";
 
 // import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css"; // Import the styles
@@ -50,18 +50,18 @@ function PendingApprovalSales() {
   // const { id } = useParams();
 
   //for-data table
-  const [editorContent, setEditorContent] = useState("");
+  // const [editorContent, setEditorContent] = useState("");
   const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
 
   const [getPid, setPid] = useState(false);
-  const [show, setShow] = useState(false);
+  // const [show, setShow] = useState(false);
   const [getshowRemarks, setShowremark] = useState(false);
   const [getRemarksdata, getremarkdata] = useState('');
   const [getRemarksRef, getremarksRef] = useState('');
-  const [getReff, setReff] = useState('');
+  // const [getReff, setReff] = useState('');
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { qty, unit_price } }
   const [remarks, setRemarks] = useState(''); // Remarks textarea value
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -71,8 +71,8 @@ function PendingApprovalSales() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // Store the action to perform after confirmation
   const [pendingStatus, setPendingStatus] = useState(null); // Store the status for the confirmation message
-  const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  // const handleClose = () => setShow(false);
+  // const handleShow = () => setShow(true);
   const RemarksClose = () => setShowremark(false);
   const RemarksShow = (value) => setShowremark(value);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
@@ -89,14 +89,11 @@ function PendingApprovalSales() {
     }
   }, [user]);
 
-  const handleEditorChange = (content) => {
-    setEditorContent(content);
-  };
-  const navigate = useNavigate();
-  const getRef = (pid, ref) => {
-    setReff(ref)
-    setPid(pid)
-  }
+  // const navigate = useNavigate();
+  // const getRef = (pid, ref) => {
+  //   setReff(ref)
+  //   setPid(pid)
+  // }
   const getRemarks = (rmks, refid) => {
     getremarkdata(rmks)
     getremarksRef(refid)
@@ -148,19 +145,6 @@ function PendingApprovalSales() {
       console.error("There was an error fetching the product list!", error);
     }
   };
-
-  // const handleCloseAfterReview = () => {
-  //   if (areAllStatusesFive()) {
-  //     setShowPrice(false);
-  //     navigate('/sales/pending-approval');
-  //   } else {
-  //     alert("All statuses must be 5 to close the modal.");
-  //   }
-  // };
-  // const areAllStatusesFive = () => {
-  //   if (!ProductCompare || ProductCompare.length === 0) return false;
-  //   return ProductCompare.every((productPriceCompare) => productPriceCompare.status >= 4);
-  // };
 
   // Calculate totals based on edited products
   const calculateProductTotals = () => {
@@ -256,8 +240,18 @@ function PendingApprovalSales() {
     }));
   };
 
-  const openVariantSelector = (product, selectedProductData) => {
+  const openVariantSelector = (product, selectedProductData, resetVariant = false) => {
     const existingEdited = editedProducts[product.id] || {};
+    const existingVariantId =
+      existingEdited.variant_id ||
+      existingEdited.variantData?.id ||
+      product.variant_id ||
+      product.product_variant_id ||
+      product.productVariant?.id ||
+      null;
+    const existingVariantData =
+      existingEdited.variantData || product.variantData || product.productVariant || null;
+
     setVariantModalBackup({
       rowId: product.id,
       data: {
@@ -266,18 +260,17 @@ function PendingApprovalSales() {
         tax: existingEdited.tax ?? product.tax,
         product_id: existingEdited.product_id ?? product.product_id,
         productData: existingEdited.productData || product.productData || product.product || null,
-        variant_id:
-          existingEdited.variant_id ||
-          existingEdited.variantData?.id ||
-          product.variant_id ||
-          product.product_variant_id ||
-          product.productVariant?.id ||
-          null,
-        variantData: existingEdited.variantData || product.variantData || product.productVariant || null,
+        variant_id: existingVariantId,
+        variantData: existingVariantData,
       },
     });
 
-    updateEditedProductWithSelection(product, selectedProductData, null, null);
+    updateEditedProductWithSelection(
+      product,
+      selectedProductData,
+      resetVariant ? null : existingVariantId,
+      resetVariant ? null : existingVariantData
+    );
     setCurrentProductRowId(product.id);
     setCurrentSelectedProductId(selectedProductData?.id || product.product_id);
     setShowVariantModal(true);
@@ -297,6 +290,10 @@ function PendingApprovalSales() {
       );
     }
     setVariantModalBackup(null);
+    closeVariantModal();
+  };
+
+  const closeVariantModal = () => {
     setShowVariantModal(false);
     setCurrentProductRowId(null);
     setCurrentSelectedProductId(null);
@@ -314,16 +311,12 @@ function PendingApprovalSales() {
       }));
     }
     setVariantModalBackup(null);
-    setShowVariantModal(false);
-    setCurrentProductRowId(null);
-    setCurrentSelectedProductId(null);
+    closeVariantModal();
   };
 
   const handleContinueWithoutVariant = () => {
     setVariantModalBackup(null);
-    setShowVariantModal(false);
-    setCurrentProductRowId(null);
-    setCurrentSelectedProductId(null);
+    closeVariantModal();
   };
 
   // Handle approve by management
@@ -357,7 +350,7 @@ function PendingApprovalSales() {
       );
       
       if (response.status === 200) {
-        SuccessMessage("Sales quotation has been approved successfully");
+        SuccessMessage("Sales order has been approved successfully");
         setShowPrice(false);
         TaskData();
         // Reset edited products
@@ -365,8 +358,8 @@ function PendingApprovalSales() {
         setRemarks('');
       }
     } catch (error) {
-      ErrorMessage("Error approving sales quotation. Please try again.");
-      console.error("Error approving sales quotation:", error);
+      ErrorMessage("Error approving sales order. Please try again.");
+      console.error("Error approving sales order:", error);
     }
   };
 
@@ -528,18 +521,14 @@ function PendingApprovalSales() {
     return (
       <td>
         <div>
-          <span><a className="k_table_link" onClick={() => {
-            setShowPrice(true);
-            PriceCompare(dataItem.id);
+          <span>
+            <a className="k_table_link" onClick={() => {
+              setShowPrice(true);
+              PriceCompare(dataItem.id);
 
-          }}>{dataItem.reference}
-
-            {dataItem.is_parent === 1 && "   "} {/* Add a space */}
-            {dataItem.is_parent == 1 && <i
-              className="fas fa-info-circle"
-              style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }}
-            ></i>}
-          </a></span>
+            }}>{dataItem.reference}
+          </a>
+          </span>
 
         </div>
       </td>
@@ -567,7 +556,7 @@ function PendingApprovalSales() {
     return (
       <td>
         <div className="d-flex gap-2">
-          <Tooltip title="View Details">
+          <Tooltip title="Approve or Reject">
             <span
 
               className="me-1 icon-btn"
@@ -578,7 +567,7 @@ function PendingApprovalSales() {
               }}
             >
 
-              <i class="fas fa-eye d-flex"></i>
+              <i class="fas fa-edit d-flex"></i>
             </span>
           </Tooltip>
 
@@ -692,17 +681,6 @@ function PendingApprovalSales() {
             </div>
            
           </div>
-          {/* <div className="d-flex ms-auto gap-3">
-            <div className="line"></div>
-            <div className="d-flex justify-content-center align-items-center gap-2">
-            {MatchPermission(["Quotation Create Sales"]) ?
-              <Link to="/sales/new" className="btn btn-exp-primary btn-sm">
-                <i className="fas fa-plus"></i>
-                <span className="ms-2">Create Sale Order</span>
-              </Link>
-              :""}
-            </div>
-          </div> */}
         </div>
       </div>
 
@@ -751,18 +729,11 @@ function PendingApprovalSales() {
                       <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
                       <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="100px" />
                       <GridColumn field="deliveryDate" title="Delivery Date" filterable={false} filter="text" width="200px" />
-                      {/* <GridColumn field="vendor" title="vendor" filter="text" filterable={false} width="250px" /> */}
                       <GridColumn field="creationDate" title="Creation Date" filterable={false} filter="text" width="150px" />
                       <GridColumn field="customer" title="Customer" filterable={false} filter="text" width="150px" />
                       <GridColumn field="storeName" title="Store" filterable={false} filter="text" width="150px" />
                       <GridColumn field="salesPerson" title="Sales Person" filter="text" filterable={false} width="200" />
-                      {/* <GridColumn field="sourceDocument" title="source DocumentT" filterable={false} filter="text" width="200px" /> */}
                       <GridColumn field="total" title="total" filter="text" filterable={false} width="150px" />
-                      {/* <GridColumn field="customer" title="Customer" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
-                      <GridColumn field="buyer" title="buyer" filter="text" filterable={false} width="200" />
-                      <GridColumn field="created" title="Created" filter="numeric" width="200px" />
-                      <GridColumn field="total" title="total" filter="text" filterable={false} width="200px" /> */}
                       <GridColumn
                         field="status"
                         title="status"
@@ -803,7 +774,7 @@ function PendingApprovalSales() {
       >
         <Modal.Header>
           <Modal.Title id="example-custom-modal-styling-title">
-            Sales Quotation Details
+            Sales Order Details
           </Modal.Title>
           <button
             type="button"
@@ -906,7 +877,7 @@ function PendingApprovalSales() {
                                     selectedProductData={row.productData}
                                     onChange={(selectedOption) => {
                                       if (selectedOption?.productData) {
-                                        openVariantSelector(product, selectedOption.productData);
+                                        openVariantSelector(product, selectedOption.productData, true);
                                       }
                                     }}
                                     queryParams={{
@@ -1007,14 +978,14 @@ function PendingApprovalSales() {
                               <div className="d-flex align-items-center gap-2" style={{ minWidth: "100px" }}>
                                 <span>
                                   {row.variantData
-                                    ? `${row.variantData.weight_per_unit || "N/A"} ${row.variantData.masterUOM?.label || ""}`.trim()
+                                    ? `${row.variantData.weight_per_unit || "N/A"} ${row.variantData.masterUOM?.label || row.variantData.master_uom?.label || ""}`.trim()
                                     : "N/A"}
                                 </span>
                                 {row.productId && (
                                   <button
                                     type="button"
                                     className="btn btn-link btn-sm p-0"
-                                    onClick={() => openVariantSelector(product, row.productData)}
+                                    onClick={() => openVariantSelector(product, row.productData, false)}
                                     title="Change variant"
                                   >
                                     <i className="fas fa-edit text-primary"></i>
@@ -1027,13 +998,16 @@ function PendingApprovalSales() {
                                 ? calculateTotalWeight(
                                     editedProduct.qty,
                                     row.variantData?.weight_per_unit,
-                                    row.variantData?.masterUOM?.label
+                                    row.variantData?.masterUOM?.label ||
+                                      row.variantData?.master_uom?.label
                                   ).display
                                 : "N/A"}
                             </td>
                             <td>
                               {row.variantData?.masterUOM?.label ||
+                                row.variantData?.master_uom?.label ||
                                 row.variantData?.masterUOM?.name ||
+                                row.variantData?.master_uom?.name ||
                                 row.productData?.masterUOM?.label ||
                                 row.productData?.masterUOM?.name ||
                                 'N/A'}
@@ -1129,7 +1103,7 @@ function PendingApprovalSales() {
 
       <ProductVariantSelectionModal
         show={showVariantModal}
-        onHide={() => handleVariantModalClose(currentProductRowId)}
+        onHide={closeVariantModal}
         productId={currentSelectedProductId}
         productIndex={currentProductRowId}
         currentVariantId={
@@ -1209,9 +1183,9 @@ function PendingApprovalSales() {
           <Alert variant="warning" className="mb-0">
             {pendingStatus === 8 && (
               <div>
-                <strong>Reject Sales Quotation</strong>
+                <strong>Reject Sales Order</strong>
                 <p className="mb-0 mt-2">
-                  Are you sure you want to reject this sales quotation? This action cannot be undone.
+                  Are you sure you want to reject this sales order? This action cannot be undone.
                 </p>
               </div>
             )}
@@ -1219,7 +1193,7 @@ function PendingApprovalSales() {
               <div>
                 <strong>Send Back to Review</strong>
                 <p className="mb-0 mt-2">
-                  Are you sure you want to send back this sales quotation to review?
+                  Are you sure you want to send back this sales order to review?
                 </p>
               </div>
             )}

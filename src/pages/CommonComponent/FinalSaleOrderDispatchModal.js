@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Table, Form } from "react-bootstrap";
+import { Modal, Table, Form, OverlayTrigger, Popover } from "react-bootstrap";
 import moment from "moment";
 
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import { ErrorMessage } from "../../environment/ToastMessage";
+import ProductDetailsContent from "./ProductDetailsContent";
+import { calculateTotalWeight } from "../../utils/weightConverter";
 
 /**
  * Reusable Sale Order Details Modal Component
@@ -21,21 +23,14 @@ const FinalSaleOrderDispatchModal = ({
   currencySymbol = "₹",
   onSubmit,
 }) => {
-  // const [productStores, setProductStores] = useState({});
-  // const [loadingStores, setLoadingStores] = useState({});
-  // const fetchedProductIdsRef = useRef(new Set());
-  // const [error, setError] = useState({});
-  // const [receivedNowMap, setReceivedNowMap] = useState({});
-  // const [dispatchedProductIds, setDispatchedProductIds] = useState(new Set());
-  // Selected rows: Set of rowKey (`${purchaseId}-${productId}`)
   const [selectedRowKeys, setSelectedRowKeys] = useState(new Set());
-  // Delivery note per row: { [rowKey]: string }
   const [deliveryNoteMap, setDeliveryNoteMap] = useState({});
 
   // Manage batches section
   const [availableBatches, setAvailableBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
   const [batchRows, setBatchRows] = useState([]);
+  const isProductCompleted = (product) => Number(product?.status) === 11;
 
   const createBatchRow = () => ({
     key: `batch-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -43,78 +38,14 @@ const FinalSaleOrderDispatchModal = ({
     qty: 0,
   });
 
-  // Fetch store-wise stock for a product
-  // const fetchProductStores = useCallback(async (productId) => {
-  //   if (!productId) {
-  //     return;
-  //   }
-
-  //   // Check if we've already initiated fetching for this product
-  //   if (fetchedProductIdsRef.current.has(productId)) {
-  //     return; // Already initiated, don't fetch again
-  //   }
-
-  //   // Mark as fetched
-  //   fetchedProductIdsRef.current.add(productId);
-
-  //   setLoadingStores((prev) => ({ ...prev, [productId]: true }));
-  //   try {
-  //     const response = await PrivateAxios.get(
-  //       `/product/store-wise-stock/${productId}`
-  //     );
-  //     if (response.status === 200 && response.data.status) {
-  //       const stores = response.data.data.stores || [];
-  //       const storeOptions = stores.map((store) => ({
-  //         value: store.warehouse.id,
-  //         label: `${store.warehouse.name} (Stock: ${store.available_stock})`,
-  //         warehouse: store.warehouse,
-  //         available_stock: store.available_stock,
-  //       }));
-  //       setProductStores((prev) => ({
-  //         ...prev,
-  //         [productId]: storeOptions,
-  //       }));
-  //     }
-  //   } catch (error) {
-  //     console.error(`Error fetching stores for product ${productId}:`, error);
-  //     setProductStores((prev) => ({
-  //       ...prev,
-  //       [productId]: [],
-  //     }));
-  //   } finally {
-  //     setLoadingStores((prev) => ({ ...prev, [productId]: false }));
-  //   }
-  // }, []);
-
-  // Fetch stores for all products when modal opens and productCompare changes
-  // useEffect(() => {
-  //   // if (show && productCompare.length > 0) {
-  //   //   productCompare.forEach((purchase) => {
-  //   //     purchase.products.forEach((product) => {
-  //   //       // Try product_id first, then productData?.id
-  //   //       const productId = product.product_id || product.productData?.id;
-  //   //       if (productId) {
-  //   //         fetchProductStores(productId);
-  //   //       }
-  //   //     });
-  //   //   });
-  //   // }
-  //   // Reset fetched IDs when modal closes to allow refetching when reopened
-  //   if (!show) {
-  //     fetchedProductIdsRef.current.clear();
-  //     setDispatchedProductIds(new Set());
-  //     setSelectedRowKeys(new Set());
-  //     setDeliveryNoteMap({});
-  //   }
-  // }, [show, productCompare]);
-
   // Initialize receivedNowMap when modal opens or productCompare changes
   useEffect(() => {
     if (show && productCompare?.length > 0) {
       const initial = {};
-      productCompare.forEach((purchase) => {
-        purchase.products.forEach((product) => {
-          const key = `${purchase.id}-${product.id}`;
+      productCompare.forEach((salesOrder) => {
+
+        salesOrder.products.forEach((product) => {
+          const key = `${salesOrder.id}-${product.id}`;
           let availableQty = Number(product.qty) || 0;
 
           initial[key] = Number(product.received_now) || 0;
@@ -126,8 +57,6 @@ const FinalSaleOrderDispatchModal = ({
           initial[`is_dispatched_fully_${key}`] = availableQty === 0;
         });
       });
-      // setReceivedNowMap(initial);
-      // console.log("productCompare", productCompare);
     }
   }, [show, productCompare]);
 
@@ -150,21 +79,7 @@ const FinalSaleOrderDispatchModal = ({
           p.productData.forEach((product) => {
             const productBatches = Array.isArray(product.batches) ? product.batches : [];
             batches.push(...productBatches);
-            // batches.forEach((b) => {
-            //   batches.push({
-            //     ...b,
-            //     // purchase_id: p.id,
-            //     // purchase_reference_number: p.reference_number,
-            //   });
-            // });
           });
-          // batches.forEach((b) => {
-          //   flattened.push({
-          //     ...b,
-          //     // purchase_id: p.id,
-          //     // purchase_reference_number: p.reference_number,
-          //   });
-          // });
         });
         setAvailableBatches(batches);
         if (batches.length > 0) {
@@ -177,76 +92,6 @@ const FinalSaleOrderDispatchModal = ({
       })
       .finally(() => setBatchesLoading(false));
   }, [show, productCompare?.length, productCompare?.[0]?.id]);
-
-  // Handler to update warehouse when store is changed
-  // const handleStoreChange = (purchaseId, productId, selectedStore) => {
-  //   if (onStoreChange) {
-  //     onStoreChange(purchaseId, productId, selectedStore);
-  //     setReceivedNowMap((prev) => ({ ...prev, [`store_${purchaseId}-${productId}`]: selectedStore.value }));
-  //   }
-  // };
-
-  // Handler for quantity (received_now) change; available_qty = quantity - received_now
-  // const handleProductQuantityChange = (purchaseId, productId, field, value) => {
-  //   if (field !== "received_now") return;
-  //   const key = `${purchaseId}-${productId}`;
-  //   const num = Math.max(0, Number(value) || 0);
-  //   setReceivedNowMap((prev) => ({ ...prev, [key]: num }));
-  //   setError((prev) => {
-  //     const next = { ...prev };
-  //     delete next[`received_${key}`];
-  //     return next;
-  //   });
-  // };
-
-  // Validate received_now for a product before dispatching: 0 <= received_now <= quantity
-  // const validateProductReceived = (purchaseId, productId, quantity, receivedNow, currentStoreId) => {
-  //   const key = `received_${purchaseId}-${productId}`;
-  //   if (!currentStoreId || currentStoreId === null) {
-  //     setError((prev) => ({ ...prev, [`store_${purchaseId}-${productId}`]: "Please select a store." }));
-  //     return false;
-  //   }
-  //   if (receivedNow <= 0) {
-  //     setError((prev) => ({ ...prev, [key]: "Dispatch quantity cannot be zero or negative." }));
-  //     return false;
-  //   }
-  //   if (receivedNow > quantity) {
-  //     setError((prev) => ({ ...prev, [key]: "Dispatch quantity cannot exceed order quantity." }));
-  //     return false;
-  //   }
-  //   return true;
-  // };
-
-  // Handler for status change: validate before calling parent
-  // const handleReceiveProduct = (salesid, spid, sid) => {
-  //   const purchase = productCompare.find((p) => p.id === salesid);
-  //   const product = purchase?.products.find((p) => p.id === spid);
-  //   if (!purchase || !product) return;
-
-  //   const quantity = Number(product.qty || 1);
-  //   const key = `${salesid}-${spid}`;
-  //   const receivedNow = receivedNowMap[key] ?? Number(product.received_now) ?? 0;
-  //   const currentStore = receivedNowMap[`store_${salesid}-${spid}`] ?? null;
-
-  //   if (!validateProductReceived(salesid, spid, quantity, receivedNow, currentStore.id)) {
-  //     return;
-  //   }
-
-  //   setError((prev) => {
-  //     const next = { ...prev };
-  //     delete next[`received_${key}`];
-  //     delete next[`store_${salesid}-${spid}`];
-  //     return next;
-  //   });
-
-
-  //   if (onProductReceive) {
-  //     onProductReceive(salesid, spid, sid, receivedNow, currentStore.id);
-  //     // Optimistic UI: show as Dispatched and toast (parent will also update productCompare on API success)
-  //     setDispatchedProductIds((prev) => new Set([...prev, spid]));
-  //     setReceivedNowMap((prev) => ({ ...prev, [`is_dispatched_fully_${key}`]: prev[`available_qty_${key}`] === 0 }));
-  //   }
-  // };
 
   const toggleRowSelection = (rowKey) => {
     setSelectedRowKeys((prev) => {
@@ -263,7 +108,9 @@ const FinalSaleOrderDispatchModal = ({
       const all = new Set();
       productCompare.forEach((purchase) =>
         purchase.products.forEach((product) => {
-          all.add(`${purchase.id}-${product.id}`);
+          if (!isProductCompleted(product)) {
+            all.add(`${purchase.id}-${product.id}`);
+          }
         })
       );
       setSelectedRowKeys(all);
@@ -321,7 +168,7 @@ const FinalSaleOrderDispatchModal = ({
     productCompare.forEach((salesOrder) => {
       salesOrder.products.forEach((product) => {
         const rowKey = `${salesOrder.id}-${product.id}`;
-        if (selectedRowKeys.has(rowKey)) {
+        if (!isProductCompleted(product) && selectedRowKeys.has(rowKey)) {
           selectedItems.push({ salesOrder, product, rowKey, deliveryNote: '' });
         }
       });
@@ -513,34 +360,43 @@ const FinalSaleOrderDispatchModal = ({
             <tr>
               <th style={{ width: 56, verticalAlign: "middle" }}>
                 <div className="d-flex align-items-center justify-content-center">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    style={{
-                      width: "1.25rem",
-                      height: "1.25rem",
-                      minWidth: "1.25rem",
-                      minHeight: "1.25rem",
-                      cursor: "pointer",
-                      flexShrink: 0,
-                      border: "1px solid #495057",
-                    }}
-                    checked={
-                      productCompare.length > 0 &&
-                      productCompare.every((p) =>
-                        p.products.every((prod) =>
-                          selectedRowKeys.has(`${p.id}-${prod.id}`)
-                        )
-                      )
-                    }
-                    onChange={(e) => toggleSelectAll(e.target.checked)}
-                  />
+                  {(() => {
+                    const selectableRows = [];
+                    productCompare.forEach((p) => {
+                      p.products.forEach((prod) => {
+                        if (!isProductCompleted(prod)) {
+                          selectableRows.push(`${p.id}-${prod.id}`);
+                        }
+                      });
+                    });
+                    if (selectableRows.length === 0) return null;
+
+                    return (
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        style={{
+                          width: "1.25rem",
+                          height: "1.25rem",
+                          minWidth: "1.25rem",
+                          minHeight: "1.25rem",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          border: "1px solid #495057",
+                        }}
+                        checked={selectableRows.every((rk) => selectedRowKeys.has(rk))}
+                        onChange={(e) => toggleSelectAll(e.target.checked)}
+                      />
+                    );
+                  })()}
                 </div>
               </th>
               <th>Customer</th>
               <th>Reference</th>
               <th>Product Name</th>
+              <th>Weight per Unit</th>
               <th>Quantity</th>
+              <th>Total Weight</th>
               <th>Unit Price</th>
               <th>Tax (%)</th>
               <th>Tax Amount</th>
@@ -556,9 +412,6 @@ const FinalSaleOrderDispatchModal = ({
                 const taxRate = Number(product.tax || 0);
                 const quantity = Number(product.qty || 1);
                 const rowKey = `${purchase.id}-${product.id}`;
-                // const receivedNow = receivedNowMap[rowKey] ?? Number(product.received_now) ?? 0;
-                // const previousAvailableQty = receivedNowMap[`available_qty_${rowKey}`] ?? Number(product.available_qty) ?? 0;
-                // const availableQty = Math.max(0, previousAvailableQty - receivedNow);
 
                 const taxAmount = (unitPrice * taxRate * quantity) / 100;
                 const totalWithTax = unitPrice * quantity + taxAmount;
@@ -567,7 +420,7 @@ const FinalSaleOrderDispatchModal = ({
                   <tr key={rowKey}>
                     <td style={{ verticalAlign: "middle" }}>
                       <div className="d-flex align-items-center justify-content-center">
-                        {purchase.status !== 11 ? (
+                        {!isProductCompleted(product) ? (
                         <input
                           type="checkbox"
                           className="form-check-input"
@@ -593,8 +446,61 @@ const FinalSaleOrderDispatchModal = ({
                       {purchase.reference_number}
                     </td>
 
-                    <td>{product.productData?.product_name || "N/A"}</td>
+                    <td>
+                      {product.productData?.product_name || "N/A"}
+                      { " " }
+                      {product.productData && (
+                          <OverlayTrigger
+                            trigger="click"
+                            placement="right"
+                            rootClose
+                            container={typeof document !== "undefined" ? document.body : undefined}
+                            popperConfig={{
+                              modifiers: [
+                                { name: "flip", options: { fallbackPlacements: ["left", "right"] } },
+                                { name: "preventOverflow", options: { boundary: "viewport" } },
+                                { name: "offset", options: { offset: [0, 8] } },
+                              ],
+                            }}
+                            overlay={
+                              <Popover id={`product-details-${product.id}`} style={{ maxWidth: "450px", zIndex: 1060 }}>
+                                <Popover.Header as="h6" className="d-flex align-items-center">
+                                  <i className="fas fa-info-circle text-primary me-2"></i>
+                                  Product Details
+                                </Popover.Header>
+                                <Popover.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
+                                  <ProductDetailsContent productData={product.productData} />
+                                </Popover.Body>
+                              </Popover>
+                            }
+                          >
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              className="text-primary"
+                              style={{ cursor: "pointer", flexShrink: 0, marginTop: "8px" }}
+                              title="View product details"
+                              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.click()}
+                            >
+                              <i className="fas fa-info-circle fa-lg"></i>
+                            </span>
+                          </OverlayTrigger>
+                        )}
+                      
+                    </td>
+                    <td>{product?.productVariant.weight_per_unit || "N/A"} {product?.productVariant.masterUOM?.label || ""}</td>
                     <td>{quantity}</td>
+
+                    <td>
+                      {product.productVariant
+                        ? calculateTotalWeight(
+                            quantity,
+                            product.productVariant?.weight_per_unit,
+                            product.productVariant?.masterUOM?.label ||
+                              product.productVariant?.master_uom?.label
+                          ).display
+                        : "N/A"}
+                    </td>
                     <td>
                       {currencySymbol} {unitPrice.toFixed(2)}
                     </td>
@@ -606,7 +512,7 @@ const FinalSaleOrderDispatchModal = ({
                       {currencySymbol} {totalWithTax.toFixed(2)}
                     </td>
                     <td>
-                      {product.status !== 11 ? (
+                      {!isProductCompleted(product) ? (
                       <span className="badge bg-success text-white">Dispatched</span>
                       ) : (
                         <span className="badge bg-info text-white">Completed</span>
@@ -629,7 +535,7 @@ const FinalSaleOrderDispatchModal = ({
 
             {/* Grand Total Row */}
             <tr>
-              <td colSpan={8} className="text-end fw-bold">
+              <td colSpan={10} className="text-end fw-bold">
                 Grand Total:
               </td>
               <td className="fw-bold">
@@ -677,7 +583,7 @@ const FinalSaleOrderDispatchModal = ({
                         {productName}
                         {productCode ? ` (${productCode})` : ""}
                       </span>
-                      <span className="small text-muted">
+                      <span className="me-2 text-primary">
                         Ordered: {orderQty} · Dispatched: {totalReceived}
                         {totalRejected > 0 ? ` · Rejected: ${totalRejected}` : ""}
                       </span>
@@ -686,17 +592,19 @@ const FinalSaleOrderDispatchModal = ({
                       <Table size="sm" bordered className="mb-0 rounded">
                         <thead className="table-light">
                           <tr>
-                            <th style={{ width: 60 }}>#</th>
-                            <th>Dispatched Qty</th>
+                            <th width="2%">#</th>
+                            <th width="15%">Variant</th>
+                            <th width="10%">Dispatched Qty</th>
                             {/* <th>Rejected Qty</th> */}
-                            <th>Dispatched by</th>
-                            <th>Dispatched Date</th>
+                            <th width="25%">Dispatched by</th>
+                            <th width="10%">Dispatched Date</th>
                           </tr>
                         </thead>
                         <tbody>
                           {receivedList.map((rec, idx) => (
                             <tr key={rec.id}>
                               <td>{idx + 1}</td>
+                              <td>{rec.productVariant.weight_per_unit || "N/A"} {rec.productVariant.masterUOM?.label || ""}</td>
                               <td>{Number(rec.received_quantity || 0)}</td>
                               {/* <td>{Number(rec.rejected_quantity || 0)}</td> */}
                               <td>{rec.user?.name ?? "—"}</td>

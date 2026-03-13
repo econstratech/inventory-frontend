@@ -23,7 +23,7 @@ import {
   SuccessMessage,
 } from "../../../../environment/ToastMessage";
 
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
+import { Grid, GridColumn } from "@progress/kendo-react-grid";
 // import { process } from "@progress/kendo-data-query";
 // import { ExcelExport } from "@progress/kendo-react-excel-export";
 // import { PDFExport } from "@progress/kendo-react-pdf";
@@ -44,6 +44,7 @@ import SalesQuotationPageTopBar from "../SalesQuotationPageTopBar";
 // import CustomerDispatchModal from "./CustomerDispatchModal";
 import Loader from "../../../../environment/Loader";
 import FinalSaleOrderDispatchModal from "../../../CommonComponent/FinalSaleOrderDispatchModal";
+import SaleOrderRemarksModal from "../../../CommonComponent/SaleOrderRemarksModal";
 // import SaleOrderDetailsModal from "../../../CommonComponent/SaleOrderDetailsModal";
 
 function MysalesOrderDispatchList() {
@@ -61,6 +62,9 @@ function MysalesOrderDispatchList() {
   const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
   const [showFinalSaleOrderDispatchModal, setShowFinalSaleOrderDispatchModal] = useState(false);
+  const [remarksModalOpen, setRemarksModalOpen] = useState(false);
+  const [remarksModalSaleOrderId, setRemarksModalSaleOrderId] = useState(null);
+  const [remarksModalSaleOrderRef, setRemarksModalSaleOrderRef] = useState("");
 
   // Available batches modal
   const [batchesModalOpen, setBatchesModalOpen] = useState(false);
@@ -109,49 +113,6 @@ function MysalesOrderDispatchList() {
       const perPage = responseData.pagination?.per_page || currentPageState.take;
       const startingIndex = (currentPage - 1) * perPage;
 
-      // Transform the data - flatten products from each sale quotation
-      // const transformedData = [];
-      // let itemCounter = startingIndex;
-      // responseData.rows.forEach((saleQuotation) => {
-      //   if (saleQuotation.products && Array.isArray(saleQuotation.products)) {
-      //     saleQuotation.products.forEach((product, productIndex) => {
-      //       // Only include products that match the work order criteria
-      //       if (
-      //         product.status === 10 && // Dispatched status
-      //         (!product.is_dispatched || product.is_dispatched === 0) &&
-      //         (!product.is_invoice || product.is_invoice === 0)
-      //       ) {
-      //         itemCounter++;
-      //         transformedData.push({
-      //           id: product.id || `${saleQuotation.id}-${productIndex}`,
-      //           slNo: itemCounter,
-      //           production_number: product.production_number || "N/A",
-      //           reference: saleQuotation.reference_number || "-",
-      //           customer: saleQuotation.customer?.name || "N/A",
-      //           createdBy: saleQuotation.createdBy?.name || "N/A",
-      //           product_name: product.productData?.product_name || product.ProductsItem?.product_name || "N/A",
-      //           product_code: product.productData?.product_code || product.ProductsItem?.product_code || "-",
-      //           product_id: product.product_id || product.productData?.id || "N/A",
-      //           qty: product.qty || 0,
-      //           unit_price: getGeneralSettingssymbol + Number(product.unit_price || 0).toFixed(2),
-      //           total_tax_incl: getGeneralSettingssymbol + Number(product.taxIncl || (product.unit_price * product.qty * (1 + (product.tax || 0) / 100))).toFixed(2),
-      //           unit: product.productData?.masterUOM?.name || product.ProductsItem?.Masteruom?.unit_name || "-",
-      //           created_at: moment(saleQuotation.created_at || product.created_at).format("DD-MM-YYYY"),
-      //           has_mixed_status: product.has_mixed_status || false,
-      //           purchase_id: saleQuotation.id,
-      //         });
-      //       }
-      //     });
-      //   }
-      // });
-
-      // const avgProductsPerQuotation = responseData.rows.length > 0 
-      //   ? transformedData.length / responseData.rows.length 
-      //   : 0;
-      // const estimatedTotal = avgProductsPerQuotation > 0 
-      //   ? Math.ceil(responseData.pagination?.total_records * avgProductsPerQuotation)
-      //   : transformedData.length;
-
       const transformedData = responseData.rows.map((item, index) => ({
         id: item.id,
         slNo: startingIndex + index + 1,
@@ -162,8 +123,7 @@ function MysalesOrderDispatchList() {
         customer: item.customer && item.customer.name,
         salesPerson: item.createdBy?.name,
         storeName: item.warehouse?.name,
-        // buyer: item.buyer,
-        total: `${getGeneralSettingssymbol}${item.total_amount}`,
+        total: `${getGeneralSettingssymbol}${Number(item.total_amount).toFixed(2)}`,
         status: item.status,
         is_parent: item.is_parent,
         is_parent_id: item.is_parent_id,
@@ -229,8 +189,12 @@ function MysalesOrderDispatchList() {
   };
 
   const handleSubmitFinalSaleOrderDispatch = async (selectedItems, batchPayload = []) => {
-    const payload = { products: [] };
+    const payload = { products: [], batches: [] };
     let salesOrderId = null;
+    if(selectedItems.length === 0) {
+      setReceiveError("Please select at least one product to submit");
+      return;
+    }
     selectedItems.forEach((item) => {
       salesOrderId = item.salesOrder.id;
       payload.products.push({
@@ -241,12 +205,26 @@ function MysalesOrderDispatchList() {
     if (batchPayload && batchPayload.length > 0) {
       payload.batches = batchPayload;
     }
-    // console.log("payload", payload);
     try {
       const response = await PrivateAxios.put(`sales/final-dispatch/${salesOrderId}`, payload);
       if (response.status === 200) {
         SuccessMessage("Sale order dispatched successfully");
+        const selectedProductIds = new Set(selectedItems.map((item) => item.product.id));
+        setProductCompare((prev) =>
+          prev.map((order) => {
+            if (order.id !== salesOrderId) return order;
+            return {
+              ...order,
+              products: (order.products || []).map((product) =>
+                selectedProductIds.has(product.id)
+                  ? { ...product, status: 11 }
+                  : product
+              ),
+            };
+          })
+        );
         setShowFinalSaleOrderDispatchModal(false);
+        fetchWorkOrders();
       }
     } catch (error) {
       console.error("Error submitting sale order:", error);
@@ -374,17 +352,17 @@ function MysalesOrderDispatchList() {
   const pdfExportRef = React.createRef();
   const excelExportRef = React.createRef();
 
-  const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
-  };
+  // const handleExportPDF = () => {
+  //   if (pdfExportRef.current) {
+  //     pdfExportRef.current.save();
+  //   }
+  // };
 
-  const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
-  };
+  // const handleExportExcel = () => {
+  //   if (excelExportRef.current) {
+  //     excelExportRef.current.save();
+  //   }
+  // };
 
   const ActionCell = (props) => {
     const { dataItem } = props;
@@ -409,55 +387,6 @@ function MysalesOrderDispatchList() {
       <td>
 
         <div className="d-flex gap-2">
-          {/* <Tooltip title="Dispatch to Stock">
-            <button
-              onClick={() => handleOpenFinalDispatchModal(dataItem, "stock")}
-              className="me-1 icon-btn"
-
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                id="Layer_1"
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                width={18}
-                height={18}
-                fill="currentColor"
-              >
-                <path d="m1,2.5C1,1.119,2.119,0,3.5,0s2.5,1.119,2.5,2.5-1.119,2.5-2.5,2.5S1,3.881,1,2.5Zm.5,16c-.829,0-1.5.672-1.5,1.5v2.5c0,.828.671,1.5,1.5,1.5s1.5-.672,1.5-1.5v-2.5c0-.828-.671-1.5-1.5-1.5Zm22.461-.457c-.187-.808-.992-1.311-1.8-1.122l-6.813,1.579-2.86-12.339c-.187-.808-.993-1.311-1.8-1.122-.807.187-1.31.993-1.123,1.8l.733,3.161h-1.966l-1.325-2.121c-.736-1.177-2.004-1.879-3.392-1.879h-.614c-1.654,0-3,1.346-3,3v4.085c0,1.396.744,2.71,1.942,3.43l3.058,1.835v4.15c0,.828.671,1.5,1.5,1.5s1.5-.672,1.5-1.5v-4.434c0-.873-.465-1.695-1.213-2.144l-1.787-1.072v-4.52l.935,1.497c.461.734,1.253,1.173,2.119,1.173h2.939l1.446,6.236c-.85.399-1.439,1.262-1.439,2.264,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.024-.001-.048-.002-.072l6.841-1.586c.807-.187,1.31-.992,1.123-1.8Zm-7.531-3.408c.201.859,1.062,1.391,1.92,1.187l2.907-.691c.854-.203,1.383-1.059,1.183-1.914l-.7-2.986c-.201-.859-1.062-1.391-1.92-1.187l-2.907.691c-.854.203-1.383,1.059-1.183,1.914l.7,2.986Z" />
-              </svg>
-            </button>
-          </Tooltip> */}
-
-          {/* <Tooltip title="Dispatch to Customer">
-            <button
-              onClick={() => handleOpenFinalDispatchModal(dataItem)}
-              className="me-1 icon-btn"
-
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                id="Layer_1"
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                width={18}
-                height={18}
-                fill="currentColor"
-              >
-                <path d="m8,0H2C.895,0,0,.895,0,2v8h10V2c0-1.105-.895-2-2-2Zm-1.5,5h-3v-2h3v2Zm-3.442,16c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5H3.058ZM12,2v10H0v7h15V5c0-1.654-1.346-3-3-3Zm5.058,19c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5h-4.885Zm-.058-2h7v-5h-7v5Zm2-13h-2v6h7v-1c0-2.757-2.243-5-5-5Z" />
-              </svg>
-            </button>
-          </Tooltip>
-          {dataItem.has_mixed_status && (
-            <Tooltip title="Multiple product statuses">
-              <button className="me-1 icon-btn" onClick={() => handleOpenStatusModal(dataItem.reference)}>
-                <i
-                  className="fas fa-exclamation-circle text-danger blink-icon"
-                  title=""
-                ></i>
-              </button>
-            </Tooltip>
-          )} */}
           <Tooltip title="Show sale order details">
             <button
               className="me-1 icon-btn"
@@ -480,39 +409,19 @@ function MysalesOrderDispatchList() {
             </button>
           </Tooltip>
 
+          <Tooltip title="View remarks">
+            <button
+              className="me-1 icon-btn"
+              onClick={() => openRemarksModal(dataItem.id, dataItem.reference)}
+            >
+              <i className="fas fa-comment-dots"></i>
+            </button>
+          </Tooltip>
+
         </div>
       </td>
     );
   };
-
-
-  // const handleConfirmDispatch = async (item, type) => {
-  //   try {
-  //     console.log(type);
-
-  //     if (type !== 'customer') {
-  //       setIsLoading(true);
-  //       const res = await PrivateAxios.post("sales/production/dispatch", {
-  //         id: item.id,
-  //         dispatch_type: type,
-  //         production_id: item.production_number,
-  //       });
-
-  //       SuccessMessage(`Product dispatched to ${type}`);
-  //       handleCloseConfirmModal();
-  //       setIsLoading(false);
-  //       fetchWorkOrders(); // Refresh the data
-  //     } else {
-  //       handleCloseConfirmModal();
-  //       setLgShow(true)
-
-  //     }
-  //   } catch (error) {
-  //     ErrorMessage("Dispatch failed. Please try again.");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
 
   // Fetch product details for the modal
   const PriceCompare = async (id) => {
@@ -532,61 +441,17 @@ function MysalesOrderDispatchList() {
     }
   };
 
-  // Get status label
-  // const getStatusLabel = (status) => {
-  //   const statusLabel = {
-  //     9: "Pending",
-  //     10: "Dispatched",
-  //     11: "Production",
-  //   };
-  //   return statusLabel[status] || "Pending";
-  // };
+  const openRemarksModal = (saleOrderId, saleOrderRef) => {
+    setRemarksModalSaleOrderId(saleOrderId);
+    setRemarksModalSaleOrderRef(saleOrderRef || "");
+    setRemarksModalOpen(true);
+  };
 
-  // Handler to update warehouse when store is changed
-  // const handleStoreChange = (purchaseId, productId, selectedStore) => {
-  //   setProductCompare((prev) =>
-  //     prev.map((purchase) => {
-  //       if (purchase.id !== purchaseId) return purchase;
-
-  //       return {
-  //         ...purchase,
-  //         warehouse: selectedStore ? selectedStore.warehouse : purchase.warehouse,
-  //       };
-  //     })
-  //   );
-  // };
-
-  // // Handler for product-wise status change
-  // const handleStatusChangeproductwise = async (salesid, sid, spid) => {
-  //   const response = await PrivateAxios.put(`/sales/dispatch-product/${salesid}/${sid}/${spid}`);
-  //   if (response.status === 200) {
-  //     SuccessMessage("Product is dispatched Successfully.!");
-
-  //     const responseData = response.data.data;
-  //     if (responseData.allDispatched) {
-  //       // close the modal & hide the current product row
-  //       setShowPrice(false);
-  //       setProductCompare((prev) =>
-  //         prev.filter((purchase) => purchase.id !== salesid)
-  //       );
-  //       fetchWorkOrders();
-  //     } else {
-  //       // Update local ProductCompare state
-  //       setProductCompare((prev) =>
-  //         prev.map((purchase) => {
-  //           if (purchase.id !== salesid) return purchase;
-
-  //           return {
-  //             ...purchase,
-  //             products: purchase.products.map((product) =>
-  //               product.id === spid ? { ...product, status: sid } : product
-  //             ),
-  //           };
-  //         })
-  //       );
-  //     }
-  //   }
-  // };
+  const closeRemarksModal = () => {
+    setRemarksModalOpen(false);
+    setRemarksModalSaleOrderId(null);
+    setRemarksModalSaleOrderRef("");
+  };
 
   const CustomCell = (props) => {
     const { dataItem, field } = props;
@@ -712,21 +577,7 @@ function MysalesOrderDispatchList() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                {/* <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
-                </div> */}
+  
               </div>
               <div className="bg_succes_table_head rounded_table">
 
@@ -907,6 +758,13 @@ function MysalesOrderDispatchList() {
         onSubmit={handleSubmitFinalSaleOrderDispatch}
       />
 
+      <SaleOrderRemarksModal
+        open={remarksModalOpen}
+        onClose={closeRemarksModal}
+        saleOrderId={remarksModalSaleOrderId}
+        saleOrderReferenceNumber={remarksModalSaleOrderRef}
+      />
+
       <Modal
         title="Available Batches"
         open={batchesModalOpen}
@@ -914,8 +772,8 @@ function MysalesOrderDispatchList() {
         footer={null}
         width={950}
         zIndex={20000}
-        maskStyle={{ zIndex: 19999 }}
-        destroyOnClose
+        styles={{ mask: { zIndex: 19999 } }}
+        destroyOnHidden
       >
         {availableBatchesLoading ? (
           <div className="py-4 d-flex justify-content-center">

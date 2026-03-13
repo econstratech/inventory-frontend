@@ -29,49 +29,23 @@ import { UserAuth } from "../auth/Auth";
 // import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Loader from "../../environment/Loader";
 import SaleOrderDetailsModal from "../CommonComponent/SaleOrderDetailsModal";
+import SaleOrderRemarksModal from "../CommonComponent/SaleOrderRemarksModal";
 
 function MypurchaseList() {
   const { isLoading, setIsLoading, Logout } = UserAuth();
-  //for-data table
-
-  // const handleClose = () => setShow(false);
-  // const handleShow = () => setShow(true);
 
   const [data, setData] = useState([]);
-  // const [loading, setLoading] = useState(true);
-  // const [dataState, setDataState] = useState({
-  //   skip: 0,
-  //   take: 10,
-  //   sort: [],
-  //   filter: null,
-  // });
-  const [showPrice, setShowPrice] = useState(false);
-  // const [show, setShow] = useState(false);
-  // const [getReff, setReff] = useState("");
-  // const [datavalue, setDatavalue] = useState([]);
-  // const [expandedRows, setExpandedRows] = React.useState([]);
-  const [ProductCompare, setProductCompare] = useState([]);
-  // const hasMultipleProductsInAny = ProductCompare.some(
-  //   (purchase) => purchase.products.length > 1
-  // );
-  // const [getPid, setPid] = useState(false);
 
-  // const [getshowRemarks, setShowremark] = useState(false);
-  // const [getRemarksdata, getremarkdata] = useState("");
-  // const [getRemarksRef, getremarksRef] = useState("");
-  // const [grandTotal, setGrandTotal] = useState(0);
+  const [showPrice, setShowPrice] = useState(false);
+  const [remarksModalOpen, setRemarksModalOpen] = useState(false);
+  const [remarksModalSaleOrderId, setRemarksModalSaleOrderId] = useState(null);
+  const [remarksModalSaleOrderRef, setRemarksModalSaleOrderRef] = useState("");
+
+  const [ProductCompare, setProductCompare] = useState([]);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
   const [totalCount, setTotalCount] = useState(0);
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
-
-  // const RemarksClose = () => setShowremark(false);
-  // const RemarksShow = () => setShowremark(true);
-  //pdf
-  // const getRemarks = (rmks, refid) => {
-  //   getremarkdata(rmks);
-  //   getremarksRef(refid);
-  // };
 
   const ReferenceCell = (props) => {
     const { dataItem } = props;
@@ -107,7 +81,7 @@ function MypurchaseList() {
   const PriceCompare = async (id) => {
     try {
       const response = await PrivateAxios.get(
-        `/sales/sales/${id}?type=dispatch`
+        `/sales/sales/${id}`
       );
       if (response.status === 200) {
         const quotationData = response.data.data;
@@ -128,19 +102,6 @@ function MypurchaseList() {
     }
   };
 
-  // const calculateGrandTotal = (products) => {
-  //   const total = products.reduce(
-  //     (acc, item) =>
-  //       acc +
-  //       item.products.reduce(
-  //         (prodAcc, product) => prodAcc + product.totalWithTax,
-  //         0
-  //       ),
-  //     0
-  //   );
-  //   setGrandTotal(total.toFixed(2));
-  // };
-
   const getStatusLabel = (status) => {
     const statusLable = {
       10: "Dispatched",
@@ -149,13 +110,27 @@ function MypurchaseList() {
     return statusLable[status] || "Pending";
   };
 
-  const handleReceiveSalesProduct = async (salesid, spid, sid, received_qty, currentStoreId) => {
+  const handleReceiveSalesProduct = async (
+    salesid,
+    spid,
+    sid,
+    received_qty,
+    currentStoreId,
+    currentVariantId,
+    currentProductId,
+    currentOrderQuantity,
+    currentUnitPrice
+  ) => {
     try {
       const payload = { 
         sales_id: salesid, 
-        sales_product_id: spid, 
+        sales_product_id: spid,
+        product_id: currentProductId,
+        order_quantity: currentOrderQuantity,
+        unit_price: currentUnitPrice,
         quantity: received_qty,
-        warehouse_id: currentStoreId
+        warehouse_id: currentStoreId,
+        product_variant_id: currentVariantId,
       };
 
       const response = await PrivateAxios.post(`/sales/sales-product-received`, payload);
@@ -165,23 +140,17 @@ function MypurchaseList() {
         const responseData = response.data;
         if (responseData.status) {
           TaskData();
-          // Keep modal open; update productCompare so status/balance stay in sync if modal re-renders from parent
-          setProductCompare((prev) =>
-            prev.map((purchase) => {
-              if (purchase.id !== salesid) return purchase;
-              return {
-                ...purchase,
-                products: purchase.products.map((product) =>
-                  product.id === spid ? { ...product, localStatus: getStatusLabel(sid) } : product
-                ),
-              };
-            })
-          );
+          // Refresh modal details from source API so edited fields
+          // (e.g. unit_price) reflect the latest saved backend values.
+          await PriceCompare(salesid);
+          return true;
         }
       }
+      return false;
     } catch (error) {
       console.error("Error receiving sales product:", error);
       ErrorMessage("Error receiving sales product: " + error.message);
+      return false;
     }
   };
 
@@ -443,6 +412,18 @@ function MypurchaseList() {
               <i class="fa fa-truck"></i>
             </button>
           </Tooltip>
+          <Tooltip title="View remarks">
+            <button
+              className="me-1 icon-btn"
+              onClick={() => {
+                setRemarksModalSaleOrderId(dataItem.id);
+                setRemarksModalSaleOrderRef(dataItem.reference || "");
+                setRemarksModalOpen(true);
+              }}
+            >
+              <i className="fas fa-comment-dots"></i>
+            </button>
+          </Tooltip>
 
           {/* <Tooltip title="Production">
             <button
@@ -664,6 +645,16 @@ function MypurchaseList() {
         onProductReceive={handleReceiveSalesProduct}
         getStatusLabel={getStatusLabel}
         // currencySymbol={getGeneralSettingssymbol}
+      />
+      <SaleOrderRemarksModal
+        open={remarksModalOpen}
+        onClose={() => {
+          setRemarksModalOpen(false);
+          setRemarksModalSaleOrderId(null);
+          setRemarksModalSaleOrderRef("");
+        }}
+        saleOrderId={remarksModalSaleOrderId}
+        saleOrderReferenceNumber={remarksModalSaleOrderRef}
       />
     </React.Fragment>
   );
