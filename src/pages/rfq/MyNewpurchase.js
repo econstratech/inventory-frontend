@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Table, Alert, Modal, OverlayTrigger, Popover } from "react-bootstrap";
+import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import {
   formatDateTimeForMySQL,
@@ -51,12 +52,16 @@ function MyNewpurchase() {
   const handleClick = () => {
     ErrorMessage("Please add primary vendor data first.");
   };
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const { MatchPermission, user } = UserAuth();
   const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
 
   useEffect(() => {
     if (user) {
       setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+      if (!MatchPermission(["Create PO"])) {
+        ErrorMessage("You are not authorized to create a purchase order.");
+        navigate("/");
+      }
     }
   }, [user]);
 

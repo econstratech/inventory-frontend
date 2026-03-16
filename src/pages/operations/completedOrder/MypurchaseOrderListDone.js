@@ -64,34 +64,34 @@ function MypurchaseOrderListDone() {
 
   //end update status
 
-  const fetchData = async (pid, ref) => {
-    setReff(ref)
-    try {
-      const response = await PrivateAxios.get(`purchase/recv/${pid}`);
-      if (Array.isArray(response.data)) {
-        const transformedData = response.data.map(bill => ({
-          ...bill,
-          recvPro: bill.recvPro.map(recvProItem => ({
-            ...recvProItem,
-            product_name: recvProItem.ProductsItem.product_name,
-            unit_price: recvProItem.unit_price,
-            qty: recvProItem.qty,
-          })),
-        }));
-        setDatavalue(transformedData);
-      } else {
-        console.error("API data is not in expected format:", response.data);
-        setDatavalue([]);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setDatavalue([]);
-    }
-  };
+  // const fetchData = async (pid, ref) => {
+  //   setReff(ref)
+  //   try {
+  //     const response = await PrivateAxios.get(`purchase/recv/${pid}`);
+  //     if (Array.isArray(response.data)) {
+  //       const transformedData = response.data.map(bill => ({
+  //         ...bill,
+  //         recvPro: bill.recvPro.map(recvProItem => ({
+  //           ...recvProItem,
+  //           product_name: recvProItem.ProductsItem.product_name,
+  //           unit_price: recvProItem.unit_price,
+  //           qty: recvProItem.qty,
+  //         })),
+  //       }));
+  //       setDatavalue(transformedData);
+  //     } else {
+  //       console.error("API data is not in expected format:", response.data);
+  //       setDatavalue([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching data:", error);
+  //     setDatavalue([]);
+  //   }
+  // };
 
-  React.useEffect(() => {
-    fetchData();
-  }, []);
+  // React.useEffect(() => {
+  //   fetchData();
+  // }, []);
 
   const columns = React.useMemo(
     () => [
