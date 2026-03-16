@@ -17,7 +17,7 @@ function RoleData() {
     const [deleteShow, setDeleteShow] = useState(false)
     const [deleteId, setDeleteId] = useState('')
     // const [isChecked, setIsChecked] = useState(false);
-    const [departmentValue, setDepartmentValue] = useState('')
+    const [selectedRole, setSelectedRole] = useState(null)
     const [departmentInputValue, setDepartmentInputValue] = useState({
         "title": "",
         "status": ""
@@ -42,7 +42,7 @@ function RoleData() {
 
     const departmentUpdateModelClose = () => {
         setUpdate(false);
-        setDepartmentValue('')
+        setSelectedRole(null)
     }
     const departmentCreateModelClose = () => {
         setCreate(false)
@@ -70,10 +70,10 @@ function RoleData() {
     }
     const UpdateDepartment = () => {
         setLoading(true)
-        PrivateAxios.put(`roles/update/${departmentValue.id}`, departmentValue)
+        PrivateAxios.put(`roles/update/${selectedRole.id}`, selectedRole)
             .then((res) => {
                 const updatedDepartment = roles.map((item) =>
-                    item.id === departmentValue.id ? { ...item, name: departmentValue.name } : item
+                    item.id === selectedRole.id ? { ...item, name: selectedRole.name } : item
                 );
                 setRoles(updatedDepartment)
                 setLoading(false)
@@ -100,8 +100,6 @@ function RoleData() {
     }
 
     //==============================My Code enable===========================//
-
-
 
 
     return (
@@ -138,7 +136,7 @@ function RoleData() {
                                         </thead>
                                         <tbody>
                                             {roles.map((data, i) => (
-                                                <tr>
+                                                <tr key={data.id || i}>
                                                     <td scope="row">{i + 1}</td>
                                                     <td>{data.name}</td>
                                                     <td>{data.permissions.map((permission) => permission.name).join(', ')}</td>
@@ -146,7 +144,7 @@ function RoleData() {
                                                     <td>
                                                         <div className="d-flex">
                                                             <Tooltip title='Edit'>
-                                                                <button type='button' onClick={() => { setDepartmentValue(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
+                                                                <button type='button' onClick={() => { /*console.log("data", data);*/ setSelectedRole(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
                                                                     <i className='fas fa-pen d-flex'></i>
                                                                 </button>
                                                             </Tooltip>
@@ -174,7 +172,7 @@ function RoleData() {
             <CreateRole departmentCreateModelClose={departmentCreateModelClose} setLoading={setLoading} create={create} fetchModules={fetchModules} />
 
             {/* Update department */}
-            <UpdateRole update={update} departmentUpdateModelClose={departmentUpdateModelClose} setLoading={setLoading} data={departmentValue} fetchModules={fetchModules}  />
+            <UpdateRole update={update} departmentUpdateModelClose={departmentUpdateModelClose} setLoading={setLoading} data={selectedRole} fetchModules={fetchModules}  />
 
             {/* Delete department */}
             <Modal

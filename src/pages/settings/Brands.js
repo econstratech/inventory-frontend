@@ -99,7 +99,7 @@ function Brands() {
         }
 
         setLoading(true)
-        PrivateAxios.put(`master/brand/update/${brandValue.id}`, brandValue)
+        PrivateAxios.put(`master/brand/${brandValue.id}`, brandValue)
             .then((res) => {
                 setLoading(false)
                 SuccessMessage(res.data.message || "Brand updated successfully");
@@ -114,7 +114,7 @@ function Brands() {
 
     const deleteBrand = () => {
         setLoading(true)
-        PrivateAxios.delete(`master/brand/delete/${deleteId}`)
+        PrivateAxios.delete(`master/brand/${deleteId}`)
             .then((res) => {
                 setLoading(false)
                 SuccessMessage(res.data.message || "Brand deleted successfully");

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { UserAuth } from '../auth/Auth';
 
 function ReportsIndex() {
-      const { Logout, userDetails, MatchPermission } = UserAuth();
+      const { MatchPermission } = UserAuth();
     
     return (
         <>
@@ -159,7 +159,7 @@ function ReportsIndex() {
                                             {/* <li><Link to="/report/stock-ledger-report">Stock Ledger Report</Link></li> */}
                                             {/* <li><Link to="/report/fifo-lifo-stock-valuation-report">FIFO/LIFO Stock Valuation</Link></li> */}
                                             <li><Link to="/report/stock-transfer-report">Stock Transfer Report</Link></li>
-                                            <li><Link to="/report/inventory-valuation-summary">Inventory Valuation Summary</Link></li>
+                                            {/* <li><Link to="/report/inventory-valuation-summary">Inventory Valuation Summary</Link></li> */}
                                             {/* <li><Link to="/report/reorder-level-report">Reorder Level Report</Link></li> */}
                                             {/* <li><Link to="/report/aging-report">Aging Report</Link></li> */}
                                             {/* <li><Link to="/report/bin-card-item-movement-report">Bin Card / Item Movement Report</Link></li> */}
@@ -168,7 +168,7 @@ function ReportsIndex() {
                                 </div>
                             </div>
                             : null}
-                             {MatchPermission(["Purchase Reports"]) ?
+                             {MatchPermission(["PO Reports"]) ?
                             <div className='col-lg-6'>
                                 <div className='card h-100 mb-0'>
                                     <div className='card-body'>
@@ -182,6 +182,7 @@ function ReportsIndex() {
                                             {/* <li><Link to="/report/pr-to-po-conversion-report">PR to PO Conversion Report</Link></li> */}
                                             <li><Link to="/report/month-wise-purchase-value">Month Wise Purchase Value Report</Link></li>
                                             <li><Link to="/report/item-wise-purchase-report">Item-wise Purchase Report</Link></li>
+                                            <li><Link to="/report/indent-requirement-report">Indent Requirement Report</Link></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -197,17 +198,17 @@ function ReportsIndex() {
                                             <li><Link to="/report/customer-wise-sales-report">Customer Wise Sales Report</Link></li>
                                             <li><Link to="/report/item-wise-sales-report">Item Wise Sales Report</Link></li>
                                             {/* <li><Link to="/report/profitability-report">Profitability Report</Link></li> */}
-                                            <li><Link to="/report/top-selling-products-report">Top Selling Product Report</Link></li>
+                                            {/* <li><Link to="/report/top-selling-products-report">Top Selling Product Report</Link></li> */}
                                             {/* <li><Link to="/report/region-wise-sales-report">Region Wise Sale Report</Link></li> */}
                                             {/* <li><Link to="/report/backorder-report">Back Order Report</Link></li> */}
-                                            <li><Link to="/report/slow-moving-item-report">Slow Moving Item Report</Link></li>
+                                            {/* <li><Link to="/report/slow-moving-item-report">Slow Moving Item Report</Link></li> */}
                                         </ul>
                                     </div>
                                 </div>
                             </div>
                             : null}
                             {MatchPermission(["Combined Reports"]) ?
-                            <div className='col-lg-6'>
+                            <div className='col-lg-6' style={{ display: 'none' }}>
                                 <div className='card h-100 mb-0'>
                                     <div className='card-body'>
                                         <h6 className='text-start fw-bold'>CROSS-MODULE / COMBINED REPORTS</h6>

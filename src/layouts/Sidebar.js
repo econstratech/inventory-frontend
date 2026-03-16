@@ -4,7 +4,7 @@ import { UserAuth } from "../pages/auth/Auth";
 import "./profile-info.min.css"
 
 function Sidebar() {
-  const { userDetails, MatchPermission } = UserAuth();
+  const { MatchPermission } = UserAuth();
   const location = useLocation();
 
   return (
@@ -202,7 +202,7 @@ function Sidebar() {
                                 </li>
                                 : ""}
 
-                              {MatchPermission(["Create PO"]) ?
+                              {MatchPermission(["Create PO", "Update PO", "Delete PO", "approve PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/create-rfq-active"
@@ -251,6 +251,7 @@ function Sidebar() {
                           </div>
                         </div>
                         {/* operation end*/}
+                        {MatchPermission(["approve PO"]) ?
                         <div className={`sidebar-item sidebar-item-no-child ${location.pathname === "/pending-approval/send-to-management" ? "active" : ""}`}>
                           <Link
                               to="/pending-approval/send-to-management"
@@ -259,6 +260,7 @@ function Sidebar() {
                             <p>Approve PO</p>
                           </Link>
                         </div>
+                        : ''}
 
                         {/* <div
                           id="Follow"
@@ -286,24 +288,24 @@ function Sidebar() {
                         </div> */}
                         {/* follow-up end*/}
 
-                        <div className={`sidebar-item sidebar-item-no-child 
-                          ${location.pathname === "/store/recv_update/request-quotation" ||
-                          location.pathname === "/purchase-orders/recvorder/:id"
-                          ? "active" : ""}`}>
-                          {MatchPermission(["Order Receive Update"]) ?
-                            <Link
-                              to="/store/recv_update/request-quotation"
-                              className={`sidebar-nav-link subMenu_item ${location.pathname === "/store/recv_update/request-quotation" ||
-                                location.pathname === "/purchase-orders/recvorder/:id"
-                                ? "active" : ""}`}
-                            >
-                              <p>Pending GRN</p>
-                            </Link>
-                           : ''}
-                        </div>
+                        {MatchPermission(["Pending GRN"]) ?
+                          <div className={`sidebar-item sidebar-item-no-child 
+                            ${location.pathname === "/store/recv_update/request-quotation" ||
+                            location.pathname === "/purchase-orders/recvorder/:id"
+                            ? "active" : ""}`}>
+                              <Link
+                                to="/store/recv_update/request-quotation"
+                                className={`sidebar-nav-link subMenu_item ${location.pathname === "/store/recv_update/request-quotation" ||
+                                  location.pathname === "/purchase-orders/recvorder/:id"
+                                  ? "active" : ""}`}
+                              >
+                                <p>Pending GRN</p>
+                              </Link>
+                          </div>
+                        : ''}
 
+                        {/* {MatchPermission(["PO Reports"]) ?
                         <div className="accordion-header sidebar-item ">
-                          {MatchPermission(["Purchase Reports"]) ?
                             <button
                               className={`accordion-button submenu ${
                                   location.pathname === "/purchase-reports"
@@ -318,9 +320,11 @@ function Sidebar() {
                             >
                               <p>Reports</p>
                             </button>
-                            : ''}
                         </div>
+                        : ''} */}
 
+
+                        {/* {MatchPermission(["Purchase Reports"]) ?
                         <div
                           id="PurchaseReports"
                           className={`accordion-collapse collapse 
@@ -345,9 +349,10 @@ function Sidebar() {
                             </ul>
                           </div>
                         </div>
+                        : ''} */}
 
 
-                        <div
+                        {/* <div
                           id="bill"
                           className={`accordion-collapse collapse ${location.pathname === "/bill/purchase-orders-recved/items-received-done" ||
                             location.pathname === "/bill/purchase-orders-recved/items-received-done"
@@ -372,7 +377,7 @@ function Sidebar() {
                               </li>
                             </ul>
                           </div>
-                        </div>
+                        </div> */}
                         {/* PO recved  end*/}
                       </div>
                     </div>
@@ -513,7 +518,7 @@ function Sidebar() {
                                 </li>
                                 : ""} */}
 
-                              {MatchPermission(["Quotations"]) ?
+                              {MatchPermission(["Create SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/sales/new"
@@ -527,7 +532,7 @@ function Sidebar() {
                                 </li>
                               : ""}
 
-                              {MatchPermission(["Quotations"]) ?
+                              {MatchPermission(["Create SO", "Update SO", "Delete SO", "approve SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/sales/quotation"
@@ -544,7 +549,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Sales Orders"]) ?
+                              {MatchPermission(["Completed SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/completed-sales-orders"
@@ -557,7 +562,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Dispatch"]) ?
+                              {MatchPermission(["Dispatch SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/sales-orders/dispatch/order-dispatch"
@@ -576,13 +581,12 @@ function Sidebar() {
                         </div>
                         {/* operation end*/}
                         {/* management */}
-                        {MatchPermission(["Approve Quotation Sales"]) ?
+                        {MatchPermission(["Approve SO"]) ?
                           <div className={`sidebar-item`}>
                             <Link
                               to="/sales/pending-approval/reviewing"
-                              className={`sidebar-nav-link subMenu_item ${location.pathname === "/sales/pending-approval/reviewing" ||
-                                (location.pathname.startsWith("/sales/") && location.pathname.split("/").length === 3) ||
-                                location.pathname === "/sales/quotation"
+                              className={`sidebar-nav-link subMenu_item ${location.pathname === "/sales/pending-approval/reviewing" 
+                                // || (location.pathname.startsWith("/sales/") && location.pathname.split("/").length === 3 && location.pathname !== "sales/quotation")
                                 ? "active" : ""
                                 }`}
                             >
@@ -751,7 +755,7 @@ function Sidebar() {
                     </div>
                   </div>
                 </div>
-                : ""}
+              : ""}
               {/* inventory end */}
 
               {/* Production start */}
@@ -892,7 +896,7 @@ function Sidebar() {
                 : ""} */}
               {/* inventory end */}
               {/* Buyers & Suppliers start */}
-              {MatchPermission(["Buyers & Suppliers"]) ?
+              {MatchPermission(["Manage Buyers", "Manage Suppliers"]) ?
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button
@@ -925,6 +929,7 @@ function Sidebar() {
                   >
                     <div className="accordion-body">
                       <ul className="sidebar-submenu">
+                        {MatchPermission(["Manage Suppliers"]) ?
                         <li className="sidebar-item">
                           <Link
                             to="/suppliers"
@@ -935,6 +940,8 @@ function Sidebar() {
                             <p>Suppliers</p>
                           </Link>
                         </li>
+                        : ''}
+                        {MatchPermission(["Manage Buyers"]) ?
                         <li className="sidebar-item">
                           <Link
                             to="/customers"
@@ -946,6 +953,7 @@ function Sidebar() {
                             <p>Buyers</p>
                           </Link>
                         </li>
+                        : ''}
                         {/* <li className="sidebar-item">
                       <Link
                         to="/add-new-vendor"
@@ -978,7 +986,7 @@ function Sidebar() {
               {/*  Buyers & Suppliers end  */}
 
               {/* BOM start */}
-              {MatchPermission(["Buyers & Suppliers"]) ?
+              {MatchPermission(["Create BOM Master", "View BOM Master", "BOM Report"]) ?
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button
@@ -1009,26 +1017,30 @@ function Sidebar() {
                   >
                     <div className="accordion-body">
                       <ul className="sidebar-submenu">
-                        <li className="sidebar-item">
-                          <Link
-                            to="/inventory/bom-master"
-                            className={`sidebar-nav-link ${location.pathname === "/inventory/bom-master" ? "active" : ""
-                              }`}
-                          >
-                            <p>BOM Master</p>
-                          </Link>
-                        </li>
-                        <li className="sidebar-item">
-                          <Link
-                            to="/inventory/bom-report"
-                            className={`sidebar-nav-link ${location.pathname === "/inventory/bom-report"
-                              ? "active"
-                              : ""
-                              }`}
-                          >
-                            <p>BOM Report</p>
-                          </Link>
-                        </li>
+                        {MatchPermission(["Create BOM Master", "View BOM Master"]) ?
+                          <li className="sidebar-item">
+                            <Link
+                              to="/inventory/bom-master"
+                              className={`sidebar-nav-link ${location.pathname === "/inventory/bom-master" ? "active" : ""
+                                }`}
+                            >
+                              <p>BOM Master</p>
+                            </Link>
+                          </li>
+                        : ''}
+                        {MatchPermission(["BOM Report"]) ?
+                          <li className="sidebar-item">
+                            <Link
+                              to="/inventory/bom-report"
+                              className={`sidebar-nav-link ${location.pathname === "/inventory/bom-report"
+                                ? "active"
+                                : ""
+                                }`}
+                            >
+                              <p>BOM Report</p>
+                            </Link>
+                          </li>
+                        : ''}
                       </ul>
 
                     </div>
@@ -1436,7 +1448,7 @@ function Sidebar() {
               {/* pos end  */}
 
               {/* Reports start */}
-              {MatchPermission(["Report"]) ?
+              {MatchPermission(["PO Reports", "SO Reports", "Inventory Reports"]) ?
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <Link
@@ -1448,7 +1460,8 @@ function Sidebar() {
                         location.pathname === "/report/stock-transfer-report" ||
                         location.pathname === "/report/item-wise-purchase-report" ||
                         location.pathname === "/report/customer-wise-sales-report" ||
-                        location.pathname === "/report/item-wise-sales-report"
+                        location.pathname === "/report/item-wise-sales-report" ||
+                        location.pathname === "/report/indent-requirement-report"
                          ? "active" : ""
                         }`}
                     >
@@ -1946,26 +1959,26 @@ function Sidebar() {
                           : ""} */}
                         
                           
-                        {userDetails.position === "Owner"?
+                        {/* {userDetails.position === "Owner"?
                         <ul className="sidebar-submenu">
                           <li className="sidebar-item">
                             <Link
                               to="/company-management"
                               className={`sidebar-nav-link ${location.pathname === "/company-management" ? "active" : ""}`}
                             >
-                              {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                               <p>Company Management</p>
                             </Link>
                           </li>
-                        </ul>:""
-}
+                        </ul>
+                        :""} */}
+
                         {/* POS end*/}
                       </div>
 
                     </div>
                   </div>
                 </div>
-                : ""}
+              : ""}
               {/* Settings end  */}
               {/* <div className="accordion-item">
               <div className="accordion-header sidebar-item">

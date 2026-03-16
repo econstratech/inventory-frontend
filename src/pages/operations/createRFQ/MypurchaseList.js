@@ -6,6 +6,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // import DataTable, { createTheme } from "react-data-table-component";
 import { Link } from "react-router-dom";
+import { UserAuth } from "../../auth/Auth";
 import moment from "moment";  
 import {
   Modal,
@@ -22,9 +23,9 @@ import ConfirmModal from "../../CommonComponent/ConfirmModal";
 
 function MypurchaseList() {
   const [lgShow, setLgShow] = useState(false);
+  const { MatchPermission, user } = UserAuth();
 
   const [purchaseData, setPurchaseData] = useState([]);
-  const [userDetails] = useState(JSON.parse(localStorage.getItem('auth_user')) || null);
   const [generalSettings, setGeneralSettings] = useState(null);
 
 
@@ -151,7 +152,7 @@ function MypurchaseList() {
             vendor: item.vendor.vendor_name,
             buyer: item.createdBy.name,
             expected_arrival: moment(item.expected_arrival).format("DD-MM-YYYY"),
-            created_by: item.createdBy.name,
+            createdByUser: item.createdBy,
             // orderDeadline: getOrderDeadline(item.order_dateline, item.status),
             // sourceDocument: item.source_document,
             total: `₹ ${item.total_amount}`,
@@ -175,10 +176,10 @@ function MypurchaseList() {
 
   // Set General Settings
   useEffect(() => {
-    if (userDetails) {
-      setGeneralSettings(userDetails.company.generalSettings);
+    if (user) {
+      setGeneralSettings(user.company.generalSettings);
     }
-  }, [userDetails]);
+  }, [user]);
 
   // Handle filter button click
   const handleFilter = () => {
@@ -263,6 +264,7 @@ function MypurchaseList() {
 
   const renderAction = (_, record) => (
     <div className="d-flex gap-2">
+        {MatchPermission(["Update PO"]) ?
           <Tooltip title="Edit">
             <Link
               to={{ pathname: `/purchase/${record.id}` }}
@@ -273,6 +275,7 @@ function MypurchaseList() {
               
             </Link>
           </Tooltip>
+        :""}
           {(record.status === 5 || record.status === 8) && (
             <Tooltip title="Show Managment Remarks">
               <button
@@ -288,7 +291,7 @@ function MypurchaseList() {
             </Tooltip>
           )}
 
-          {record.is_parent == 1 && record.status == 2 && (
+          {MatchPermission(["Send To Management (PO)"]) && record.is_parent == 1 && record.status == 2 && (
             <Tooltip title="Send Approval">
               <button
                 className="me-1 icon-btn"
@@ -300,7 +303,7 @@ function MypurchaseList() {
               </button>
             </Tooltip>
           )}
-          {record.is_parent == 1 && 
+          {MatchPermission(["Send to Vendor"]) && record.is_parent == 1 && 
           ((
             record.status == 2 && record.total_amount && generalSettings 
             && generalSettings.min_purchase_amount && parseFloat(record.total_amount) < parseFloat(generalSettings.min_purchase_amount)) 
@@ -370,6 +373,8 @@ function MypurchaseList() {
             </button>
           </Tooltip>
 
+
+          {(MatchPermission(["Delete PO"]) || record.createdByUser.id === user.id) && (
           <Tooltip title="Cancel PO">
             <button
               className="me-1 icon-btn"
@@ -380,6 +385,7 @@ function MypurchaseList() {
               
             </button>
           </Tooltip>
+          )}
     </div>
   );
 
@@ -393,7 +399,7 @@ function MypurchaseList() {
     { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
     { title: "Reference", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
     { title: "Vendor", dataIndex: "vendor", key: "vendor", width: 200 },
-    { title: "Created By", dataIndex: "created_by", key: "created_by", width: 200 },
+    { title: "Created By", dataIndex: "createdByUser", key: "createdByUser", width: 200 },
     { title: "Expected Arrival", dataIndex: "expected_arrival", key: "expected_arrival", width: 200 },
     { title: "Total", dataIndex: "total", key: "total", width: 150 },
     { title: "Status", dataIndex: "status_return", key: "status_return", width: 150, render: renderStatus },
@@ -453,6 +459,7 @@ function MypurchaseList() {
                 className="form-control"
                 dateFormat="dd-MM-yyyy"
                 name="expected_arrival"
+                style={{ display: "block" }}
               />
             </div>
             <div className="d-flex gap-2 align-items-end">
@@ -478,14 +485,12 @@ function MypurchaseList() {
           </div>
           <div className='d-flex ms-auto gap-3'>
             <div className="d-flex justify-content-center align-items-center gap-2">
-              <Link to="/purchase/new" className="btn btn-exp-primary btn-sm" style={{ marginTop: "10px", height: "38px" }}>
-                    <i className="fas fa-plus"></i><span className="ms-2">Create PO</span>
-                </Link>
-              {/* {MatchPermission(["Create Purchase RFQ"]) ?
+              {MatchPermission(["Create PO"]) ?
+
                 <Link to="/purchase/new" className="btn btn-exp-primary btn-sm" style={{ marginTop: "10px", height: "38px" }}>
                     <i className="fas fa-plus"></i><span className="ms-2">Create PO</span>
                 </Link>
-                :""} */}
+              :""}
             </div>
           </div>
         </div>
