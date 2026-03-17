@@ -1461,7 +1461,8 @@ function Sidebar() {
                         location.pathname === "/report/item-wise-purchase-report" ||
                         location.pathname === "/report/customer-wise-sales-report" ||
                         location.pathname === "/report/item-wise-sales-report" ||
-                        location.pathname === "/report/indent-requirement-report"
+                        location.pathname === "/report/indent-requirement-report" ||
+                        location.pathname === "/report/batch-expiry-report"
                          ? "active" : ""
                         }`}
                     >

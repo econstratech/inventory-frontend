@@ -159,6 +159,7 @@ function ReportsIndex() {
                                             {/* <li><Link to="/report/stock-ledger-report">Stock Ledger Report</Link></li> */}
                                             {/* <li><Link to="/report/fifo-lifo-stock-valuation-report">FIFO/LIFO Stock Valuation</Link></li> */}
                                             <li><Link to="/report/stock-transfer-report">Stock Transfer Report</Link></li>
+                                            <li><Link to="/report/batch-expiry-report">Batch Expiry Report</Link></li>
                                             {/* <li><Link to="/report/inventory-valuation-summary">Inventory Valuation Summary</Link></li> */}
                                             {/* <li><Link to="/report/reorder-level-report">Reorder Level Report</Link></li> */}
                                             {/* <li><Link to="/report/aging-report">Aging Report</Link></li> */}
