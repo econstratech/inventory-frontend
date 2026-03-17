@@ -147,6 +147,7 @@ const AddToStockMaster = React.lazy(() => import("../pages/StockMaster/AddToStoc
 const BomMaster = React.lazy(() => import("../pages/ProductionMaster/BOM/BomMaster.js"));
 const CreateBomMaster = React.lazy(() => import("../pages/ProductionMaster/BOM/CreateBomMaster.js"));
 const BomReport = React.lazy(() => import("../pages/ProductionMaster/BOM/BomReport.js"));
+;
 // production
 const BomList = React.lazy(() => import("../pages/ProductionMaster/BOM/BomList.js"));
 const BomDraftList = React.lazy(() => import("../pages/ProductionMaster/BOM/BomDraftList.js"));
@@ -234,6 +235,7 @@ const MrpReport  = React.lazy(() => import( "../pages/Reports/CrossModuleCombine
 const PosDashboardIndex  = React.lazy(() => import( "../pages/Pos/PosDashboard/PosDashboardIndex.js"));
 const WelcomeScreenIndex  = React.lazy(() => import( "../pages/WelcomeScreen/WelcomeScreenIndex.js"));
 const IndentRequirementReport  = React.lazy(() => import( "../pages/Reports/PurchaseReport/IndentRequirementReport.js"));
+const BatchExpiryReport  = React.lazy(() => import( "../pages/Reports/BatchExpiryReport.js"));
 
 function PrivateRoutes() {
   const { isLoggedIn } = UserAuth();
@@ -477,7 +479,7 @@ function PrivateRoutes() {
           <Route path="/report/mrp-report" element={<MrpReport />} />
 
           <Route path="/report/indent-requirement-report" element={<IndentRequirementReport />} />
-
+          <Route path="/report/batch-expiry-report" element={<BatchExpiryReport />} />
          
           {/* welcome screen */}
           <Route path="/welcome" element={<WelcomeScreenIndex />} />
