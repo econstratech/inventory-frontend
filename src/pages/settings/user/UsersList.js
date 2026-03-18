@@ -6,8 +6,9 @@ import { Modal, Table } from 'react-bootstrap'
 import { Tooltip, Pagination, Input, Button } from 'antd';
 // import CreateRole from './role/CreateRole';
 // import UpdateRole from './role/UpdateRole';
-
+import { ErrorMessage } from '../../../environment/ToastMessage';
 import Loader from '../../landing/loder/Loader';
+
 import { PrivateAxios } from '../../../environment/AxiosInstance';
 import { SuccessMessage } from '../../../environment/ToastMessage';
  
@@ -46,20 +47,20 @@ function UserList() {
             console.error("Failed to fetch users", err);
             // Minimal UI-friendly error handling
             const msg = err?.response?.data?.message || "Failed to fetch users";
-            alert(msg);
+            ErrorMessage(msg);
         } finally {
             setLoading(false);
         }
     };
  
     const getRoleList = () => {
-        PrivateAxios.get("user/get-role")
-        .then((res) => {
-            console.log(res.data.data,"role");
-            
-            setRole(res.data.data)
+        PrivateAxios.get("/get-all-roles")
+        .then((res) => {        
+            setRole(res.data?.data || [])
         }).catch((err) => {
-
+            console.error("Failed to fetch roles", err);
+            const msg = err?.response?.data?.message || "Failed to fetch roles";
+            ErrorMessage(msg);
         })
     }
  
@@ -87,12 +88,12 @@ function UserList() {
         fetchUsers(newPage, limit, filterKey);
     }
 
-    const changeLimit = (e) => {
-        const newLimit = Number(e.target.value) || 10;
-        setLimit(newLimit);
-        setPage(1);
-        fetchUsers(1, newLimit, filterKey);
-    }
+    // const changeLimit = (e) => {
+    //     const newLimit = Number(e.target.value) || 10;
+    //     setLimit(newLimit);
+    //     setPage(1);
+    //     fetchUsers(1, newLimit, filterKey);
+    // }
 
     const handlePaginationChange = (newPage, pageSize) => {
         if (pageSize !== limit) {
@@ -130,7 +131,7 @@ function UserList() {
             role: roleId.length > 0 ? JSON.stringify(roleId) : "",
             id: updateUserData.id
         }
-        PrivateAxios.post("/user/update-user", payload)
+        PrivateAxios.post("/user/update-user-roles", payload)
             .then((res) => {
                 SuccessMessage(res.data.message);
  
@@ -143,7 +144,9 @@ function UserList() {
                 );
                 UpdateModalClose();
             }).catch((err) => {
-                console.log(err);
+                console.error("Failed to update user", err);
+                const msg = err?.response?.data?.message || "Failed to update user";
+                ErrorMessage(msg);
  
             })
  

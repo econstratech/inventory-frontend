@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Modal, Table, } from 'react-bootstrap'
 import { PrivateAxios } from '../../environment/AxiosInstance'
 import Loader from '../landing/loder/Loader';
-import { SuccessMessage } from '../../environment/ToastMessage';
+import { SuccessMessage, ErrorMessage } from '../../environment/ToastMessage';
 import { Tooltip } from 'antd';
 import SettingsPageTopBar from './SettingsPageTopBar';
 import CreateRole from './role/CreateRole';
@@ -33,6 +33,8 @@ function RoleData() {
             setLoading(false)
 
             console.error("Error fetching modules:", error);
+            const msg = error?.response?.data?.message || "Failed to fetch roles";
+            ErrorMessage(msg);
             throw error;
         }
     };
