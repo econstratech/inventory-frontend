@@ -129,7 +129,7 @@ function UserList() {
     const UpdateData = () => {
         const payload = {
             role: roleId.length > 0 ? JSON.stringify(roleId) : "",
-            id: updateUserData.id
+            id: parseInt(updateUserData.id)
         }
         PrivateAxios.post("/user/update-user-roles", payload)
             .then((res) => {
@@ -137,7 +137,7 @@ function UserList() {
  
                 setUsers(prevUsers =>
                     prevUsers.map(user =>
-                        user.id == updateUserData.id
+                        user.id === parseInt(updateUserData.id)
                             ? { ...user, role: payload.role }
                             : user
                     )

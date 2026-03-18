@@ -10,6 +10,8 @@ import {
 import { Link } from "react-router-dom";
 import { Table, Input } from "antd";
 import Select from "react-select";
+
+import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import "../global.css";
 import {
@@ -20,6 +22,7 @@ import {
 import InventoryMasterPageTopBar from "./itemMaster/InventoryMasterPageTopBar";
 import AddMultipleItemsModal from "../CommonComponent/AddMultipleItemsModal";
 import StockMasterBulkActions from "../CommonComponent/StockMasterBulkActions";
+import ProductCategorySelect from "../filterComponents/ProductCategorySelect";
 // import DeleteMultipleItemsModal from "../CommonComponent/DeleteMultipleItemsModal";
 import TallyIntegrationModal from "../CommonComponent/TallyIntegrationModal";
 import ExploreAllFeaturesModal from "../CommonComponent/ExploreAllFeaturesModal";
@@ -203,46 +206,46 @@ function InventoryMaster() {
   const [useFIFOPrice, setUseFIFOPrice] = useState(false);
   const [comment, setComment] = useState("");
 
-  const [products, setProducts] = useState([]);
-  const [transferItems, setTransferItems] = useState([
-    {
-      key: 1,
-      itemId: null,
-      itemName: "",
-      defaultPrice: 0,
-      currentQuantity: "",
-      finalQuantity: "",
-      changeQuantity: 1,
-      comment: "",
-      itemID: "",
-      product: null,
-      availableQuantity: "",
-      transferQuantity: "",
-      itemUnit: "",
-      disableTransferQuantity: true,
-      batchesLoading: false,
-      availableBatches: [],
-      batchQuantities: {},
-    },
-  ]);
+  // const [products, setProducts] = useState([]);
+  // const [transferItems, setTransferItems] = useState([
+  //   {
+  //     key: 1,
+  //     itemId: null,
+  //     itemName: "",
+  //     defaultPrice: 0,
+  //     currentQuantity: "",
+  //     finalQuantity: "",
+  //     changeQuantity: 1,
+  //     comment: "",
+  //     itemID: "",
+  //     product: null,
+  //     availableQuantity: "",
+  //     transferQuantity: "",
+  //     itemUnit: "",
+  //     disableTransferQuantity: true,
+  //     batchesLoading: false,
+  //     availableBatches: [],
+  //     batchQuantities: {},
+  //   },
+  // ]);
 
   // const { user } = UserAuth();
   const [uomData, setUomData] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
-  const [productCategories, setProductCategories] = useState([]);
   const [dynamicProductAttributes, setDynamicProductAttributes] = useState([]);
   const [masterBrands, setMasterBrands] = useState([]);
 
-  const [user] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  // const [user] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const { user, isVariantBased } = UserAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [addItemFormData, setAddItemFormData] = useState({
     product_code: "",
     product_name: "",
     product_type_id: null,
+    product_category_id: null,
     is_batch_applicable: "1",
     brand_id: null,
-    // uom_id: null,
-    // buffer_size: "",
     dynamic_attributes: [], // dynamic attributes
     product_variants: [] // product variants
   });
@@ -267,7 +270,7 @@ function InventoryMaster() {
   const handleAddItemSelectChange = (fieldName) => (selectedOption) => {
     setAddItemFormData(prev => ({
       ...prev,
-      [fieldName]: selectedOption.id
+      [fieldName]: selectedOption?.id ?? null
     }));
   };
 
@@ -357,13 +360,7 @@ function InventoryMaster() {
       newErrors.product_type_id = "Item Type is required";
     } else if (!addItemFormData.product_category_id) {
       newErrors.product_category_id = "Category is required";
-    } 
-    // else if (!addItemFormData.uom_id) {
-    //   newErrors.uom_id = "UoM is required";
-    // } else if (addItemFormData.buffer_size === "" || Number(addItemFormData.buffer_size) < 0) {
-    //   newErrors.buffer_size = "Buffer Qty must be 0 or more";
-    // } 
-    else {
+    }  else {
       // 🔥 Dynamic attributes validation (ARRAY BASED)
       dynamicProductAttributes.forEach(attr => {
         if (attr.is_required === 1) {
@@ -377,21 +374,23 @@ function InventoryMaster() {
         }
       });
 
-      // Validate product variants - at least one complete variant is required
-      const validVariants = productVariants.filter(
-        variant => variant.uom_id && variant.weight && variant.weight.trim() !== ""
-      );
-      
-      if (validVariants.length === 0) {
-        newErrors.product_variants = "At least one product variant with Unit of Measurement and Weight is required";
-      }
-
-      productVariants.forEach(variant => {
-        if (variant.weight?.trim() === "" || variant.uom_id === null) {
-          newErrors.product_variants = "Both Unit of Measurement and Weight is required";
-          // newErrors[`variant_${variant.id}`] = `both Unit of Measurement and Weight is required`;
+      if (isVariantBased) {
+        // Validate product variants - at least one complete variant is required
+        const validVariants = productVariants.filter(
+          variant => variant.uom_id && variant.weight && variant.weight.trim() !== ""
+        );
+        
+        if (validVariants.length === 0) {
+          newErrors.product_variants = "At least one product variant with Unit of Measurement and Weight is required";
         }
-      });
+
+        productVariants.forEach(variant => {
+          if (variant.weight?.trim() === "" || variant.uom_id === null) {
+            newErrors.product_variants = "Both Unit of Measurement and Weight is required";
+            // newErrors[`variant_${variant.id}`] = `both Unit of Measurement and Weight is required`;
+          }
+        });
+      }
     }
   
     setErrorMessage(newErrors);
@@ -413,18 +412,6 @@ function InventoryMaster() {
         })
         setUomData(mappedData);
       }
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  /**
-   * Fetch master product categories
-   */
-  const fetchProductCategories = async() => {
-    try {
-      const res = await PrivateAxios.get(`master/product-category`);
-      setProductCategories(res.data.data);
     } catch (error) {
       console.error(error);
     }
@@ -475,7 +462,6 @@ function InventoryMaster() {
     fetchUomData();
     fetchProductTypes();
     fetchDynamicProductattributes();
-    fetchProductCategories();
     fetchMasterBrands();
   }, []);
 
@@ -498,12 +484,12 @@ function InventoryMaster() {
     if (!validateAddItemForm()) return;
     
     // Prepare variants data for submission
-    const variantsData = productVariants
+    const variantsData = isVariantBased ? productVariants
       .filter(variant => variant.uom_id && variant.weight)
       .map(variant => ({
         uom_id: variant.uom_id,
         weight: parseFloat(variant.weight) || 0
-      }));
+      })) : [];
 
     // Combine form data with variants
     const submitData = {
@@ -520,6 +506,15 @@ function InventoryMaster() {
           // Reset variants
           setProductVariants([]);
           fetchData();
+          //Reset form data
+          setAddItemFormData({
+            product_code: "",
+            product_name: "",
+            product_type_id: null,
+            product_category_id: null,
+            is_batch_applicable: null,
+            brand_id: null,
+          });
         }
       })
       .catch((err) => {
@@ -674,7 +669,7 @@ function InventoryMaster() {
       render: (_, record) => record.markup_percentage || "-",
     },
     {
-      title: "Variants & Attributes",
+      title: `${isVariantBased ? "Variants & Attributes" : "Attributes"}`,
       key: "variants_attributes",
       width: 180,
       render: (_, record) => {
@@ -683,6 +678,7 @@ function InventoryMaster() {
         const hasData = hasVariants || hasAttributes;
         
         return (
+          hasData ? (
           <button
             type="button"
             className={`btn btn-sm ${hasData ? 'btn-info' : 'btn-outline-secondary'}`}
@@ -693,7 +689,9 @@ function InventoryMaster() {
             <i className="fas fa-info-circle me-1"></i>
             View
           </button>
-        );
+        ) : (
+          <span className="text-muted">N/A</span>
+        ))
       },
     }
     // {
@@ -1128,20 +1126,14 @@ function InventoryMaster() {
                   </label>
                   <div className="d-flex">
                     <div className="custom-select-wrap w-100">
-                      <Select
-                        name="product_category_id"
-                        options={productCategories}
-                        getOptionLabel={(option) => option.title}
-                        getOptionValue={(option) => option.id}
-                        theme={(theme) => ({
-                          ...theme,
-                          colors: {
-                            ...theme.colors,
-                            primary25: "#ddddff",
-                            primary: "#6161ff",
-                          },
-                        })}
+                      <ProductCategorySelect
+                        value={addItemFormData.product_category_id}
                         onChange={handleAddItemSelectChange("product_category_id")}
+                        placeholder="Select Category"
+                        error={errorMessage.product_category_id}
+                        onErrorClear={() =>
+                          setErrorMessage((prev) => ({ ...prev, product_category_id: "" }))
+                        }
                       />
                     </div>
                   </div>
@@ -1174,7 +1166,7 @@ function InventoryMaster() {
                   <label className="form-label d-flex justify-content-between">
                     <span>
                       Select Brand
-                      <span className="text-danger">*</span>
+                      {/* <span className="text-danger">*</span> */}
                     </span>
                   </label>
                   <div className="d-flex">
@@ -1196,7 +1188,7 @@ function InventoryMaster() {
                       />
                     </div>
                     <Link
-                      to="/settings/inventory/master-brand"
+                      to="/settings/brands"
                       className="btn btn-outline-primary w-fit-content ms-2"
                     >
                       <i className="fas fa-plus"></i>
@@ -1209,24 +1201,6 @@ function InventoryMaster() {
                 </div>
               </div>
 
-              {/* <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label d-flex justify-content-between">
-                    <span>Min Buffer Qty  <span className="text-danger">*</span> </span>
-                  </label>
-                  <input
-                    type="number"
-                    name="buffer_size"
-                    placeholder="Enter Buffer Qty"
-                    className="form-control"
-                    onChange={handleAddItemFormChange}
-                    min="0"
-                  />
-                  {errorMessage.buffer_size && (
-                    <span className="error-message">{errorMessage.buffer_size}</span>
-                  )}
-                </div>
-              </div> */}
               <div className="col-md-6">
                 <div className="form-group">
                   <label className="form-label d-flex justify-content-between">
@@ -1273,6 +1247,7 @@ function InventoryMaster() {
               ))}
 
               {/* Product Variants Section */}
+              {isVariantBased && (
               <div className="col-12 mt-3">
                 <div className="card border">
                   <div className="card-header bg-light">
@@ -1367,6 +1342,7 @@ function InventoryMaster() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </Modal.Body>
           <Modal.Footer>

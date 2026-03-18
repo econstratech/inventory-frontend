@@ -54,10 +54,12 @@ function MyNewpurchase() {
   };
   const { MatchPermission, user } = UserAuth();
   const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  const [isVariantBased, setIsVariantBased] = useState(false);
 
   useEffect(() => {
     if (user) {
       setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+      setIsVariantBased(user.company.generalSettings.is_variant_based === 1);
       if (!MatchPermission(["Create PO"])) {
         ErrorMessage("You are not authorized to create a purchase order.");
         navigate("/");
@@ -104,9 +106,12 @@ function MyNewpurchase() {
     if (selectedProduct && selectedProduct.productData) {
       const productData = selectedProduct.productData;
       const productIndex = products.length === 1 && products[0].product_id === "" ? 0 : products.length;
-      
-      // Fetch variants for the selected product
-      fetchProductVariants(selectedProduct.value, productIndex, productData);
+
+      if (isVariantBased) {
+        fetchProductVariants(selectedProduct.value, productIndex, productData);
+      } else {
+        updateProductWithData(productIndex, selectedProduct.value, productData, null, null);
+      }
       setShowProductSelector(false);
     }
   };
@@ -313,7 +318,7 @@ function MyNewpurchase() {
       products.forEach(product => {
         productsData.push({
           product_id: product.product_id,
-          product_variant_id: product.variantData.id,
+          product_variant_id: isVariantBased && product.variantData ? product.variantData.id : null,
           description: product.description,
           qty: product.qty,
           unit_price: product.unit_price,
@@ -557,8 +562,11 @@ function MyNewpurchase() {
                                           onChange={(selectedOption) => {
                                             if (selectedOption) {
                                               const selectedProduct = selectedOption.productData;
-                                              // Fetch variants for the selected product
-                                              fetchProductVariants(selectedOption.value, index, selectedProduct);
+                                              if (isVariantBased) {
+                                                fetchProductVariants(selectedOption.value, index, selectedProduct);
+                                              } else {
+                                                updateProductWithData(index, selectedOption.value, selectedProduct, null, null);
+                                              }
                                             } else {
                                               // Handle clear selection
                                               const newProducts = [...products];
@@ -581,7 +589,7 @@ function MyNewpurchase() {
                                             }),
                                           }}
                                         />
-                                        {product.variant_id && product.variantData && (
+                                        {isVariantBased && product.variant_id && product.variantData && (
                                           <div className="mt-1">
                                             <small className="text-muted">
                                               <i className="fas fa-tag me-1"></i>

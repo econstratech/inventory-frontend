@@ -11,7 +11,9 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(sessionStorage.getItem("token") || '');
     const [userDetails, setUserDetails] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+    const [user, setUser] = useState(null);
+    const [isVariantBased, setIsVariantBased] = useState(false);
+
     // const [getCustomer, setCustomer] = useState([]);
     // const [getUomData , setUomData] = useState([]);
     // const [productData, setProduct] = useState([]);
@@ -142,6 +144,8 @@ export const AuthProvider = ({ children }) => {
         if (token) {
             getPermission();
             setUserDetails(jwtDecode(token));
+            setUser(JSON.parse(localStorage.getItem("auth_user")) || null);
+
             // OfficeTiming();
             // productdata();
             // customer();
@@ -151,11 +155,19 @@ export const AuthProvider = ({ children }) => {
         }
     }, [token])
 
+    // Check if the company is variant based
+    useEffect(() => {
+        if (user) {
+            setIsVariantBased(user.company.generalSettings.is_variant_based === 1);
+        }
+    }, [user])
+
 
     let isLoggedIn = !!token; //return true false
 
     return <AuthContext.Provider value={{ 
-        user, 
+        user,
+        isVariantBased,
         setAuthUser, 
         MatchPermission, 
         token,
