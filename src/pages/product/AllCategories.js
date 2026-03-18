@@ -338,11 +338,6 @@ function AllCategories() {
                             cell={CustomSlNoCell}
                           />
                           <GridColumn
-                            field="id"
-                            title="Category Id"
-                            filterable={false}
-                          />
-                          <GridColumn
                             field="title"
                             title="Name"
                             filter="text"

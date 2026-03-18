@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 
 import Select from 'react-select'
 
 
 import { ErrorMessage, SuccessMessage } from '../../environment/ToastMessage';
-import { UserAuth } from '../auth/Auth';
-import { AllUser, GetTaskPriority, GetTaskRemainder } from '../../environment/GlobalApi';
+// import { AllUser, GetTaskPriority, GetTaskRemainder } from '../../environment/GlobalApi';
 import "../global.css"
 import { PrivateAxios } from '../../environment/AxiosInstance';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
@@ -13,7 +12,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 const EditCategory = () => {
     const location = useLocation();
     const { data } = location.state || {};
-    const { Logout } = UserAuth();
+
     const { id } = useParams();
     const navigate = useNavigate();
     const status = [
@@ -22,11 +21,11 @@ const EditCategory = () => {
     ]
 
     const [formData, setFormData] = useState({
-        'catname': data.title,
+        'title': data.title,
         'status': data.status,
     });
 
-    const [message, setMessage] = useState('');
+    // const [message, setMessage] = useState('');
     const [error, setError] = useState({});
 
     const getTaskData = async (e, data) => {
@@ -41,10 +40,9 @@ const EditCategory = () => {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
-        //console.log(formData);
 
         try {
-            const response = await PrivateAxios.put(`category/updatecat/${id}`, formData);
+            const response = await PrivateAxios.put(`product-category/update/${id}`, formData);
             if (response.status === 200) {
                 SuccessMessage('Product category updated!');
                 navigate('/category');
@@ -82,9 +80,9 @@ const EditCategory = () => {
                                 <div className='col-lg-4 col-md-4 col-sm-6 col-12'>
                                     <div className='form-group'>
                                         <label className='form-label'>Category Name</label>
-                                        <input type='text' className="form-control" name='catname' placeholder='Enter Category Name'
-                                            value={formData.catname} onChange={getTaskData} required />
-                                        {error.catname ? <span className="field-invalid"><i class="bi bi-exclamation-triangle-fill me-1"></i>{error.catname}</span> : ""}
+                                        <input type='text' className="form-control" name='title' placeholder='Enter Category Name'
+                                            value={formData.title} onChange={getTaskData} required />
+                                        {error.title ? <span className="field-invalid"><i class="bi bi-exclamation-triangle-fill me-1"></i>{error.title}</span> : ""}
                                     </div>
 
                                 </div>
