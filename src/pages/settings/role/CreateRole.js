@@ -32,9 +32,14 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
     }, [])
 
     useEffect(() => {
-        const groupsWithPermissions = groups.filter((group) => getGroupPermissions(group).length > 0);
+        // Check if groups is defined and has length before filtering
+        const groupsWithPermissions = groups && groups.length > 0 ? groups.filter((group) => getGroupPermissions(group).length > 0) : [];
+        // Check if groupsWithPermissions is defined and has length before checking every group
+        if (!groupsWithPermissions || groupsWithPermissions.length === 0) {
+            setSelectAll(false);
+            return;
+        }
         const allSelected =
-            groupsWithPermissions.length > 0 &&
             groupsWithPermissions.every((group) =>
                 getGroupPermissions(group).every((permission) =>
                     allPermission.some(
@@ -140,10 +145,10 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
         ).length;
     };
 
-    const totalPermissionCount = groups.reduce(
+    const totalPermissionCount = groups && groups.length > 0 ? groups.reduce(
         (sum, group) => sum + getGroupPermissions(group).length,
         0
-    );
+    ) : 0;
 
     const createUserRole = (e) => {
         e.preventDefault();
@@ -229,7 +234,7 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
                         <div style={{ maxHeight: "44vh", overflowY: "auto", paddingRight: "4px" }}>
                             <div className='row g-3'>
                             {
-                                groups && groups.map((item, i) => (
+                                groups && groups.length > 0 && groups.map((item, i) => (
                                     <div className='col-lg-6 col-12' key={item.id || i}>
                                         <div className='border rounded-3 p-3 h-100' style={{ background: "#fcfdff", borderColor: "#e2e8f0" }}>
                                             <div className='d-flex justify-content-between align-items-start mb-2'>
