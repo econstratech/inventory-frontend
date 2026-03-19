@@ -40,7 +40,7 @@ function MypurchaseList() {
   const PriceCompare = async (id) => {
     try {
       const response = await PrivateAxios.get(
-        `/sales/sales/${id}`
+        `/sales/sales/${id}?type=dispatch`
       );
       if (response.status === 200) {
         const quotationData = response.data.data;

@@ -133,8 +133,8 @@ const SaleOrderDetailsModal = ({
   }, [show, productCompare, fetchProductStores]);
 
   // Initialize row state when modal opens.
-  // Do not reinitialize on every productCompare change, otherwise user-selected
-  // store/product edits get overwritten while the modal is open.
+  // Preserve user store selections when productCompare changes (e.g. from onStoreChange
+  // or refresh), otherwise the selection would disappear.
   useEffect(() => {
     if (show && productCompare?.length > 0) {
       const initial = {};
@@ -151,14 +151,28 @@ const SaleOrderDetailsModal = ({
           let availableQty = Math.max((Number(product.qty) || 0) - historicalReceivedQty, 0);
 
           initial[key] = Number(product.received_now) || 0;
-          initial[`store_${key}`] = product?.warehouse || null;
+          initial[`store_${key}`] = product?.warehouse || purchase?.warehouse || null;
           initial[`available_qty_${key}`] = availableQty;
           initial[`is_dispatched_fully_${key}`] = availableQty === 0;
           initial[`is_dispatched_partially_${key}`] =
             availableQty > 0 && receivedHistory.length > 0;
         });
       });
-      setReceivedNowMap(initial);
+      setReceivedNowMap((prev) => {
+        const next = { ...initial };
+        // Preserve user's store selections - don't overwrite when productCompare
+        // changes due to onStoreChange or other parent updates
+        productCompare.forEach((purchase) => {
+          purchase.products.forEach((product) => {
+            const key = `${purchase.id}-${product.id}`;
+            const storeKey = `store_${key}`;
+            if (Object.prototype.hasOwnProperty.call(prev, storeKey) && prev[storeKey] != null) {
+              next[storeKey] = prev[storeKey];
+            }
+          });
+        });
+        return next;
+      });
       setError({});
     }
   }, [show, productCompare]);
@@ -818,7 +832,7 @@ const SaleOrderDetailsModal = ({
                               );
                               const currentSelectedStore = hasExplicitStoreSelection
                                 ? receivedNowMap[storeStateKey]
-                                : product?.warehouse ?? null;
+                                : product?.warehouse ?? purchase?.warehouse ?? null;
                               const selectedId =
                                 currentSelectedStore?.value ??
                                 currentSelectedStore?.id ??
