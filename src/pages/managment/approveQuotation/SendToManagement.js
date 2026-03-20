@@ -1,18 +1,10 @@
 import React, { useEffect, useState } from "react";
-import {
-  Grid,
-  GridColumn,
-} from "@progress/kendo-react-grid";
-import { process } from "@progress/kendo-data-query";
-
+import DatePicker from "react-datepicker";
 
 import "react-datepicker/dist/react-datepicker.css";
 
 import { Link } from "react-router-dom";
 import {
-  // Button,
-  // Table,
-  // Alert,
   Modal,
   OverlayTrigger,
   Popover,
@@ -20,23 +12,20 @@ import {
 
 import "handsontable/dist/handsontable.full.min.css";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
-// import { UserAuth } from "../../auth/Auth";
-
 
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
 
 import moment from "moment";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 
-import ReactQuill from "react-quill";
+// import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css"; // Import the styles
 
-
-import { Tooltip } from "antd";
-import { DropDownList } from "@progress/kendo-react-dropdowns";
+import { Tooltip, Table } from "antd";
 // import { backdropClasses } from "@mui/material";
 // import TopLayout from "./ManagementStatusBar";
 // import ManagementPageTopBar from "../ManagementPageTopBar";
+import { UserAuth } from "../../auth/Auth";
 import ManagementStatusBar from "./ManagementStatusBar";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
 import { calculateTotalWeight } from "../../../utils/weightConverter";
@@ -44,18 +33,16 @@ import ProductSelect from "../../filterComponents/ProductSelect";
 
 
 function SendToManagement() {
-  // const { getGeneralSettingssymbol } = UserAuth();
+  const { getGeneralSettingssymbol, isVariantsAvailable, user } = UserAuth();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 5,
-    sort: [],
-    filter: null,
-  });
-  const [user,setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  const getGeneralSettingssymbol = user?.company?.generalSettings?.symbol;
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageState, setPageState] = useState({ current: 1, pageSize: 15 });
+  const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
+  const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
+  // const [user,setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  // const getGeneralSettingssymbol = user?.company?.generalSettings?.symbol;
 
 
 
@@ -81,7 +68,7 @@ function SendToManagement() {
   const [selectedProductInfo, setSelectedProductInfo] = useState(null);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  // const handleShow = () => setShow(true);
   const RemarksClose = () => setShowremark(false);
   const RemarksShow = () => setShowremark(true);
 
@@ -89,11 +76,11 @@ function SendToManagement() {
     setEditorContent(content);
   };
 
-  const navigate = useNavigate();
-  const getRef = (pid, ref) => {
-    setReff(ref)
-    setPid(pid)
-  }
+  // const navigate = useNavigate();
+  // const getRef = (pid, ref) => {
+  //   setReff(ref)
+  //   setPid(pid)
+  // }
   const getRemarks = (rmks, refid) => {
     getremarkdata(rmks)
     getremarksRef(refid)
@@ -232,23 +219,37 @@ function SendToManagement() {
     setSelectedProductInfo(null);
   };
 
-  const TaskData = async () => {
+  const TaskData = async (customPageState = null) => {
     setLoading(true);
-    PrivateAxios.get("purchase/pending-approval")
+    const currentPageState = customPageState || pageState;
+    const urlParams = new URLSearchParams({
+      page: currentPageState.current,
+      limit: currentPageState.pageSize,
+      ...(referenceNumberFilter && { reference_number: referenceNumberFilter }),
+      ...(dateRangeFilter[0] && { expected_arrival_start: moment(dateRangeFilter[0]).format("YYYY-MM-DD") }),
+      ...(dateRangeFilter[1] && { expected_arrival_end: moment(dateRangeFilter[1]).format("YYYY-MM-DD") }),
+    });
+    PrivateAxios.get(`purchase/pending-approval?${urlParams.toString()}`)
       .then((res) => {
-        const transformedData = res.data.map((item, index) => ({
+        const responseData = res.data?.data || {};
+        const rows = responseData.rows || [];
+        const pagination = responseData.pagination || {};
+        setTotalCount(pagination.total_records || 0);
+        const slNoBase = ((pagination.current_page || 1) - 1) * (pagination.per_page || currentPageState.pageSize);
+        const transformedData = rows.map((item, index) => ({
           id: item.id,
-          slNo: index + 1,
+          slNo: slNoBase + index + 1,
           reference: item.reference_number,
-          vendor: item.vendor.vendor_name,
-          buyer: item.createdBy.name,
-          expectedArrival: moment(item.expected_arrival).format("DD-MM-YYYY hh:mm A"),
+          vendor: item.vendor?.vendor_name || "N/A",
+          store: item.warehouse?.name || "N/A",
+          buyer: item.createdBy?.name || "N/A",
+          expectedArrival: moment(item.expected_arrival).format("DD/MM/YYYY"),
+          expected_arrival_raw: item.expected_arrival,
           total: `${getGeneralSettingssymbol} ${item.total_amount}`,
           is_parent: item.is_parent,
           status: item.status,
         }));
         setData(transformedData);
-
         setLoading(false);
       })
       .catch((err) => {
@@ -258,6 +259,28 @@ function SendToManagement() {
   useEffect(() => {
     TaskData();
   }, []);
+
+  const handleFilter = () => {
+    setPageState((prev) => ({ ...prev, current: 1 }));
+    TaskData({ current: 1, pageSize: pageState.pageSize });
+  };
+
+  const handleReset = () => {
+    setReferenceNumberFilter("");
+    setDateRangeFilter([null, null]);
+    const newPageState = { current: 1, pageSize: pageState.pageSize };
+    setPageState(newPageState);
+    TaskData(newPageState);
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    const newPageState = {
+      current: page,
+      pageSize: pageSize || pageState.pageSize,
+    };
+    setPageState(newPageState);
+    TaskData(newPageState);
+  };
 
   // Calculate totals based on edited products
   const calculateProductTotals = () => {
@@ -330,7 +353,7 @@ function SendToManagement() {
     }
     
     // Fetch variants for the new product
-    if (selectedOption.value) {
+    if (selectedOption.value && isVariantsAvailable) {
       fetchProductVariants(selectedOption.value, productIndex);
     }
   };
@@ -408,8 +431,8 @@ function SendToManagement() {
         setSendToVendor(false);
       }
     } catch (error) {
-      ErrorMessage("Error saving changes. Please try again.");
-      console.error("Error saving changes:", error);
+      ErrorMessage("Error!! Unable to approve by management");
+      console.error("Error approving by management:", error);
     }
   };
 
@@ -452,120 +475,72 @@ function SendToManagement() {
   };
 
 
-  const ActionCell = (props) => {
-    const { dataItem } = props || {}; // Ensure props and dataItem exist
-    if (!dataItem) return null;
+  const renderReference = (_, record) => (
+    <div>
+      <span className="k_table_link" style={{ fontSize: "15px", color: "#007bff", fontWeight: "bold" }}>{record.reference}</span>
+      {/* <a
+        onClick={() => {
+          setShowPrice(true);
+          PriceCompare(record.id);
+        }}
+        style={{ marginLeft: "8px" }}
+        title="View & Approve PO"
+      >
+        <i
+          className="fas fa-check"
+          style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }}
+        />
+      </a> */}
+    </div>
+  );
 
-    return (
-      <td>
-        <div className="d-flex gap-2">
-          <Tooltip title="View Details">
-            <span
-              className="me-1 icon-btn"
-              style={{ cursor: "pointer" }}
-            >
-              <svg
-                onClick={() => {
-                  setShowPrice(true);
-                  PriceCompare(dataItem.id);
-                }}
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                fill="currentColor"
-                className="bi bi-eye-fill"
-                viewBox="0 0 16 16"
-              >
-                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0" />
-                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7" />
-              </svg>
-            </span>
-          </Tooltip>
+  const renderStatus = () => (
+    <label className="badge badge-outline-yellowGreen">
+      <i className="fas fa-circle f-s-8 d-flex me-1" />
+      Pending Approval
+    </label>
+  );
 
-          {dataItem.is_parent == 1 && dataItem.status == 4 && (
-            <Tooltip title="Confirm Order">
-              <Link
-                to={{ pathname: `/purchase/${dataItem.id}` }}
-                state={{ data: dataItem }}
-                className="me-1 icon-btn"
-              >
-                <i className="fas fa-external-link-alt"></i>
-              </Link>
-            </Tooltip>
-          )}
-        </div>
-      </td>
-    );
-  }
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div>
-          <span className="k_table_link">{dataItem.reference}</span>
-          <a
-            onClick={() => {
-              setShowPrice(true);
-              PriceCompare(dataItem.id);
-            }}
-            style={{ marginLeft: "8px" }}
-            title="View Details"
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="View & Approve PO">
+        <span
+          className="me-1 icon-btn"
+          style={{ cursor: "pointer" }}
+          onClick={() => {
+            setShowPrice(true);
+            PriceCompare(record.id);
+          }}
+        >
+          <i className="fas fa-check" style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }} />
+        </span>
+      </Tooltip>
+
+      {record.is_parent === 1 && record.status === 4 && (
+        <Tooltip title="Confirm Order">
+          <Link
+            to={{ pathname: `/purchase/${record.id}` }}
+            state={{ data: record }}
+            className="me-1 icon-btn"
           >
-            <i
-              className="fas fa-info-circle"
-              style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }}
-            ></i>
-          </a>
-        </div>
-      </td>
-    );
-  };
+            <i className="fas fa-external-link-alt" />
+          </Link>
+        </Tooltip>
+      )}
+    </div>
+  );
 
-  const CustomDropDownFilter = (props) => {
-    const handleChange = (e) => {
-      props.onChange({
-        value: e.value,
-        operator: "eq",
-        field: props.field,
-      });
-    };
-
-    return (
-      <DropDownList
-        data={statuses}
-        textField="text"
-        dataItemKey="value"
-        value={statuses.find((s) => s.value === props.value) || statuses[0]}
-        onChange={handleChange}
-      />
-    );
-  };
-
-
-  const statuses = [
-    { text: "All", value: null },
-    { text: "Published", value: "Published" },
-    { text: "Draft", value: "Draft" },
-    { text: "Pending", value: "Pending" },
-    { text: "Reviewing", value: "Reviewing" },
+  const columns = [
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 80 },
+    { title: "Reference No.", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Vendor", dataIndex: "vendor", key: "vendor", width: 200 },
+    { title: "Store", dataIndex: "store", key: "store", width: 200 },
+    { title: "Created By", dataIndex: "buyer", key: "buyer", width: 200 },
+    { title: "Expected Arrival", dataIndex: "expectedArrival", key: "expectedArrival", width: 150 },
+    { title: "Total", dataIndex: "total", key: "total", width: 150 },
+    { title: "Status", key: "status", width: 250, render: renderStatus },
+    { title: "Action", key: "action", width: 150, render: renderAction },
   ];
-
-
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
-
-    // Access the field value directly
-    const value = dataItem[field];
-
-    return (
-      <td>
-
-        <label className="badge badge-outline-yellowGreen"><i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval</label>
-
-        {/* {value} */}
-      </td>
-    );
-  };
 
   const deletePurchaseProduct = async (purchaseId, productId) => {
     try {
@@ -584,60 +559,95 @@ function SendToManagement() {
 
   return (
     <React.Fragment>
-      {/* <ManagementPageTopBar /> */}
       <ManagementStatusBar />
+
       <div className="row p-4">
         <div className="col-12">
           <div className="card">
-            <div className="card-body p-0">
-              <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto"></div>
-              </div>
-              <div className="bg_succes_table_head rounded_table">
-                <Grid
-                  data={process(data, dataState)}  // Add fallback for undefined data
-                  filterable={false}
-                  sortable
-                  scrollable="scrollable"
-                  reorderable
-                  resizable
-                  {...dataState}
-                  onDataStateChange={(e) => setDataState(e.dataState)}
-                  loading={loading}
-                  pageable={{ buttonCount: 3, pageSizes: true }}
-                >
+            <div className="card-body">
 
-
-                      {/* Column Definitions */}
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
-                      <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="250px" />
-                      <GridColumn field="buyer" title="buyer" filterable={false} filter="text" width="200" />
-                      <GridColumn field="expectedArrival" title="expected Arrival" filterable={false} filter="numeric" width="200px" />
-                      {/* <GridColumn field="sourceDocument" title="source Document" filterable={false} filter="text" width="200px" /> */}
-                      <GridColumn field="total" title="total" filterable={false} filter="text" width="200px" />
-                      {/* <GridColumn field="status" title="STATUS" filter="text" filterable={false} width="200" /> */}
-                      <GridColumn
-                        field="status"
-                        title="status"
-                        filterable={false}
-                        filter="dropdown"
-                        width="250px"
-                        filterCell={CustomDropDownFilter}
-                        cells={{
-                          data: CustomCell
-                        }}
+              <div className="bg-white border-bottom">
+                <div className="d-flex gap-3 px-4 justify-content-between align-items-center py-3">
+                  <div className="d-flex gap-3 align-items-center">
+                    <div style={{ minWidth: "200px" }}>
+                      <label className="form-label mb-1 f-s-14 fw-medium">Filter by Reference Number</label>
+                      <input
+                        type="text"
+                        name="reference_number"
+                        className="form-control"
+                        placeholder="Reference number"
+                        value={referenceNumberFilter}
+                        onChange={(e) => setReferenceNumberFilter(e.target.value)}
+                        style={{ height: "38px" }}
                       />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                </Grid>
+                    </div>
+                    <div style={{ minWidth: "250px", display: "flex", flexDirection: "column" }}>
+                      <label className="form-label mb-1 f-s-14 fw-medium">Filter by Expected Arrival</label>
+                      <DatePicker
+                        selected={dateRangeFilter[0]}
+                        onChange={(update) => setDateRangeFilter(update)}
+                        startDate={dateRangeFilter[0]}
+                        endDate={dateRangeFilter[1]}
+                        selectsRange
+                        isClearable
+                        placeholderText="Select date range"
+                        className="form-control"
+                        dateFormat="dd-MM-yyyy"
+                        name="expected_arrival"
+                        style={{ display: "block", width: "100%" }}
+                      />
+                    </div>
+                    <div className="d-flex gap-2 align-items-end">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleFilter}
+                        style={{ height: "38px", marginTop: "20px" }}
+                      >
+                        <i className="fas fa-filter me-2" />
+                        Filter
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={handleReset}
+                        style={{ height: "38px", marginTop: "20px" }}
+                      >
+                        <i className="fas fa-redo me-2" />
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg_succes_table_head rounded_table">
+                <Table
+                  columns={columns}
+                  dataSource={data}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{
+                    current: pageState.current,
+                    pageSize: pageState.pageSize,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1400 }}
+                />
 
 
 
               </div>
+
+
             </div>
           </div>
         </div>
+  
       </div>
 
 
@@ -708,7 +718,7 @@ function SendToManagement() {
                           <td>{productPriceCompare.vendor?.vendor_name || 'N/A'}</td>
                           <td className="k_table_link">
                             {productPriceCompare.reference_number}
-                            {productPriceCompare.remarkdata && productPriceCompare.remarkdata.remarks != '' ? (
+                            {productPriceCompare.remarkdata && productPriceCompare.remarkdata.remarks !== '' ? (
                               <i
                                 style={{ cursor: 'pointer', marginLeft: '8px' }}
                                 className="bi bi-eye-fill"
@@ -743,12 +753,17 @@ function SendToManagement() {
                         <th>Product Name</th>
                         <th>Product Code</th>
                         <th>Quantity</th>
-                        <th>Weight per unit</th>
+                        {isVariantsAvailable && (
+                          <>
+                            <th>Weight per unit</th>
+                            <th>Total weight</th>
+                          </>
+                        )}
                         <th>Unit Price</th>
                         <th>Tax (%)</th>
                         <th>Price (Excl tax)</th>
                         <th>Total Amount</th>
-                        <th>Total weight</th>
+                    
                         <th>Action</th>
                       </tr>
                     </thead>
@@ -859,29 +874,48 @@ function SendToManagement() {
                                 step="0.01"
                               />
                             </td>
-                            <td>
-                              
-                                <div className="d-flex align-items-center gap-2">
-                                  <span>
-                                    {(() => {
-                                      const currentVariant = getCurrentVariant(product);
-                                      return currentVariant 
-                                        ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
-                                        : 'N/A';
-                                    })()}
-                                  </span>
-                                  <div className="btn-sm cursor-pointer"
-                                  onClick={() => {
-                                    const editedProduct = editedProducts[product.id];
-                                    const productIdToUse = editedProduct?.product_id || product.product_id;
-                                    fetchProductVariants(productIdToUse, productIndex);
-                                  }}
-                                  title="Click to change variant"
-                                  >
-                                    <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
-                                  </div>
-                                </div>
-                            </td>
+                            {isVariantsAvailable && (
+                              <>
+                                <td>
+                                  
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span>
+                                        {(() => {
+                                          const currentVariant = getCurrentVariant(product);
+                                          return currentVariant 
+                                            ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
+                                            : 'N/A';
+                                        })()}
+                                      </span>
+                                      <div className="btn-sm cursor-pointer"
+                                      onClick={() => {
+                                        const editedProduct = editedProducts[product.id];
+                                        const productIdToUse = editedProduct?.product_id || product.product_id;
+                                        fetchProductVariants(productIdToUse, productIndex);
+                                      }}
+                                      title="Click to change variant"
+                                      >
+                                        <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                      </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                  {(() => {
+                                    const currentVariant = getCurrentVariant(product);
+                                    if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
+                                      const totalWeightResult = calculateTotalWeight(
+                                        editedProduct.qty,
+                                        currentVariant.weight_per_unit,
+                                        currentVariant.masterUOM.label
+                                      );
+                                      return totalWeightResult.display || 'N/A';
+                                    }
+                                    return 'N/A';
+                                  })()}
+                                </td>
+                              </>
+                            )}
                             <td>
                               <input
                                 type="number"
@@ -904,20 +938,7 @@ function SendToManagement() {
                             <td>
                               {getGeneralSettingssymbol} {calculations.lineItemTotal}
                             </td>
-                            <td>
-                              {(() => {
-                                const currentVariant = getCurrentVariant(product);
-                                if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
-                                  const totalWeightResult = calculateTotalWeight(
-                                    editedProduct.qty,
-                                    currentVariant.weight_per_unit,
-                                    currentVariant.masterUOM.label
-                                  );
-                                  return totalWeightResult.display || 'N/A';
-                                }
-                                return 'N/A';
-                              })()}
-                            </td>
+             
                             <td>
                               <div className="d-flex gap-2">
                                 <Tooltip title="Delete Item">
@@ -1027,7 +1048,7 @@ function SendToManagement() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={show} onHide={handleClose} closeButton backdrop="static"
+      {/* <Modal show={show} onHide={handleClose} closeButton backdrop="static"
         centered
         size="lg">
         <Modal.Header closeButton >
@@ -1055,7 +1076,7 @@ function SendToManagement() {
           </div>
         </form></Modal.Body>
 
-      </Modal>
+      </Modal> */}
 
       <Modal show={getshowRemarks} onHide={RemarksClose} closeButton backdrop="static"
         centered
@@ -1066,7 +1087,7 @@ function SendToManagement() {
           </Modal.Title>
         </Modal.Header>
 
-        <Modal.Body dangerouslySetInnerHTML={{ __html: getRemarksdata != '' ? getRemarksdata : '' }}
+        <Modal.Body dangerouslySetInnerHTML={{ __html: getRemarksdata !== '' ? getRemarksdata : '' }}
         ></Modal.Body>
 
       </Modal>

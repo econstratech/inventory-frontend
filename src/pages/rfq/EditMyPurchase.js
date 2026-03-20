@@ -38,7 +38,7 @@ import { calculateTotalWeight } from "../../utils/weightConverter";
 function EditMyPurchase() {
   const { id } = useParams();
   // const [total, setTotal] = useState("");
-  const { getGeneralSettingssymbol } = UserAuth();
+  const { getGeneralSettingssymbol, isVariantBased } = UserAuth();
   const [selectedOption, setSelectedOption] = useState("");
   // const [isCheckedReminder, setIsCheckedReminder] = useState(false);
   // const [isFileRequired, setIsFileRequired] = useState(false);
@@ -283,21 +283,6 @@ function EditMyPurchase() {
     );
   };
 
-
-  const fetchProducts = async (id, venid) => {
-    try {
-      const response = await PrivateAxios.get(
-        `/purchase/get_addi/${id}/${venid}`
-      ); // Adjust the URL to your API endpoint
-
-      if (response.status === 200 && Array.isArray(response.data)) {
-        setProductsaddi(response.data);
-
-      }
-    } catch (error) {
-      console.error("There was an error fetching the product list!", error);
-    }
-  };
   const PriceCompare = async () => {
     try {
       const response = await PrivateAxios.get(
@@ -372,7 +357,7 @@ function EditMyPurchase() {
       setProducts(recalculatedProducts);
 
       setStatus(data.status);
-      fetchProducts(data.id, data.vendor_id);
+      // fetchProducts(data.id, data.vendor_id);
 
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -692,8 +677,7 @@ function EditMyPurchase() {
         navigate("/operation/create-rfq-active");
       } else {
         console.log(response.status);
-        ErrorMessage("Failed to save data");
-
+        ErrorMessage("Failed to update purchase order");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -734,7 +718,7 @@ function EditMyPurchase() {
       if (response.status === 201) {
         SuccessMessage("Data Updated Successfully.");
         setShow(false);
-        fetchProducts(id, vendorId.vendor_id);
+        // fetchProducts(id, vendorId.vendor_id);
 
       } else {
 
@@ -1043,8 +1027,12 @@ function EditMyPurchase() {
                             <tr>
                               <th style={{ width: "300px" }}>Product</th>
                               <th style={{ width: "130px" }}>Quantity</th>
-                              <th style={{ width: "170px" }}>Weight Per Unit</th>
-                              <th style={{ width: "150px" }}>Total Weight</th>
+                              {isVariantBased && (
+                                <>
+                                  <th style={{ width: "170px" }}>Weight Per Unit</th>
+                                  <th style={{ width: "150px" }}>Total Weight</th>
+                                </>
+                              )}
                               <th style={{ width: "130px" }}>Unit Price</th>
                               <th style={{ width: "120px" }}>Taxes (%)</th>
                               <th style={{ width: "140px" }}>Tax Excl.</th>
@@ -1109,8 +1097,10 @@ function EditMyPurchase() {
                                                 setError(newErrors);
                                               }
 
-                                              // Fetch variants for the selected product
-                                              fetchProductVariants(selectedOption.value, index, selectedProduct);
+                                              // Fetch variants for the selected product only if the company is set with variant based
+                                              if (isVariantBased) {
+                                                fetchProductVariants(selectedOption.value, index, selectedProduct);
+                                              }
                                             }
                                           } else {
                                             // Handle clear selection
@@ -1217,43 +1207,47 @@ function EditMyPurchase() {
                                     />
                                   </div>
                                 </td>
-                                <td>
-                                  <div className="d-flex align-items-center gap-2" style={{ minWidth: "160px" }}>
-                                    <span>
-                                      {(() => {
-                                        const currentVariant = getCurrentVariant(product);
-                                        return currentVariant 
-                                          ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
-                                          : 'N/A';
-                                      })()}
-                                    </span>
-                                    {product.product_id && !isPOCompleted && (
-                                      <div 
-                                        className="btn-sm cursor-pointer"
-                                        onClick={() => fetchProductVariants(product.product_id, index, product.ProductsItem)}
-                                        title="Click to change variant"
-                                      >
-                                        <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                {isVariantBased && (
+                                  <>
+                                    <td>
+                                      <div className="d-flex align-items-center gap-2" style={{ minWidth: "160px" }}>
+                                        <span>
+                                          {(() => {
+                                            const currentVariant = getCurrentVariant(product);
+                                            return currentVariant 
+                                              ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
+                                              : 'N/A';
+                                          })()}
+                                        </span>
+                                        {product.product_id && !isPOCompleted && (
+                                          <div 
+                                            className="btn-sm cursor-pointer"
+                                            onClick={() => fetchProductVariants(product.product_id, index, product.ProductsItem)}
+                                            title="Click to change variant"
+                                          >
+                                            <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div style={{ minWidth: "130px" }}>
-                                    {(() => {
-                                      const currentVariant = getCurrentVariant(product);
-                                      if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
-                                        const totalWeightResult = calculateTotalWeight(
-                                          product.qty,
-                                          currentVariant.weight_per_unit,
-                                          currentVariant.masterUOM.label
-                                        );
-                                        return totalWeightResult.display || 'N/A';
-                                      }
-                                      return 'N/A';
-                                    })()}
-                                  </div>
-                                </td>
+                                    </td>
+                                    <td>
+                                      <div style={{ minWidth: "130px" }}>
+                                        {(() => {
+                                          const currentVariant = getCurrentVariant(product);
+                                          if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
+                                            const totalWeightResult = calculateTotalWeight(
+                                              product.qty,
+                                              currentVariant.weight_per_unit,
+                                              currentVariant.masterUOM.label
+                                            );
+                                            return totalWeightResult.display || 'N/A';
+                                          }
+                                          return 'N/A';
+                                        })()}
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
                                 <td>
                                   <div style={{ minWidth: "120px" }}>
                                     <input
