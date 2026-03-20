@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-// import Select from "react-select";
-// import DatePicker from "react-datepicker";
+import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 // import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -32,11 +31,12 @@ import moment from "moment";
 // } from "../../environment/GlobalApi";
 import { useTable, useExpanded } from "react-table";
 import { Tooltip, Table as AntTable } from "antd";
+import { UserAuth } from "../auth/Auth";
 import ReceiveUpdatePageTopBar from "./ReceiveUpdatePageTopBar";
 // import ReceiveUpdateStatusBar from "./ReceiveUpdateStatusBar";
 
 function RecvUpdate() {
-  const { id } = useParams();
+  // const { id } = useParams();
   // const { loading, setLoading, Logout, getGeneralSettingssymbol } =
   //   UserAuth();
   //for-data table
@@ -54,20 +54,18 @@ function RecvUpdate() {
   // const [deleteId, setDeleteId] = useState(null);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageState, setPageState] = useState({ current: 1, pageSize: 15 });
+  const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
+  const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
   const RemarksClose = () => setShowremark(false);
   const RemarksShow = () => setShowremark(true);
   const [getshowRemarks, setShowremark] = useState(false);
   const [getRemarksdata, getremarkdata] = useState("");
 
   const [getRemarksRef, getremarksRef] = useState("");
-  // const [searchData, setSearchData] = useState({
-  //   name: "",
-  //   assign_to: "",
-  //   task_priority_id: "",
-  //   delegation_status_id: "",
-  // });
+  const { user, isVariantsAvailable } = UserAuth();
 
-  // const [getPid, setPid] = useState(false);
   const [getReff, setReff] = useState("");
 
   const [show, setShow] = useState(false);
@@ -94,30 +92,30 @@ function RecvUpdate() {
 
   //end update status
 
-  const fetchData = async (pid, ref) => {
-    setReff(ref);
-    try {
-      const response = await PrivateAxios.get(`purchase/recv/${pid}`);
-      if (Array.isArray(response.data)) {
-        const transformedData = response.data.map((bill) => ({
-          ...bill,
-          recvPro: bill.recvPro.map((recvProItem) => ({
-            ...recvProItem,
-            product_name: recvProItem.ProductsItem.product_name,
-            unit_price: recvProItem.unit_price,
-            qty: recvProItem.qty,
-          })),
-        }));
-        setDatavalue(transformedData);
-      } else {
-        console.error("API data is not in expected format:", response.data);
-        setDatavalue([]);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setDatavalue([]);
-    }
-  };
+  // const fetchData = async (pid, ref) => {
+  //   setReff(ref);
+  //   try {
+  //     const response = await PrivateAxios.get(`purchase/recv/${pid}`);
+  //     if (Array.isArray(response.data)) {
+  //       const transformedData = response.data.map((bill) => ({
+  //         ...bill,
+  //         recvPro: bill.recvPro.map((recvProItem) => ({
+  //           ...recvProItem,
+  //           product_name: recvProItem.ProductsItem.product_name,
+  //           unit_price: recvProItem.unit_price,
+  //           qty: recvProItem.qty,
+  //         })),
+  //       }));
+  //       setDatavalue(transformedData);
+  //     } else {
+  //       console.error("API data is not in expected format:", response.data);
+  //       setDatavalue([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching data:", error);
+  //     setDatavalue([]);
+  //   }
+  // };
 
   const columns = React.useMemo(
     () => [
@@ -171,26 +169,38 @@ function RecvUpdate() {
   const { totalReceived, totalRejected } = calculateTotals();
   //end
 
-  const TaskData = async () => {
+  const TaskData = async (customPageState = null) => {
     setLoading(true);
-    PrivateAxios.get("purchase/getallpurchaseorderforrecv")
+    const currentPageState = customPageState || pageState;
+    const urlParams = new URLSearchParams({
+      page: currentPageState.current,
+      limit: currentPageState.pageSize,
+      ...(referenceNumberFilter && { reference_number: referenceNumberFilter }),
+      ...(dateRangeFilter[0] && { expected_arrival_start: moment(dateRangeFilter[0]).format("YYYY-MM-DD") }),
+      ...(dateRangeFilter[1] && { expected_arrival_end: moment(dateRangeFilter[1]).format("YYYY-MM-DD") }),
+    });
+    PrivateAxios.get(`purchase/getallpurchaseorderforrecv?${urlParams.toString()}`)
       .then((res) => {
-        const transformedData = res.data.map((item, index) => ({
+        const responseData = res.data?.data || {};
+        const rows = responseData.rows || [];
+        const pagination = responseData.pagination || {};
+        setTotalCount(pagination.total_records || 0);
+        const slNoBase = ((pagination.current_page || 1) - 1) * (pagination.per_page || currentPageState.pageSize);
+        const transformedData = rows.map((item, index) => ({
           id: item.id,
-          slNo: index + 1,
+          slNo: slNoBase + index + 1,
           reference: item.reference_number,
-          vendor: item.vendor.vendor_name,
-          buyer: item.buyer,
+          vendor: item.vendor?.vendor_name || "N/A",
+          store: item.warehouse?.name || "N/A",
+          buyer: item.buyer || item.createdBy?.name || "N/A",
+          approvedBy: item.managementApprovedBy?.name || "N/A",
+          approvedAt: moment(item.management_approved_at).format("DD/MM/YYYY"),
           total: `₹ ${item.total_amount}`,
           is_parent: item.is_parent,
           status: item.status,
           followup: item.followup,
-          expectedArrival: moment(item.expected_arrival).format(
-            "DD/MM/YYYY"
-          ),
-          createdDate: moment(item.created_at).format(
-            "DD/MM/YYYY"
-          ),
+          expectedArrival: moment(item.expected_arrival).format("DD/MM/YYYY"),
+          createdDate: moment(item.created_at).format("DD/MM/YYYY"),
           status_return:
             item.status === 1
               ? "Active"
@@ -223,6 +233,28 @@ function RecvUpdate() {
     TaskData();
   }, []);
 
+  const handleFilter = () => {
+    setPageState((prev) => ({ ...prev, current: 1 }));
+    TaskData({ current: 1, pageSize: pageState.pageSize });
+  };
+
+  const handleReset = () => {
+    setReferenceNumberFilter("");
+    setDateRangeFilter([null, null]);
+    const newPageState = { current: 1, pageSize: pageState.pageSize };
+    setPageState(newPageState);
+    TaskData(newPageState);
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    const newPageState = {
+      current: page,
+      pageSize: pageSize || pageState.pageSize,
+    };
+    setPageState(newPageState);
+    TaskData(newPageState);
+  };
+
   const renderReference = (_, record) => {
     return (
       <div>
@@ -246,17 +278,6 @@ function RecvUpdate() {
       <div className="d-flex gap-2">
         {record.status !== 7 && record.status !== 8 && (
           <>
-              {/* <Tooltip title="Check PO">
-                <Link
-                  target="_blank"
-                  to={
-                    url + "purchase_order_" + dataItem.reference_number + ".pdf"
-                  }
-                  className="me-1 icon-btn"
-                >
-                  <i class="far fa-file-pdf d-flex"></i>
-                </Link>
-              </Tooltip> */}
 
             <Tooltip title="Receive Update">
               <Link to={`/purchase-orders/recvorder/${record.id}`} className="me-1 icon-btn">
@@ -300,21 +321,28 @@ function RecvUpdate() {
 
   const gridColumns = [
     {
-      title: "reference",
+      title: "Reference No.",
       dataIndex: "reference",
       key: "reference",
       width: 200,
       render: renderReference,
     },
     {
-      title: "vendor",
+      title: "Vendor",
       dataIndex: "vendor",
       key: "vendor",
       width: 250,
       sorter: (a, b) => (a.vendor || "").localeCompare(b.vendor || ""),
     },
     {
-      title: "total",
+      title: "Store",
+      dataIndex: "store",
+      key: "store",
+      width: 250,
+      render: (_, record) => record?.store || "",
+    },
+    {
+      title: "Total",
       dataIndex: "total",
       key: "total",
       width: 250,
@@ -333,13 +361,20 @@ function RecvUpdate() {
       width: 200,
     },
     {
-      title: "Created Date",
-      dataIndex: "createdDate",
-      key: "createdDate",
+      title: "Approved By",
+      dataIndex: "approvedBy",
+      key: "approvedBy",
+      width: 200,
+      render: (_, record) => record?.approvedBy || "",
+    },
+    {
+      title: "Approved At",
+      dataIndex: "approvedAt",
+      key: "approvedAt",
       width: 200,
     },
     {
-      title: "action",
+      title: "Action",
       key: "action",
       width: 250,
       render: renderAction,
@@ -352,14 +387,64 @@ function RecvUpdate() {
       {loading && <Loader />}
 
         <ReceiveUpdatePageTopBar />
-        {/* <ReceiveUpdateStatusBar /> */}
 
         <div className="row p-4">
           <div className="col-12">
             <div className="card">
-              <div className="card-body p-0">
-                <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                  <div className="table-button-group mb-2 ms-auto"></div>
+              <div className="card-body">
+                <div className="bg-white border-bottom">
+                  <div className="d-flex gap-3 px-4 justify-content-between align-items-center py-3">
+                    <div className="d-flex gap-3 align-items-center">
+                      <div style={{ minWidth: "200px" }}>
+                        <label className="form-label mb-1 f-s-14 fw-medium">Filter by Reference Number</label>
+                        <input
+                          type="text"
+                          name="reference_number"
+                          className="form-control"
+                          placeholder="Reference number"
+                          value={referenceNumberFilter}
+                          onChange={(e) => setReferenceNumberFilter(e.target.value)}
+                          style={{ height: "38px" }}
+                        />
+                      </div>
+                      <div style={{ minWidth: "250px", display: "flex", flexDirection: "column" }}>
+                        <label className="form-label mb-1 f-s-14 fw-medium">Filter by Expected Arrival</label>
+                        <DatePicker
+                          selected={dateRangeFilter[0]}
+                          onChange={(update) => setDateRangeFilter(update)}
+                          startDate={dateRangeFilter[0]}
+                          endDate={dateRangeFilter[1]}
+                          selectsRange
+                          isClearable
+                          placeholderText="Select date range"
+                          className="form-control"
+                          dateFormat="dd-MM-yyyy"
+                          name="expected_arrival"
+                          style={{ display: "block", width: "100%" }}
+                        />
+                      </div>
+                      <div className="d-flex gap-2 align-items-end">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={handleFilter}
+                          style={{ height: "38px", marginTop: "20px" }}
+                        >
+                          <i className="fas fa-filter me-2" />
+                          Filter
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={handleReset}
+                          style={{ height: "38px", marginTop: "20px" }}
+                        >
+                          <i className="fas fa-redo me-2" />
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="bg_succes_table_head rounded_table">
                   <AntTable
@@ -367,7 +452,15 @@ function RecvUpdate() {
                     dataSource={data}
                     rowKey="id"
                     loading={loading}
-                    pagination={{ pageSize: 10, showSizeChanger: true, pageSizeOptions: ["10", "20", "50"] }}
+                    pagination={{
+                      current: pageState.current,
+                      pageSize: pageState.pageSize,
+                      total: totalCount,
+                      showSizeChanger: true,
+                      pageSizeOptions: ["10", "15", "25", "50"],
+                      onChange: handlePageChange,
+                      onShowSizeChange: handlePageChange,
+                    }}
                     scroll={{ x: 1400 }}
                   />
   

@@ -43,6 +43,10 @@ const ProductDetailsContent = ({
             "N/A"
         )}
         {detailRow(
+          "Is Batch Product?",
+          productData.is_batch_applicable && productData.is_batch_applicable === 1 ? "Yes" : "No"
+        )}
+        {detailRow(
           "Brand",
           productData.masterBrand?.name || "N/A"
         )}

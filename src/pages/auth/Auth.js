@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
     // const [getCustomer, setCustomer] = useState([]);
     // const [getUomData , setUomData] = useState([]);
     // const [productData, setProduct] = useState([]);
-    // const [getGeneralSettingssymbol, setGeneralSettingssymbol] = useState(false);
+    const [getGeneralSettingssymbol, setGeneralSettingssymbol] = useState(false);
     // const [getGeneralSettingsDAddress, setGeneralSettingsDAddress] = useState(false);
     // const [getGeneralSettingsCAddress, setGeneralSettingsCAddress] = useState(false);
     // const [getGeneralSettingsSignature, setGeneralSettingsSignature] = useState(false);
@@ -159,6 +159,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (user) {
             setIsVariantBased(user.company.generalSettings.is_variant_based === 1);
+            setGeneralSettingssymbol(user?.company?.generalSettings?.symbol);
         }
     }, [user])
 
@@ -173,7 +174,7 @@ export const AuthProvider = ({ children }) => {
         token,
         // getCustomer, 
         userDetails,
-        // getGeneralSettingssymbol, 
+        getGeneralSettingssymbol, 
         // getGeneralSettingsBatch, 
         // getGeneralSettingsDAddress,
         // getGeneralSettingsCAddress,

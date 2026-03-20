@@ -21,14 +21,18 @@ import {
   // Tooltip,
 } from "react-bootstrap";
 import moment from "moment";
+import { Tooltip } from "antd";
+import "../global.css";
+
+
+import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
-// import { UserAuth } from "../auth/Auth";
 // import {
 //   AllUser,
 //   AllCategories,
 //   GetTaskRemainder,
 // } from "../../environment/GlobalApi";
-import "../global.css";
+
 import {
   PrivateAxios,
   // PrivateAxiosFile,
@@ -37,13 +41,12 @@ import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
 import VendorSelect from "../filterComponents/VendorSelect";
 import ProductSelect from "../filterComponents/ProductSelect";
 import { calculateTotalWeight } from "../../utils/weightConverter";
-import { Tooltip } from "antd";
 
 function PurchaseOrderRecv() {
 
   const { id } = useParams();
-  const [user] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  const getGeneralSettingssymbol = user?.company?.generalSettings?.symbol || "₹";
+  // const [user] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  // const getGeneralSettingssymbol = user?.company?.generalSettings?.symbol || "₹";
   // const [total, setTotal] = useState("");
   // const { vendor, userDetails } = UserAuth();
   // const [selectedOption, setSelectedOption] = useState("");
@@ -67,7 +70,7 @@ function PurchaseOrderRecv() {
   const [selectedProductInfo, setSelectedProductInfo] = useState(null);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { product_id, variant_id, variantData, productData } }
-
+  const { user, isVariantsAvailable, getGeneralSettingssymbol } = UserAuth();
   // const [setPaymentReference, PaymentReference] = useState("");
 
   const [vendor, setVendor] = useState({ vendor_id: "" });
@@ -275,6 +278,7 @@ function PurchaseOrderRecv() {
   const currentYear = new Date().getFullYear();
   const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, "0"); // Adding 1 because getMonth() returns 0-11
   const billNumber = `BILL/${currentYear}/${currentMonth}/${setBillNumber}`;
+
   const validateForm = () => {
     const errors = {};
     const previouslyReceived = products.reduce(
@@ -380,14 +384,14 @@ function PurchaseOrderRecv() {
         received_status: receivedStatus.value,
       };
       // console.log("Vendor", vendor);
-      // console.log("payload data", data);
-      const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
-      if (response.status === 200) {
-        SuccessMessage(response.data.message || "Bill Created successfully");
-        navigate(`/store/recv_update/request-quotation`);
-      } else {
-        ErrorMessage(response.data.message || "Failed to save data");
-      }
+      console.log("payload data", data);
+      // const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
+      // if (response.status === 200) {
+      //   SuccessMessage(response.data.message || "Bill Created successfully");
+      //   navigate(`/store/recv_update/request-quotation`);
+      // } else {
+      //   ErrorMessage(response.data.message || "Failed to save data");
+      // }
     } catch (error) {
       console.error("Error:", error);
     }
@@ -779,11 +783,15 @@ function PurchaseOrderRecv() {
                               <th>PO Quantity</th>
                               <th>Balance Quantity</th>
                               <th>Receive Quantity</th>
-                              <th>Weight per unit</th>
+                              {isVariantsAvailable && (
+                                <>
+                                <th>Weight per unit</th>
+                                <th>Total Weight</th>
+                                </>
+                              )}
                               <th>Unit Price</th>
                               <th>Tax (%)</th>
                               <th>Total</th>
-                              <th>Total Weight</th>
                               <th style={{ width: "210px" }}>Batches</th>
                             </tr>
                           </thead>
@@ -894,35 +902,43 @@ function PurchaseOrderRecv() {
                                     )}
                                   </div>
                                 </td>
-                                <td>
-                                  <div className="d-flex align-items-center gap-2">
-                                    <span>
-                                      {(() => {
-                                        const currentVariant = getCurrentVariant(product);
-                                        return currentVariant 
-                                          ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
-                                          : 'N/A';
-                                      })()}
-                                    </span>
-                                    {!isProductReceived && (
-                                      <div 
-                                        className="btn-sm cursor-pointer"
-                                        onClick={() => {
-                                          const editedProduct = editedProducts[product.id];
-                                          const productIdToUse = editedProduct?.product_id || product.product_id;
-                                          fetchProductVariants(productIdToUse, index);
-                                        }}
-                                        title="Click to change variant"
-                                      >
-                                        <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                {isVariantsAvailable && (
+                                  <>
+                                    <td>
+                                      <div className="d-flex align-items-center gap-2">
+                                        <span>
+                                          {(() => {
+                                            const currentVariant = getCurrentVariant(product);
+                                            return currentVariant 
+                                              ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ''}`
+                                              : 'N/A';
+                                          })()}
+                                        </span>
+                                        {!isProductReceived && (
+                                          <div 
+                                            className="btn-sm cursor-pointer"
+                                            onClick={() => {
+                                              const editedProduct = editedProducts[product.id];
+                                              const productIdToUse = editedProduct?.product_id || product.product_id;
+                                              fetchProductVariants(productIdToUse, index);
+                                            }}
+                                            title="Click to change variant"
+                                          >
+                                            <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                </td>
+                                    </td>
+                                    <td>
+                                      {calculateTotalWeight(product.qty, product.variantData?.weight_per_unit, product.variantData?.masterUOM?.label).display}
+                                    </td>
+
+                                  </>
+                                )}
+                             
                                 <td>{product.unit_price || 0}</td>
                                 <td>{product.tax || 0}%</td>
                                 <td>{product.taxIncl || 0}</td>
-                                <td>{calculateTotalWeight(product.qty, product.variantData?.weight_per_unit, product.variantData?.masterUOM?.label).value} {calculateTotalWeight(product.received_now, product.variantData?.weight_per_unit, product.variantData?.masterUOM?.label).unit}</td>
                                 <td className="align-middle" style={{ whiteSpace: "nowrap" }}>
                                   {isProductBatchApplicable(product) ? (
                                   <div className="d-flex align-items-center gap-1 flex-wrap">
@@ -993,20 +1009,24 @@ function PurchaseOrderRecv() {
                                             <table className="table table-sm table-bordered">
                                               <thead>
                                                 <tr>
-                                                  <th>Select Variant</th>
+                                                  {isVariantsAvailable && (
+                                                    <th>Select Variant</th>
+                                                  )}
                                                   <th>Batch No.</th>
                                                   <th>Manufacture Date</th>
                                                   <th>Expiry Date</th>
                                                   <th style={{ width: "200px" }}>Qty</th>
-                                                  <th>Total Weight</th>
+                                                  {isVariantsAvailable && (
+                                                    <th>Total Weight</th>
+                                                  )}
                                                   <th style={{ width: "50px" }}></th>
                                                 </tr>
                                               </thead>
                                               <tbody>
                                                 {(product.batches || []).map((batch, batchIdx) => (
                                                   <tr key={batchIdx}>
-                               
-                                                    <td>
+                                                    {isVariantsAvailable && (
+                                                      <td>
                                                       <select className="form-control form-control-sm"
                                                       value={batch.variant_id || ""}
                                                       onChange={(e) =>
@@ -1023,13 +1043,13 @@ function PurchaseOrderRecv() {
                                                         ))}
                                                       </select>
                                                     </td>
-
+                                                    )}
                                                     <td>
                                                       <input
                                                         type="text"
                                                         className="form-control form-control-sm"
                                                         value={batch.batch_no || ""}
-                                                        disabled={!batch.variant_id}
+                                                        disabled={!batch.variant_id && isVariantsAvailable}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -1045,9 +1065,10 @@ function PurchaseOrderRecv() {
                                                     <td>
                                                       <input
                                                         type="date"
+                                                        format="DD/MM/YYYY"
                                                         className="form-control form-control-sm"
                                                         value={batch.manufacture_date || ""}
-                                                        disabled={!batch.variant_id}
+                                                        disabled={!batch.variant_id && isVariantsAvailable}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -1061,9 +1082,10 @@ function PurchaseOrderRecv() {
                                                     <td>
                                                       <input
                                                         type="date"
+                                                        format="DD/MM/YYYY"
                                                         className="form-control form-control-sm"
                                                         value={batch.expiry_date || ""}
-                                                        disabled={!batch.variant_id}
+                                                        disabled={!batch.variant_id && isVariantsAvailable}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -1080,7 +1102,7 @@ function PurchaseOrderRecv() {
                                                         className="form-control form-control-sm"
                                                         min="0"
                                                         value={batch.qty || ""}
-                                                        disabled={!batch.variant_id}
+                                                        disabled={!batch.variant_id && isVariantsAvailable}
                                                         onChange={(e) =>
                                                           handleBatchChange(
                                                             index,
@@ -1092,28 +1114,30 @@ function PurchaseOrderRecv() {
                                                         placeholder="0"
                                                       />
                                                     </td>
-                                                    <td>
-                                                      {(batch.variantData ||
-                                                        (product.ProductsItem?.productVariants || []).find(
-                                                          (variant) =>
-                                                            Number(variant.id) === Number(batch.variant_id)
-                                                        ))
-                                                        ? (() => {
-                                                            const activeVariant =
-                                                              batch.variantData ||
-                                                              (product.ProductsItem?.productVariants || []).find(
-                                                                (variant) =>
-                                                                  Number(variant.id) === Number(batch.variant_id)
-                                                              );
-                                                            const converted = calculateTotalWeight(
-                                                              batch.qty,
-                                                              activeVariant?.weight_per_unit,
-                                                              activeVariant?.masterUOM?.label
-                                                            );
-                                                            return `${converted.value} ${converted.unit}`.trim();
-                                                          })()
-                                                        : "Select variant"}
-                                                    </td>
+                                                      {isVariantsAvailable && (
+                                                        <td>
+                                                          {(batch.variantData ||
+                                                            (product.ProductsItem?.productVariants || []).find(
+                                                              (variant) =>
+                                                                Number(variant.id) === Number(batch.variant_id)
+                                                            ))
+                                                            ? (() => {
+                                                                const activeVariant =
+                                                                  batch.variantData ||
+                                                                  (product.ProductsItem?.productVariants || []).find(
+                                                                    (variant) =>
+                                                                      Number(variant.id) === Number(batch.variant_id)
+                                                                  );
+                                                                const converted = calculateTotalWeight(
+                                                                  batch.qty,
+                                                                  activeVariant?.weight_per_unit,
+                                                                  activeVariant?.masterUOM?.label
+                                                                );
+                                                                return `${converted.value} ${converted.unit}`.trim();
+                                                              })()
+                                                            : "Select variant"}
+                                                        </td>
+                                                      )}
                                                     <td>
                                                       <button
                                                         type="button"
