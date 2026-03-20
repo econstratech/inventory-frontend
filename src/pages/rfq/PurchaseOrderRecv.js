@@ -318,7 +318,7 @@ function PurchaseOrderRecv() {
               b.batch_no &&
               b.manufacture_date &&
               b.expiry_date &&
-              (b.variant_id || b.variantData?.id) &&
+              (isVariantsAvailable ? (b.variant_id || b.variantData?.id) : true) &&
               (parseFloat(b.qty) || 0) > 0
           );
           const batchQtySum = batches.reduce((sum, b) => sum + (parseFloat(b.qty) || 0), 0);
@@ -384,14 +384,13 @@ function PurchaseOrderRecv() {
         received_status: receivedStatus.value,
       };
       // console.log("Vendor", vendor);
-      console.log("payload data", data);
-      // const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
-      // if (response.status === 200) {
-      //   SuccessMessage(response.data.message || "Bill Created successfully");
-      //   navigate(`/store/recv_update/request-quotation`);
-      // } else {
-      //   ErrorMessage(response.data.message || "Failed to save data");
-      // }
+      const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
+      if (response.status === 200) {
+        SuccessMessage(response.data.message || "Bill Created successfully");
+        navigate(`/store/recv_update/request-quotation`);
+      } else {
+        ErrorMessage(response.data.message || "Failed to save data");
+      }
     } catch (error) {
       console.error("Error:", error);
     }
@@ -1261,9 +1260,13 @@ function PurchaseOrderRecv() {
                   <th>Batch No.</th>
                   <th>Manufacture Date</th>
                   <th>Expiry Date</th>
-                  <th>Weight Per Unit</th>
+                  {isVariantsAvailable && (
+                    <>
+                      <th>Weight Per Unit</th>
+                      <th>Total Weight</th>
+                    </>
+                  )}
                   <th>Quantity</th>
-                  <th>Total Weight</th>
                 </tr>
               </thead>
               <tbody>
@@ -1272,9 +1275,13 @@ function PurchaseOrderRecv() {
                     <td>{batch.batch_no ?? "—"}</td>
                     <td>{batch.manufacture_date ? moment(batch.manufacture_date).format("DD/MM/YYYY") : "—"}</td>
                     <td>{batch.expiry_date ? moment(batch.expiry_date).format("DD/MM/YYYY") : "—"}</td>
-                    <td>{batch.productVariant?.weight_per_unit} {batch.productVariant?.masterUOM?.label || ''}</td>
+                    {isVariantsAvailable && (
+                      <>
+                        <td>{batch.productVariant?.weight_per_unit} {batch.productVariant?.masterUOM?.label || ''}</td>
+                        <td>{calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).value} {calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).unit}</td>
+                      </>
+                    )}
                     <td>{batch.quantity ?? batch.qty ?? "—"}</td>
-                    <td>{calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).value} {calculateTotalWeight(batch.quantity, batch.productVariant?.weight_per_unit, batch.productVariant?.masterUOM?.label).unit}</td>
                   </tr>
                 ))}
               </tbody>
