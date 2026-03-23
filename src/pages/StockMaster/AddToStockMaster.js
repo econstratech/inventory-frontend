@@ -3,6 +3,8 @@ import { Form, Input, Button, Card, Row, Col } from "antd";
 import { PlusOutlined, MinusCircleOutlined, DownloadOutlined, UploadOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import Select from "react-select";
 import { Link } from "react-router-dom";
+
+import { UserAuth } from "../../pages/auth/Auth";
 import { PrivateAxios, PrivateAxiosFile } from "../../environment/AxiosInstance";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
 import StoreSelect from "../filterComponents/StoreSelect";
@@ -30,6 +32,7 @@ function StockMaster() {
   const [rowErrors, setRowErrors] = useState({});
   const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const { user, isVariantsAvailable } = UserAuth();
 
   const SAMPLE_CSV_URL = "/sample-csv-files/sample_bulk_add_to_stock.csv";
 
@@ -313,7 +316,7 @@ function StockMaster() {
       }
 
       // Validate variant
-      if (!row.variant || !row.variant.value) {
+      if (isVariantsAvailable && (!row.variant || !row.variant.value)) {
         rowErrors.variant = "Variant is required";
         isValid = false;
       }
@@ -395,7 +398,7 @@ function StockMaster() {
     // Transform rows data to API payload format
     const payload = rows.map((row) => ({
       product_id: row.product.value,
-      product_variant_id: row.variant.value,
+      ...(isVariantsAvailable && { product_variant_id: row.variant.value }),
       warehouse_id: row.store.value,
       quantity: parseFloat(row.quantity),
       buffer_size: row.buffer_size ? parseInt(row.buffer_size, 10) : null
@@ -494,7 +497,7 @@ function StockMaster() {
                 // bodyStyle={{ padding: "16px" }}
               >
                 <Row gutter={16} align="left">
-                  <Col xs={24} sm={24} md={5} lg={5}>
+                  <Col xs={24} sm={24} md={isVariantsAvailable ? 5 : 6} lg={isVariantsAvailable ? 5 : 6}>
                     <Form.Item
                       label="Select Product"
                       required
@@ -545,54 +548,56 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={5} lg={5}>
-                    <Form.Item
-                      label="Select Variant"
-                      required
-                      style={{ marginBottom: 0 }}
-                      validateStatus={rowErrors[row.id]?.variant ? "error" : ""}
-                      help={rowErrors[row.id]?.variant}
-                    >
-                      <Select
-                        placeholder={row.product ? "Select variant..." : "Select product first"}
-                        value={row.variant}
-                        onChange={(selectedOption) => {
-                          handleVariantChange(selectedOption, row.id);
-                          if (rowErrors[row.id]?.variant) {
-                            const newErrors = { ...rowErrors };
-                            delete newErrors[row.id]?.variant;
-                            if (Object.keys(newErrors[row.id] || {}).length === 0) {
-                              delete newErrors[row.id];
+                  {isVariantsAvailable && (
+                    <Col xs={24} sm={24} md={5} lg={5}>
+                      <Form.Item
+                        label="Select Variant"
+                        required
+                        style={{ marginBottom: 0 }}
+                        validateStatus={rowErrors[row.id]?.variant ? "error" : ""}
+                        help={rowErrors[row.id]?.variant}
+                      >
+                        <Select
+                          placeholder={row.product ? "Select variant..." : "Select product first"}
+                          value={row.variant}
+                          onChange={(selectedOption) => {
+                            handleVariantChange(selectedOption, row.id);
+                            if (rowErrors[row.id]?.variant) {
+                              const newErrors = { ...rowErrors };
+                              delete newErrors[row.id]?.variant;
+                              if (Object.keys(newErrors[row.id] || {}).length === 0) {
+                                delete newErrors[row.id];
+                              }
+                              setRowErrors(newErrors);
                             }
-                            setRowErrors(newErrors);
+                          }}
+                          options={row.variantOptions || []}
+                          isLoading={row.isLoadingVariants}
+                          isClearable
+                          isSearchable
+                          isDisabled={!row.product}
+                          noOptionsMessage={() =>
+                            row.product
+                              ? "No variants found"
+                              : "Select product first"
                           }
-                        }}
-                        options={row.variantOptions || []}
-                        isLoading={row.isLoadingVariants}
-                        isClearable
-                        isSearchable
-                        isDisabled={!row.product}
-                        noOptionsMessage={() =>
-                          row.product
-                            ? "No variants found"
-                            : "Select product first"
-                        }
-                        styles={{
-                          control: (base) => ({
-                            ...base,
-                            minHeight: "38px",
-                            borderColor: rowErrors[row.id]?.variant ? "#ff4d4f" : base.borderColor,
-                          }),
-                          menu: (base) => ({
-                            ...base,
-                            zIndex: 9999,
-                          }),
-                        }}
-                      />
-                    </Form.Item>
-                  </Col>
+                          styles={{
+                            control: (base) => ({
+                              ...base,
+                              minHeight: "38px",
+                              borderColor: rowErrors[row.id]?.variant ? "#ff4d4f" : base.borderColor,
+                            }),
+                            menu: (base) => ({
+                              ...base,
+                              zIndex: 9999,
+                            }),
+                          }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  )}
 
-                  <Col xs={24} sm={24} md={4} lg={4}>
+                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4:5} lg={isVariantsAvailable ? 4 : 5}>
                     <Form.Item
                       label="Select Store"
                       required
@@ -621,7 +626,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={4} lg={4}>
+                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4 : 5} lg={isVariantsAvailable ? 4 : 5}>
                     <Form.Item
                       label="Enter Quantity"
                       required
@@ -655,7 +660,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={4} lg={4}>
+                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4 : 5} lg={isVariantsAvailable ? 4 : 5}>
                     <Form.Item
                       label="Buffer Size"
                       style={{ marginBottom: 0 }}

@@ -61,7 +61,7 @@ function MypurchaseList() {
   });
   //managment review
   const showReview = async (ida) => {
-    console.log(ida);
+    // console.log(ida);
     try {
       //console.log(ida);
       const response = await PrivateAxios.get(`/sales/getremarks/${ida}`);
@@ -658,14 +658,6 @@ function MypurchaseList() {
                   </div>
 
                   <DataTable
-                    //fixedHeader
-                    //highlightOnHover
-                    //theme="solarized"
-                    //striped
-                    // defaultSortAsc
-                    // persistTableHead
-                    // selectableRowsHighlight
-
                     columns={selectedColumns}
                     data={tableData}
                     pagination={[5, 10, 25, 50]}
@@ -673,8 +665,6 @@ function MypurchaseList() {
                     striped
                     className="custom-table-wrap checklist-table-striped"
                     customStyles={customStyles}
-                  //subHeader
-                  //subHeaderComponent={<CustomColumnToggle />}
                   />
                 </div>
               ) : (

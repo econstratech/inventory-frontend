@@ -3,15 +3,21 @@ import React, { useEffect, useState } from 'react';
 import { PrivateAxios } from '../../../environment/AxiosInstance';
 import moment from 'moment';
 
-const InventoryOverview = () => {
+const InventoryOverview = ({ onOverviewUpdate }) => {
   const [overview, setOverview] = useState({ totalItems: 0, totalValuation: 0 });
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const fetchOverview = () => {
-    PrivateAxios.get('/product/inventory/overview')
+    PrivateAxios.get('/inventory/overview')
       .then((res) => {
-        setOverview(res.data);
-        setLastUpdated(moment()); // set current time
+        const fetchedOverview = res.data;
+        const fetchedLastUpdated = moment();
+        setOverview(fetchedOverview);
+        setLastUpdated(fetchedLastUpdated);
+        onOverviewUpdate?.({
+          overview: fetchedOverview,
+          lastUpdated: fetchedLastUpdated,
+        });
       })
       .catch((err) => {
         console.error('Failed to fetch inventory overview', err);
