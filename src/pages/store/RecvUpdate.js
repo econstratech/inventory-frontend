@@ -4,7 +4,7 @@ import "react-datepicker/dist/react-datepicker.css";
 // import jsPDF from "jspdf";
 import "jspdf-autotable";
 // import DataTable, { createTheme } from "react-data-table-component";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Modal, Table } from "react-bootstrap";
 // import Handsontable from "handsontable/base";
 // import { HotTable } from "@handsontable/react";
@@ -31,26 +31,15 @@ import moment from "moment";
 // } from "../../environment/GlobalApi";
 import { useTable, useExpanded } from "react-table";
 import { Tooltip, Table as AntTable } from "antd";
-import { UserAuth } from "../auth/Auth";
+// import { UserAuth } from "../auth/Auth";
 import ReceiveUpdatePageTopBar from "./ReceiveUpdatePageTopBar";
+import PurchaseOrderRemarksModal from "../CommonComponent/PurchaseOrderRemarksModal";
 // import ReceiveUpdateStatusBar from "./ReceiveUpdateStatusBar";
 
 function RecvUpdate() {
-  // const { id } = useParams();
-  // const { loading, setLoading, Logout, getGeneralSettingssymbol } =
-  //   UserAuth();
-  //for-data table
-  // const [value, setValue] = useState(true);
-  // const [grid, setGrid] = useState(false);
-  // const [doerShow, setDoerShow] = useState(false);
-  // const [detailsShow, setDetailsShow] = useState(false);
-  // const [deleteShow, setDeleteShow] = useState(false);
-  // const [descriptionShow, setDescriptionShow] = useState(false);
-  // const [descriptionData, setDescriptionData] = useState("");
-  // const [tableData, setTableData] = useState([]);
   const handleClose = () => setShow(false);
   // const [editorContent, setEditorContent] = useState("");
-  const handleShow = () => setShow(true);
+  // const handleShow = () => setShow(true);
   // const [deleteId, setDeleteId] = useState(null);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,36 +47,27 @@ function RecvUpdate() {
   const [pageState, setPageState] = useState({ current: 1, pageSize: 15 });
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
-  const RemarksClose = () => setShowremark(false);
-  const RemarksShow = () => setShowremark(true);
-  const [getshowRemarks, setShowremark] = useState(false);
-  const [getRemarksdata, getremarkdata] = useState("");
 
-  const [getRemarksRef, getremarksRef] = useState("");
-  const { user, isVariantsAvailable } = UserAuth();
+  // const { user, isVariantsAvailable } = UserAuth();
 
   const [getReff, setReff] = useState("");
 
   const [show, setShow] = useState(false);
   const [datavalue, setDatavalue] = useState([]);
   const [expandedRows, setExpandedRows] = React.useState([]);
+  const [selectedPOId, setSelectedPOId] = useState(null);
+  const [selectedPOReferenceNumber, setSelectedPOReferenceNumber] = useState(null);
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
 
-  const getRemarks = (rmks, refid) => {
-    const sortedFollowupData = rmks.sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
+
+  // show remarks
+  const showRemarks = (ida) => {
+    const selectedPO = data.find(
+      (item) => item.id === ida || String(item.id) === String(ida)
     );
-    const followupData = sortedFollowupData
-      .map(
-        (followup) => `
-          <tr key=${followup.id}>
-              <td>${followup.content}</td>
-              <td>${new Date(followup.created_at).toLocaleString()}</td>
-          </tr>
-      `
-      )
-      .join("");
-    getremarkdata(followupData);
-    getremarksRef(refid);
+    setSelectedPOId(ida);
+    setSelectedPOReferenceNumber(selectedPO?.reference ?? null);
+    setShowRemarksModal(true);
   };
 
   //end update status
@@ -255,24 +235,6 @@ function RecvUpdate() {
     TaskData(newPageState);
   };
 
-  const renderReference = (_, record) => {
-    return (
-      <div>
-        <span>
-          <a
-            className="k_table_link"
-            onClick={() => {
-              RemarksShow(true);
-              getRemarks(record.followup, record.vendor + " - " + record.reference);
-            }}
-          >
-            {record.reference}{" "}
-          </a>
-        </span>
-      </div>
-    );
-  };
-
   const renderAction = (_, record) => {
     return (
       <div className="d-flex gap-2">
@@ -284,6 +246,20 @@ function RecvUpdate() {
                 <i className="fas fa-tag d-flex"></i>
               </Link>
             </Tooltip>
+
+            <Tooltip title="Show Managment Remarks">
+              <button
+                className="me-1 icon-btn"
+                onClick={() => {
+                  showRemarks(record.id);
+                }}
+              >
+                <i className="fas fa-comments"></i>
+
+              </button>
+            </Tooltip>
+
+
               {/* <Tooltip title="Receive Update View">
                 <button
                   onClick={() => {
@@ -314,18 +290,25 @@ function RecvUpdate() {
     );
   };
   const renderPoStatus = () => (
-    <label className="badge badge-outline-accent">
+    <label className="badge badge-outline-yellowGreen">
       <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending GRN
     </label>
   );
 
+  // grid columns
   const gridColumns = [
     {
       title: "Reference No.",
       dataIndex: "reference",
       key: "reference",
       width: 200,
-      render: renderReference,
+      render: (_, record) => {
+        return (
+          <span className="k_table_link">
+            {record.reference}
+          </span>
+        );
+      },
     },
     {
       title: "Vendor",
@@ -446,6 +429,7 @@ function RecvUpdate() {
                     </div>
                   </div>
                 </div>
+
                 <div className="bg_succes_table_head rounded_table">
                   <AntTable
                     columns={gridColumns}
@@ -471,6 +455,14 @@ function RecvUpdate() {
             </div>
           </div>
         </div>
+
+
+      <PurchaseOrderRemarksModal
+        show={showRemarksModal}
+        onHide={() => setShowRemarksModal(false)}
+        purchaseOrderId={selectedPOId}
+        purchaseOrderReferenceNumber={selectedPOReferenceNumber}
+      />
           
        
       <Modal
@@ -577,38 +569,6 @@ function RecvUpdate() {
                   </td>
                 </tr>
               </tbody>
-            </Table>
-          </div>
-        </Modal.Body>
-      </Modal>
-
-      <Modal
-        show={getshowRemarks}
-        onHide={RemarksClose}
-        closeButton
-        backdrop="static"
-        centered
-        size="lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title id="example-modal-sizes-title-lg">
-            Follow Up / {getRemarksRef}
-          </Modal.Title>
-        </Modal.Header>
-
-        <Modal.Body>
-          <div className="">
-            <Table responsive className="table-bordered primary-table-head">
-              {/* <table className="table table-smtable-responsive-sm"> */}
-              <thead>
-                <tr>
-                  <th>Content</th>
-                  <th>Post Date</th>
-                </tr>
-              </thead>
-              <tbody
-                dangerouslySetInnerHTML={{ __html: getRemarksdata }}
-              ></tbody>
             </Table>
           </div>
         </Modal.Body>

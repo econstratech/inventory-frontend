@@ -1,221 +1,373 @@
-import React, { useEffect, useState } from "react";
-import {
-  Grid,
-  GridColumn,
-} from "@progress/kendo-react-grid";
-import { process } from "@progress/kendo-data-query";
-
+import React, { useEffect, useMemo, useState } from "react";
+import DatePicker from "react-datepicker";
+import moment from "moment";
+import { Tooltip, Table as AntTable } from "antd";
 
 import "react-datepicker/dist/react-datepicker.css";
-// import {
-//   Modal,
-// } from "react-bootstrap";
-
 import "handsontable/dist/handsontable.full.min.css";
+
+
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import { UserAuth } from "../../auth/Auth";
 
 
-// import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
-
-import moment from "moment";
-
-
-import { Tooltip } from "antd";
-import PORemarksModalComponent from "../../ModalComponents/PORemarksModalComponent";
-// import { DropDownList } from "@progress/kendo-react-dropdowns";
-// import { backdropClasses } from "@mui/material";
+import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
+// import PORemarksModalComponent from "../../ModalComponents/PORemarksModalComponent";
 import OperationsPageTopBar from "../OperationsPageTopBar";
-import RejectedOrdersStatusBar from "./RejectedOrdersStatusBar";
+// import RejectedOrdersStatusBar from "./RejectedOrdersStatusBar";
+import PurchaseOrderRemarksModal from "../../CommonComponent/PurchaseOrderRemarksModal";
 
 function RejectedOrders() {
 
-  const { setIsLoading, Logout, getGeneralSettingssymbol } =
-    UserAuth();
+  const { Logout, getGeneralSettingssymbol } = UserAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  //for-data table
-
-  const [lgShow, setLgShow] = useState(false);
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [selectedPOReferenceNumber, setSelectedPOReferenceNumber] = useState(null);
   const [selectedPOId, setSelectedPOId] = useState(null);
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 10,
-    sort: [],
-    filter: null,
-  });
+  const [pageState, setPageState] = useState({ current: 1, pageSize: 15 });
+  const [totalCount, setTotalCount] = useState(0);
+  const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
+  const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
 
-  // Custom Cell for rendering HTML in the "Status" column
-const StatusCell = (props) => {
-  return (
-    <td
-      dangerouslySetInnerHTML={{ __html: props.dataItem[props.field] }}
-    ></td>
-  );
-};
-
-  const TaskData = async () => {
+  const fetchPurchaseOrders = async (
+    customPageState = pageState,
+    customFilters = {
+      referenceNumberFilter,
+      dateRangeFilter,
+    }
+  ) => {
     setIsLoading(true);
-    PrivateAxios.get("purchase/all-rejected-purchase")
+    const urlParams = new URLSearchParams({
+      ...customPageState,
+      ...(customFilters.referenceNumberFilter && {
+        reference_number: customFilters.referenceNumberFilter,
+      }),
+      ...(customFilters.dateRangeFilter?.[0] && {
+        expected_arrival_start: moment(customFilters.dateRangeFilter[0]).format("YYYY-MM-DD"),
+      }),
+      ...(customFilters.dateRangeFilter?.[1] && {
+        expected_arrival_end: moment(customFilters.dateRangeFilter[1]).format("YYYY-MM-DD"),
+      }),
+    });
+    PrivateAxios.get(`purchase/all-rejected-purchase?${urlParams.toString()}`)
       .then((res) => {
-        const transformedData = res.data.map((item, index) => ({
+        const responseData = res.data?.data || {};
+        const rows = responseData.rows || [];
+        const pagination = responseData.pagination || {};
+        setTotalCount(pagination.total_records || 0);
+        const slNoBase = ((pagination.current_page || 1) - 1) * (pagination.per_page || customPageState.pageSize);
+        const transformedData = rows.map((item, index) => ({
           id: item.id,
-          slNo: index + 1,
+          slNo: slNoBase + index + 1,
           reference: item.reference_number,
           vendor: item.vendor.vendor_name,
-          buyer: item.buyer,
+          buyer: item?.createdBy?.name || "N/A",
           store: item.warehouse?.name || "N/A",
           expectedArrival: moment(item.expected_arrival).format("DD-MM-YYYY"),
-          // orderDeadline: moment(item.order_dateline).format("DD-MM-YYYY H:mm"),
-          // sourceDocument: item.source_document,
+          expected_arrival_raw: item.expected_arrival,
           total: `${getGeneralSettingssymbol} ${item.total_amount}`,
           is_parent: item.is_parent,
           status: item.status,
-          
-          status_return:
-          item.status === 1
-          ? `<label class="badge badge-outline-active"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Active</label>`
-          : item.status === 2
-          ? `<label class="badge badge-outline-quotation"><i class="fas fa-circle f-s-8 d-flex me-1"></i>RFQ</label>`
-          : item.status === 3
-          ? `<label class="badge badge-outline-yellowGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Reviewing</label>`
-          : item.status === 4
-          ? `<label class="badge badge-outline-accent mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Approved from Admin</label>`
-          : item.status === 5
-          ? `<label class="badge badge-outline-green mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Order Confirmed</label>`
-          : item.status === 6
-          ? `<label class="badge badge-outline-meantGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Fully Billed</label>`
-          : item.status === 7
-          ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Done</label>`
-          : item.status === 8
-          ? `<label class="badge badge-outline-danger "><i class="fas fa-circle f-s-8 d-flex me-1"></i>Rejected</label>`
-          : item.status === 9
-          ?`<label class="badge badge-outline-warning "><i class="fas fa-circle f-s-8 d-flex me-1"></i>Final Approval Pending</label>`
-          
-          : "Unknown",
         }));
 
         setData(transformedData);
         setIsLoading(false);
       })
       .catch((err) => {
+        // setLoading(false);
         setIsLoading(false);
         if (err.response.data == 401) {
           Logout();
         }
+        ErrorMessage(err.response?.message || "Error!! Unable to fetch purchase orders");
       });
   };
   useEffect(() => {
-    TaskData();
+    fetchPurchaseOrders();
   }, []);
 
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div className="d-flex gap-2">
-          <Tooltip title="Show Management Remarks">
-            <a
-              className="me-1 icon-btn"
-              onClick={() => {
-                setSelectedPOId(dataItem.id);
-                setLgShow(true);
-              }}
-            >
-              <i class="fas fa-eye d-flex"></i>
-            </a>
-          </Tooltip>
-        </div>
-      </td>
-    );
+  const handleFilter = () => {
+    const newPageState = {
+      ...pageState,
+      current: 1,
+    };
+    setPageState(newPageState);
+    fetchPurchaseOrders(newPageState, {
+      referenceNumberFilter,
+      dateRangeFilter,
+    });
   };
+
+  const handleReset = () => {
+    const newPageState = { current: 1, pageSize: pageState.pageSize };
+    const resetFilters = { referenceNumberFilter: "", dateRangeFilter: [null, null] };
+    setReferenceNumberFilter("");
+    setDateRangeFilter([null, null]);
+    setPageState(newPageState);
+    fetchPurchaseOrders(newPageState, resetFilters);
+  };
+
+  const handlePageChange = (page, pageSize) => {
+    const newPageState = {
+      current: page,
+      pageSize: pageSize || pageState.pageSize,
+    };
+    setPageState(newPageState);
+    fetchPurchaseOrders(newPageState, {
+      referenceNumberFilter,
+      dateRangeFilter,
+    });
+  };
+
+  const renderStatus = (_, record) => {
+    switch (record.status) {
+      case 1:
+        return (
+          <label className="badge badge-outline-active">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Active
+          </label>
+        );
+      case 2:
+        return (
+          <label className="badge badge-outline-quotation">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>RFQ
+          </label>
+        );
+      case 3:
+        return (
+          <label className="badge badge-outline-yellowGreen mb-0">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Reviewing
+          </label>
+        );
+      case 4:
+        return (
+          <label className="badge badge-outline-accent mb-0">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Approved from Admin
+          </label>
+        );
+      case 5:
+        return (
+          <label className="badge badge-outline-green mb-0">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Order Confirmed
+          </label>
+        );
+      case 6:
+        return (
+          <label className="badge badge-outline-meantGreen mb-0">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Fully Billed
+          </label>
+        );
+      case 7:
+        return (
+          <label className="badge badge-outline-success">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Done
+          </label>
+        );
+      case 8:
+        return (
+          <label className="badge badge-outline-danger">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Rejected
+          </label>
+        );
+      case 9:
+        return (
+          <label className="badge badge-outline-warning">
+            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Final Approval Pending
+          </label>
+        );
+      default:
+        return "Unknown";
+    }
+  };
+
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Show Management Remarks">
+        <a
+          className="me-1 icon-btn"
+          onClick={() => {
+            setSelectedPOId(record.id);
+            setSelectedPOReferenceNumber(record.reference);
+            setShowRemarksModal(true);
+          }}
+        >
+          <i className="fas fa-comments d-flex"></i>
+        </a>
+      </Tooltip>
+    </div>
+  );
+
+  const columns = [
+    {
+      title: "Sl No.",
+      dataIndex: "slNo",
+      key: "slNo",
+      width: 100,
+    },
+    {
+      title: "Reference No.",
+      dataIndex: "reference",
+      key: "reference",
+      width: 250,
+      render: (_, record) => {
+        return (
+          <span className="k_table_link">
+            {record.reference}
+          </span>
+        );
+      },
+    },
+    {
+      title: "Vendor",
+      dataIndex: "vendor",
+      key: "vendor",
+      width: 250,
+    },
+    {
+      title: "Created By",
+      dataIndex: "buyer",
+      key: "buyer",
+      width: 250,
+    },
+    {
+      title: "Expected Arrival",
+      dataIndex: "expectedArrival",
+      key: "expectedArrival",
+      width: 250,
+    },
+    {
+      title: "Store",
+      dataIndex: "store",
+      key: "store",
+      width: 250,
+    },
+    {
+      title: "Total",
+      dataIndex: "total",
+      key: "total",
+      width: 150,
+    },
+    {
+      title: "Status",
+      key: "status",
+      width: 180,
+      render: renderStatus,
+    },
+    {
+      title: "Action",
+      key: "action",
+      width: 150,
+      render: renderAction,
+    },
+  ];
 
 
   return (
     <React.Fragment>
      <OperationsPageTopBar />
-     <RejectedOrdersStatusBar />
+     {/* <RejectedOrdersStatusBar /> */}
 
       <div className="row p-4">
         <div className="col-12">
           <div className="card">
-            <div className="card-body p-0">
-              <div className="d-flex justify-content-between flex-wrap align-items-center pt-3 px-3">
-                <div className="table-button-group mb-2 ms-auto"></div>
+            <div className="card-body">
+              <div className="bg-white border-bottom">
+                <div className="d-flex gap-3 px-4 justify-content-between align-items-center py-3">
+                  <div className="d-flex gap-3 align-items-center">
+                    <div style={{ minWidth: "200px" }}>
+                      <label className="form-label mb-1 f-s-14 fw-medium">Filter by Reference Number</label>
+                      <input
+                        type="text"
+                        name="reference_number"
+                        className="form-control"
+                        placeholder="Reference number"
+                        value={referenceNumberFilter}
+                        onChange={(e) => setReferenceNumberFilter(e.target.value)}
+                        style={{ height: "38px" }}
+                      />
+                    </div>
+                    <div style={{ minWidth: "250px", display: "flex", flexDirection: "column" }}>
+                      <label className="form-label mb-1 f-s-14 fw-medium">Filter by Expected Arrival</label>
+                      <DatePicker
+                        selected={dateRangeFilter[0]}
+                        onChange={(update) => setDateRangeFilter(update)}
+                        startDate={dateRangeFilter[0]}
+                        endDate={dateRangeFilter[1]}
+                        selectsRange
+                        isClearable
+                        placeholderText="Select date range"
+                        className="form-control"
+                        dateFormat="dd-MM-yyyy"
+                        name="expected_arrival"
+                        style={{ display: "block", width: "100%" }}
+                      />
+                    </div>
+                    <div className="d-flex gap-2 align-items-end">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleFilter}
+                        style={{ height: "38px", marginTop: "20px" }}
+                      >
+                        <i className="fas fa-filter me-2"></i>
+                        Filter
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={handleReset}
+                        style={{ height: "38px", marginTop: "20px" }}
+                      >
+                        <i className="fas fa-redo me-2"></i>
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <Grid
-                  data={process(data, dataState)}  // Add fallback for undefined data
-                  filterable={false}
-                  sortable
-                  scrollable="scrollable"
-                  reorderable
-                  resizable
-                  {...dataState}
-                  onDataStateChange={(e) => setDataState(e.dataState)}
-                  loading={loading}
-                  pageable={{ buttonCount: 3, pageSizes: true }}
-                >
-                  <GridColumn
-                    field="slNo"
-                    title="Sl No."
-                    filter="text"
-                    width="100px"
-                    filterable={false}
-                  />
-                  <GridColumn
-                    field="reference"
-                    title="Reference"
-                    filter="text"
-                    width="250px"
-                  />
-                  <GridColumn
-                    field="vendor"
-                    title="Vendor"
-                    filter="text"
-                    width="250px"
-                  />
-                  <GridColumn
-                    field="buyer"
-                    title="Buyer"
-                    filter="text"
-                    width="250px"
-                  />
-                  <GridColumn
-                    field="expectedArrival"
-                    title="Expected Arrival"
-                    filter="text"
-                    width="250px"
-                  />
-                  <GridColumn
-                    field="store"
-                    title="Store"
-                    filter="text"
-                    width="250px"
-                  />
-                  <GridColumn
-                    field="total"
-                    title="Total"
-                    filter="text"
-                    width="150px"
-                  />
-                  <GridColumn
-                    field="status_return"
-                    title="Status"
-                    width="180px"
-                    cell={StatusCell} // Use custom cell renderer
-                  />
-                  <GridColumn
-                    title="Action"
-                    filter="text"
-                    cell={ActionCell}
-                    filterable={false}
-                    width="150px"
-                  />
-                </Grid>
-
-
+                <AntTable
+                  columns={columns}
+                  dataSource={data}
+                  rowKey="id"
+                  loading={isLoading}
+                  pagination={{
+                    current: pageState.current,
+                    pageSize: pageState.pageSize,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1400 }}
+                />
+                {/* <Table
+                  columns={columns}
+                  dataSource={filteredData}
+                  rowKey="id"
+                  loading={isLoading}
+                  pagination={{
+                    current: pageState.current,
+                    pageSize: pageState.pageSize,
+                    total: filteredData.length,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: (page, pageSize) =>
+                      setPageState({
+                        current: page,
+                        pageSize: pageSize || pageState.pageSize,
+                      }),
+                    onShowSizeChange: (_, pageSize) =>
+                      setPageState({
+                        current: 1,
+                        pageSize,
+                      }),
+                  }}
+                  scroll={{ x: 1400 }}
+                /> */}
               </div>
             </div>
           </div>
@@ -232,14 +384,11 @@ const StatusCell = (props) => {
 
       {/* ========================================================= modal start here */}
 
-      <PORemarksModalComponent
-        show={lgShow}
-        onHide={() => {
-          setLgShow(false);
-          setSelectedPOId(null);
-        }}
+      <PurchaseOrderRemarksModal
+        show={showRemarksModal}
+        onHide={() => setShowRemarksModal(false)}
         purchaseOrderId={selectedPOId}
-        title="Management Remarks"
+        purchaseOrderReferenceNumber={selectedPOReferenceNumber}
       />
     </React.Fragment>
   );

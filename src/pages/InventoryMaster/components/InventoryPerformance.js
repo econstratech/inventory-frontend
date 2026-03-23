@@ -26,11 +26,18 @@ ChartJS.register(
 
 const InventoryPerformance = () => {
   const [chartData, setChartData] = useState(null);
+  const [activeType, setActiveType] = useState('weekly');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    PrivateAxios.get('/product/inventory/performance')
+    setLoading(true);
+    PrivateAxios.get('/inventory/performance', {
+      params: {
+        type: activeType,
+      },
+    })
       .then(res => {
-        const { labels, datasets } = res.data;
+        const { labels, datasets } = res.data.data;
 
         setChartData({
           labels,
@@ -56,8 +63,11 @@ const InventoryPerformance = () => {
       })
       .catch(err => {
         console.error('Failed to load inventory performance', err);
+      })
+      .finally(() => {
+        setLoading(false);
       });
-  }, []);
+  }, [activeType]);
 
   const options = {
     responsive: true,
@@ -111,30 +121,50 @@ const InventoryPerformance = () => {
           <div className="card-body p-0">
             <ul className="nav nav-tabs gth-tabs gth-tabs" id="myTab" role="tablist">
               <li className="nav-item" role="presentation">
-                <button className="nav-link active" id="week-file-tab" data-bs-toggle="tab" data-bs-target="#week-file" type="button" role="tab">Week on Week</button>
+                <button
+                  className={`nav-link ${activeType === 'weekly' ? 'active' : ''}`}
+                  id="week-file-tab"
+                  type="button"
+                  role="tab"
+                  onClick={() => setActiveType('weekly')}
+                >
+                  Week on Week
+                </button>
               </li>
               <li className="nav-item" role="presentation">
-                <button className="nav-link" id="month-file-tab" data-bs-toggle="tab" data-bs-target="#month-file" type="button" role="tab">Month on Month</button>
+                <button
+                  className={`nav-link ${activeType === 'monthly' ? 'active' : ''}`}
+                  id="month-file-tab"
+                  type="button"
+                  role="tab"
+                  onClick={() => setActiveType('monthly')}
+                >
+                  Month on Month
+                </button>
               </li>
               <li className="nav-item" role="presentation">
-                <button className="nav-link" id="quarter-file-tab" data-bs-toggle="tab" data-bs-target="#quarter-file" type="button" role="tab">Quarter on Quarter</button>
+                <button
+                  className={`nav-link ${activeType === 'quarterly' ? 'active' : ''}`}
+                  id="quarter-file-tab"
+                  type="button"
+                  role="tab"
+                  onClick={() => setActiveType('quarterly')}
+                >
+                  Quarter on Quarter
+                </button>
               </li>
             </ul>
 
             <div className="tab-content pt-2" id="myTabContent">
               <div className="tab-pane fade show active py-3" id="week-file" role="tabpanel">
                 <div style={{ height: '300px' }}>
-                  {chartData ? <Line data={chartData} options={options} /> : <p className="text-center">Loading chart...</p>}
-                </div>
-              </div>
-              <div className="tab-pane fade py-3" id="month-file" role="tabpanel">
-                <div style={{ height: '300px' }}>
-                  {chartData ? <Line data={chartData} options={options} /> : <p className="text-center">Loading chart...</p>}
-                </div>
-              </div>
-              <div className="tab-pane fade py-3" id="quarter-file" role="tabpanel">
-                <div style={{ height: '300px' }}>
-                  {chartData ? <Line data={chartData} options={options} /> : <p className="text-center">Loading chart...</p>}
+                  {loading ? (
+                    <p className="text-center">Loading chart...</p>
+                  ) : chartData ? (
+                    <Line data={chartData} options={options} />
+                  ) : (
+                    <p className="text-center">No chart data available</p>
+                  )}
                 </div>
               </div>
             </div>

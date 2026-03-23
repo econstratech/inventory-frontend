@@ -8,9 +8,9 @@ import "react-datepicker/dist/react-datepicker.css";
 import { Link } from "react-router-dom";
 import { UserAuth } from "../../auth/Auth";
 import moment from "moment";  
-import {
-  Modal,
-} from "react-bootstrap";
+// import {
+//   Modal,
+// } from "react-bootstrap";
 import "handsontable/dist/handsontable.full.min.css";
 
 import { Tooltip, Table } from "antd";
@@ -20,6 +20,7 @@ import { SuccessMessage, ErrorMessage } from "../../../environment/ToastMessage"
 import OperationsPageTopBar from "../OperationsPageTopBar";
 import DeleteModal from "../../CommonComponent/DeleteModal";
 import ConfirmModal from "../../CommonComponent/ConfirmModal";
+import PurchaseOrderRemarksModal from "../../CommonComponent/PurchaseOrderRemarksModal";
 
 function MypurchaseList() {
   const [lgShow, setLgShow] = useState(false);
@@ -30,7 +31,7 @@ function MypurchaseList() {
 
 
   const [isLoading, setIsLoading] = useState(true);
-  const [getReview, setreview] = useState("");
+  // const [getReview, setreview] = useState("");
   const [totalCount, setTotalCount] = useState(0);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
   const [selectedStatus, setSelectedStatus] = useState({ value: 2, label: "Active" });
@@ -40,7 +41,8 @@ function MypurchaseList() {
   const [cancelPOId, setCancelPOId] = useState(null);
   const [sendToVendorModalShow, setSendToVendorModalShow] = useState(false);
   const [sendToVendorPOId, setSendToVendorPOId] = useState(null);
-  
+  const [selectedPOId, setSelectedPOId] = useState(null);
+  const [selectedPOReferenceNumber, setSelectedPOReferenceNumber] = useState(null);
   // Status options for filter dropdown
   const statusOptions = [
     { value: null, label: "All" },
@@ -83,16 +85,15 @@ function MypurchaseList() {
   };
 
   //managment review
-  const showReview = async (ida) => {
-    try {
-      const response = await PrivateAxios.get(`/purchase/getremarks/${ida}`);
-      if (response.status === 200) {
-        setreview(response.data);
-      }
-    } catch (error) {
-      console.error("There was an error fetching the product list!", error);
-    }
+  const showReview = (ida) => {
+    const selectedPO = purchaseData.find(
+      (item) => item.id === ida || String(item.id) === String(ida)
+    );
+    setSelectedPOId(ida);
+    setSelectedPOReferenceNumber(selectedPO?.reference ?? null);
+    setLgShow(true);
   };
+
   //pdf
   const generatePDF = async (id, val) => {
     setIsLoading(true);
@@ -125,14 +126,14 @@ function MypurchaseList() {
 
   const FetchPurchaseData = async (statusFilter = null, customPageState = null) => {
     setIsLoading(true);
-    const statusToUse = statusFilter !== null ? statusFilter : selectedStatus.value;
+    const statusToUse = statusFilter !== null ? statusFilter : selectedStatus.value || null;
     const currentPageState = customPageState || pageState;
     const urlParams = new URLSearchParams({
       page: currentPageState.skip / currentPageState.take + 1,
       limit: currentPageState.take,
-      status: statusToUse,
+      ...(statusToUse !== null && { status: statusToUse }),
       ...(currentPageState.searchKey && { search: currentPageState.searchKey }),
-      ...(referenceNumberFilter && { reference_number: referenceNumberFilter }),
+      ...(referenceNumberFilter && { reference_number: referenceNumberFilter.trim() }),
       ...(dateRangeFilter[0] && { expected_arrival_start: moment(dateRangeFilter[0]).format("YYYY-MM-DD") }),
       ...(dateRangeFilter[1] && { expected_arrival_end: moment(dateRangeFilter[1]).format("YYYY-MM-DD") })
     });
@@ -277,16 +278,15 @@ function MypurchaseList() {
             </Link>
           </Tooltip>
         :""}
-          {(record.status === 5 || record.status === 8) && (
+          {([4,5,8].includes(record.status)) && (
             <Tooltip title="Show Managment Remarks">
               <button
                 className="me-1 icon-btn"
                 onClick={() => {
-                  setLgShow(true);
                   showReview(record.id);
                 }}
               >
-                <i className="fas fa-info-circle"></i>
+                <i className="fas fa-comments"></i>
 
               </button>
             </Tooltip>
@@ -527,26 +527,13 @@ function MypurchaseList() {
 
 
 
-      <Modal
-        size="lg"
-        backdrop="static"
-        keyboard={false}
-        centered
+
+      <PurchaseOrderRemarksModal
         show={lgShow}
         onHide={() => setLgShow(false)}
-        aria-labelledby="example-modal-sizes-title-lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title id="example-modal-sizes-title-lg">
-            {getReview.remark != null ? getReview.remark.reference_number : ""}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body
-          dangerouslySetInnerHTML={{
-            __html: getReview.remarks != "" ? getReview.remarks : "",
-          }}
-        ></Modal.Body>
-      </Modal>
+        purchaseOrderId={selectedPOId}
+        purchaseOrderReferenceNumber={selectedPOReferenceNumber}
+      />
 
       <DeleteModal
         show={cancelModalShow}

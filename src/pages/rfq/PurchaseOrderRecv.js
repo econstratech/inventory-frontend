@@ -311,7 +311,8 @@ function PurchaseOrderRecv() {
         const batches = product.batches || [];
 
         if (received === 0) {
-          errors[`received_${index}`] = "Received quantity is required.";
+          // continue;
+          // errors[`received_${index}`] = "Received quantity is required.";
         } else if (batchApplicable && received > 0) {
           const hasValidBatch = batches.some(
             (b) =>
@@ -351,22 +352,27 @@ function PurchaseOrderRecv() {
     setError({});
     try {
       const { untaxedAmount, taxAmount, totalAmount } = calculateTotal();
-      const updatedProducts = products.map((product) => {
-        const editedProduct = editedProducts[product.id] || {};
-        const newBatches = (product.batches || []).map((b) => ({
-          batch_no: b.batch_no,
-          manufacture_date: b.manufacture_date,
-          expiry_date: b.expiry_date,
-          quantity: parseFloat(b.qty) || 0,
-          variant_id: b.variant_id || b.variantData?.id || null,
-        }));
-        return {
-          ...product,
-          vendor_id: vendor.vendor_id,
-          batches: [...newBatches],
-          product_id: editedProduct.product_id || product.product_id,
-          variant_id: editedProduct.variant_id || product.variant_id || null,
-        };
+      const updatedProducts = [];
+      products.forEach((product) => {
+        if (product.received_now != 0) {
+          const editedProduct = editedProducts[product.id] || {};
+          const newBatches = (product.batches || []).map((b) => ({
+            batch_no: b.batch_no,
+            manufacture_date: b.manufacture_date,
+            expiry_date: b.expiry_date,
+            quantity: parseFloat(b.qty) || 0,
+            variant_id: b.variant_id || b.variantData?.id || null,
+          }));
+
+          updatedProducts.push({
+            ...product,
+            vendor_id: vendor.vendor_id,
+            batches: [...newBatches],
+            product_id: editedProduct.product_id || product.product_id,
+            variant_id: editedProduct.variant_id || product.variant_id || null,
+          });
+        }
+
       });
       // console.log("updatedProducts", updatedProducts);
       const data = {
