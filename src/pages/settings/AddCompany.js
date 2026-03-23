@@ -6,26 +6,24 @@ import { PrivateAxios } from '../../environment/AxiosInstance';
 
 function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
     const [company, setCompany] = useState({
-        "name": "",
-        "email": "",
-        "phone": "",
+        "company_name": "",
+        "company_email": "",
+        "company_phone": "",
         "isd": "",
         "address": "",
+        "is_variant_based": "",
         // "whatsapp_no": "",
         "w_isd": "",
+        "renew_date": "",
+        "contact_name": "",
+        "contact_email": "",
+        "contact_phone": "",
+        "contact_isd": "",
+        "contact_wid": "",
+        "contact_whatsapp_no": "",
+        "name": "",
+        "email": "",
         "password": "",
-        "contact_person_name": "",
-        "contact_person_email": "",
-        "contact_person_contact_no": "",
-        "contact_person_isd": "",
-        // "contact_person_whats_app_number": "",
-        "contact_person_wid": "",
-        "owner_name": "",
-        "amount": "",
-        "tasktracker": 0,
-        "checksheet": 0,
-        "workflow": 0,
-        "renew_date": ""
     })
 
     const submitUser = (e) => {
@@ -40,26 +38,25 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
                 SuccessMessage(res.data.msg)
                 GetCompany();
                 setCompany({
-                    "name": "",
-                    "email": "",
-                    "phone": "",
+                    "company_name": "",
+                    "company_email": "",
+                    "company_phone": "",
                     "isd": "",
                     "address": "",
-                    // "whatsapp_no": "",
+                    "is_variant_based": "",
+                    "whatsapp_no": "",
                     "w_isd": "",
-                    "password": "",
-                    "contact_person_name": "",
-                    "contact_person_email": "",
-                    "contact_person_contact_no": "",
-                    "contact_person_isd": "",
-                    // "contact_person_whats_app_number": "",
-                    "contact_person_wid": "",
-                    "owner_name": "",
-                    "amount": "",
-                    "tasktracker": 0,
-                    "checksheet": 0,
-                    "workflow": 0,
-                    "renew_date": ""
+                    "renew_date": "",
+                    "contact_name": "",
+                    "contact_email": "",
+                    "contact_phone": "",
+                    "contact_isd": "",
+                    "contact_whatsapp_no": "",
+                    "contact_wid": "",
+                    "name": "",
+                    "email": "",
+                    "password": ""
+
                 })
                 editUserModalClose();
             }).catch((err) => {
@@ -70,62 +67,57 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
 
     const clearAll = () => {
         setCompany({
-            "name": "",
-            "email": "",
-            "phone": "",
+            "company_name": "",
+            "company_email": "",
+            "company_phone": "",
             "isd": "",
             "address": "",
-            // "whatsapp_no": "",
+            "is_variant_based": "",
+            "whatsapp_no": "",
             "w_isd": "",
-            "password": "",
-            "contact_person_name": "",
-            "contact_person_email": "",
+            "contact_name": "",
+            "contact_email": "",
+            "contact_phone": "",
             "contact_person_contact_no": "",
             "contact_person_isd": "",
-            // "contact_person_whats_app_number": "",
             "contact_person_wid": "",
-            "owner_name": "",
-            "amount": "",
-            "tasktracker": 0,
-            "checksheet": 0,
-            "workflow": 0,
+            "name": "",
+            "email": "",
+            "password": "",
             "renew_date": ''
         })
     }
 
-    // const [permission, setPermission] = useState({
-
-    // })
     return (
         <Modal id="editUserModal" show={editUserShow} onHide={() => { editUserModalClose(); clearAll() }} backdrop="static" keyboard={false} centered size="lg">
             <Modal.Header closeButton className="gth-blue-light-bg">
-                <Modal.Title className="gth-modal-title">Add Company</Modal.Title>
+                <Modal.Title className="gth-modal-title"> Add New Company</Modal.Title>
             </Modal.Header>
             <form onSubmit={submitUser}>
                 <Modal.Body className='pb-1'>
                     <div className='row'>
                         <div className='col-md-6'>
                             <div className="form-group">
-                                <label className="form-label">Name <span className="text-exp-red">*</span></label>
-                                <input type="text" value={company.name} required className="form-control" onChange={(e) => setCompany({ ...company, name: e.target.value })} />
+                                <label className="form-label">Company Name <span className="text-exp-red">*</span></label>
+                                <input type="text" value={company.company_name} required className="form-control" onChange={(e) => setCompany({ ...company, company_name: e.target.value })} />
                             </div>
                         </div>
                         <div className='col-md-6'>
                             <div className="form-group">
-                                <label className="form-label">Email <span className="text-exp-red">*</span></label>
-                                <input type="email" required className="form-control" onChange={(e) => setCompany({ ...company, email: e.target.value })} value={company.email} />
+                                <label className="form-label">Company Email <span className="text-exp-red">*</span></label>
+                                <input type="email" required className="form-control" onChange={(e) => setCompany({ ...company, company_email: e.target.value })} value={company.company_email} />
                             </div>
                         </div>
                         <div className='col-md-6'>
                             <div className="form-group">
-                                <label className="form-label">Phone <span className="text-exp-red">*</span></label>
+                                <label className="form-label">Company Phone <span className="text-exp-red">*</span></label>
                                 <PhoneInput
                                     country={'in'}
-                                    value={`${company.isd}${company.phone}`}
+                                    value={`${company.isd}${company.company_phone}`}
                                     onChange={(value, country) => {
                                         const code = `${country.dialCode}`;
                                         const number = value.replace(code, '');
-                                        setCompany({ ...company, phone: number, isd: code })
+                                        setCompany({ ...company, company_phone: number, isd: code })
                                     }}
                                 />
                             </div>
@@ -145,58 +137,108 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
                                 />
                             </div>
                         </div> */}
+
+                  
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Is Variant Based? <span className="text-exp-red">*</span></label>
+                                <div className="d-flex align-items-center gap-4 mt-2">
+                                    <div className="form-check">
+                                        <input
+                                            className="form-check-input"
+                                            type="radio"
+                                            name="is_variant_based"
+                                            id="is_variant_based_yes"
+                                            value="1"
+                                            checked={String(company.is_variant_based) === "1"}
+                                            onChange={(e) => setCompany({ ...company, is_variant_based: e.target.value })}
+                                            required
+                                        />
+                                        <label className="form-check-label" htmlFor="is_variant_based_yes">
+                                            Yes
+                                        </label>
+                                    </div>
+                                    <div className="form-check">
+                                        <input
+                                            className="form-check-input"
+                                            type="radio"
+                                            name="is_variant_based"
+                                            id="is_variant_based_no"
+                                            value="0"
+                                            checked={String(company.is_variant_based) === "0"}
+                                            onChange={(e) => setCompany({ ...company, is_variant_based: e.target.value })}
+                                            required
+                                        />
+                                        <label className="form-check-label" htmlFor="is_variant_based_no">
+                                            No
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Company Whatsapp Number</label>
+                                <input type="number" required className="form-control" onChange={(e) => setCompany({ ...company, whatsapp_no: e.target.value })} value={company.whatsapp_no} />
+                            </div>
+                        </div>
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Contact Person Name </label>
+                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_name: e.target.value })} value={company.contact_name} />
+                            </div>
+                        </div>
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Contact Person Email </label>
+                                <input type="email" className="form-control" onChange={(e) => setCompany({ ...company, contact_email: e.target.value })} value={company.contact_email} />
+                            </div>
+                        </div>
+                        <div className='col-md-6'>
+                                <div className="form-group">
+                                    <label className="form-label">Contact Person Phone No </label>
+                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_phone: e.target.value })} value={company.contact_phone} />
+                            </div>
+                        </div>
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Contact Person WhatsApp Number </label>
+                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_whatsapp_no: e.target.value })} value={company.contact_whatsapp_no} />
+                            </div>
+                        </div>
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Owner Name <span className="text-exp-red">*</span></label>
+                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, owner_name: e.target.value })} value={company.owner_name} />
+                            </div>
+                        </div>
+
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Owner Email <span className="text-exp-red">*</span></label>
+                                <input type="email" className="form-control" onChange={(e) => setCompany({ ...company, owner_email: e.target.value })} value={company.owner_email} />
+                            </div>
+                        </div>
+
                         <div className='col-md-6'>
                             <div className="form-group">
                                 <label className="form-label">Password <span className="text-exp-red">*</span></label>
                                 <input type="text" required className="form-control" onChange={(e) => setCompany({ ...company, password: e.target.value })} value={company.password} />
                             </div>
                         </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Address <span className="text-exp-red">*</span></label>
-                                <textarea type="email" required className="form-control" onChange={(e) => setCompany({ ...company, address: e.target.value })} >{company.address}</textarea>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Amount <span className="text-exp-red">*</span></label>
-                                <input type="number" required className="form-control" onChange={(e) => setCompany({ ...company, amount: e.target.value })} value={company.amount} />
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Person Name </label>
-                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_person_name: e.target.value })} value={company.contact_person_name} />
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Person Email </label>
-                                <input type="email" className="form-control" onChange={(e) => setCompany({ ...company, contact_person_email: e.target.value })} value={company.contact_person_email} />
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Person Contact No </label>
-                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_person_contact_no: e.target.value })} value={company.contact_person_contact_no} />
-                            </div>
-                        </div>
-                        {/* <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Person WhatsApp Number </label>
-                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, contact_person_whats_app_number: e.target.value })} value={company.contact_person_whats_app_number} />
-                            </div>
-                        </div> */}
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Owner Name </label>
-                                <input type="text" className="form-control" onChange={(e) => setCompany({ ...company, owner_name: e.target.value })} value={company.owner_name} />
-                            </div>
-                        </div>
+                        
                         <div className='col-md-6'>
                             <div className="form-group">
                                 <label className="form-label">Renew Date <span className="text-exp-red">*</span></label>
                                 <input type="date" required className="form-control" onChange={(e) => setCompany({ ...company, renew_date: e.target.value })} value={company.renew_date} />
+                            </div>
+                        </div>
+
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Address <span className="text-exp-red">*</span></label>
+                                <textarea type="email" required className="form-control" onChange={(e) => setCompany({ ...company, address: e.target.value })} >{company.address}</textarea>
                             </div>
                         </div>
 

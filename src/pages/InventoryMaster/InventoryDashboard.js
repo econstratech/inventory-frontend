@@ -569,9 +569,8 @@ const Dashboard = () => {
                               <Table className="table-bordered primary-table-head">
                                 <thead>
                                   <tr>
-                                    <th>Item ID *</th>
-                                    <th>Item Name</th>
-                                    <th>Stock</th>
+                                    <th>Category Name</th>
+                                    <th>Product Quantity</th>
                                     <th>Stock Value</th>
 
                                   </tr>
@@ -586,7 +585,7 @@ const Dashboard = () => {
                                   ) : stockValuationRows.length > 0 ? (
                                     stockValuationRows.map((row) => (
                                       <tr key={`category-${row.product_id}-${row.item_id}`}>
-                                        <td><div style={{ width: '150px' }}>{row.item_id || 'N/A'}</div></td>
+                                        {/* <td><div style={{ width: '150px' }}>{row.item_id || 'N/A'}</div></td> */}
                                         <td><div style={{ width: '150px' }}>{row.item_name || 'N/A'}</div></td>
                                         <td><div style={{ width: '150px' }}>{row.total_stock ?? 0}</div></td>
                                         <td><div style={{ width: '180px' }}>{formatCurrency(row.total_stock_value)}</div></td>
@@ -659,9 +658,8 @@ const Dashboard = () => {
                               <Table className="table-bordered primary-table-head">
                                 <thead>
                                   <tr>
-                                    <th>Item ID *</th>
-                                    <th>Item Name</th>
-                                    <th>Stock</th>
+                                    <th>Store Name</th>
+                                    <th>Product Quantity</th>
                                     <th>Stock Value</th>
 
                                   </tr>
@@ -676,7 +674,7 @@ const Dashboard = () => {
                                   ) : stockValuationRows.length > 0 ? (
                                     stockValuationRows.map((row) => (
                                       <tr key={`store-${row.product_id}-${row.item_id}`}>
-                                        <td><div style={{ width: '150px' }}>{row.item_id || 'N/A'}</div></td>
+                                        {/* <td><div style={{ width: '150px' }}>{row.item_id || 'N/A'}</div></td> */}
                                         <td><div style={{ width: '150px' }}>{row.item_name || 'N/A'}</div></td>
                                         <td><div style={{ width: '150px' }}>{row.total_stock ?? 0}</div></td>
                                         <td><div style={{ width: '180px' }}>{formatCurrency(row.total_stock_value)}</div></td>

@@ -4,7 +4,7 @@ import { UserAuth } from "../pages/auth/Auth";
 import "./profile-info.min.css"
 
 function Sidebar() {
-  const { MatchPermission } = UserAuth();
+  const { MatchPermission, user } = UserAuth();
   const location = useLocation();
 
   return (
@@ -1960,7 +1960,7 @@ function Sidebar() {
                           : ""} */}
                         
                           
-                        {/* {userDetails.position === "Owner"?
+                        {user.position === "Owner" && user.email === 'sumit.econstra@gmail.com' ?
                         <ul className="sidebar-submenu">
                           <li className="sidebar-item">
                             <Link
@@ -1971,7 +1971,7 @@ function Sidebar() {
                             </Link>
                           </li>
                         </ul>
-                        :""} */}
+                        :""}
 
                         {/* POS end*/}
                       </div>

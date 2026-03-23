@@ -1,11 +1,10 @@
-import axios from 'axios'
 import React, { useEffect, useState, useRef } from 'react'
 import DataTable from 'react-data-table-component'
 import { Modal, OverlayTrigger, Tooltip } from 'react-bootstrap'
 import moment from 'moment'
 
 import { SuccessMessage } from '../../environment/ToastMessage'
-import { PrivateAxios, url } from '../../environment/AxiosInstance'
+import { PrivateAxios } from '../../environment/AxiosInstance'
 import AddCompany from './AddCompany'
 import AddUser from './AddUser'
 
@@ -482,7 +481,7 @@ function CompanyManagement() {
                             <i className="fas fa-plus me-2"></i>Create Company
                         </button>
                     </div>
-                    <div className='card-body p-0'>
+                    <div className='card-body'>
                         <div className='d-flex w-100 align-items-center my-3 px-5'>
                             <span className='me-2 fw-medium'>Search:</span><input className='form-control' placeholder='company name/email/phone number' value={searchKey} onChange={searchCompany} />
                         </div>
