@@ -8,10 +8,10 @@ const TopItems = () => {
   const [topPurchased, setTopPurchased] = useState([]);
 
   useEffect(() => {
-    PrivateAxios.get('/product/inventory/top-items')
+    PrivateAxios.get('/inventory/top-items')
       .then(res => {
-        setTopSelling(res.data.topSelling || []);
-        setTopPurchased(res.data.topPurchased || []);
+        setTopSelling(res.data?.data?.topSelling || []);
+        setTopPurchased(res.data?.data?.topPurchased || []);
       })
       .catch(err => {
         console.error('Failed to fetch top items', err);

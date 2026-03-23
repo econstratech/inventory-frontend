@@ -30,6 +30,7 @@ import ManagementStatusBar from "./ManagementStatusBar";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
 import { calculateTotalWeight } from "../../../utils/weightConverter";
 import ProductSelect from "../../filterComponents/ProductSelect";
+import DeleteModal from "../../CommonComponent/DeleteModal";
 
 
 function SendToManagement() {
@@ -41,13 +42,8 @@ function SendToManagement() {
   const [pageState, setPageState] = useState({ current: 1, pageSize: 15 });
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
-  // const [user,setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  // const getGeneralSettingssymbol = user?.company?.generalSettings?.symbol;
 
 
-
-  //for-data table
-  const [editorContent, setEditorContent] = useState("");
   const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
 
@@ -57,7 +53,7 @@ function SendToManagement() {
   const [getshowRemarks, setShowremark] = useState(false);
   const [getRemarksdata, getremarkdata] = useState('');
   const [getRemarksRef, getremarksRef] = useState('');
-  const [getReff, setReff] = useState('');
+  // const [getReff, setReff] = useState('');
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { qty, unit_price, variant_id } }
   const [remarks, setRemarks] = useState(''); // Remarks textarea value
   const [sendToVendor, setSendToVendor] = useState(false);
@@ -71,10 +67,11 @@ function SendToManagement() {
   // const handleShow = () => setShow(true);
   const RemarksClose = () => setShowremark(false);
   const RemarksShow = () => setShowremark(true);
+  const [showRejectConfirmModal, setShowRejectConfirmModal] = useState(false);
 
-  const handleEditorChange = (content) => {
-    setEditorContent(content);
-  };
+  // const handleEditorChange = (content) => {
+  //   setEditorContent(content);
+  // };
 
   // const navigate = useNavigate();
   // const getRef = (pid, ref) => {
@@ -85,29 +82,29 @@ function SendToManagement() {
     getremarkdata(rmks)
     getremarksRef(refid)
   }
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const dataToSend = {
-      getPid,
-      editorContent,
-    };
+  // const handleSubmit = (e) => {
+  //   e.preventDefault();
+  //   const dataToSend = {
+  //     getPid,
+  //     editorContent,
+  //   };
 
-    PrivateAxios.post("purchase/addremarks", dataToSend)
-      .then((res) => {
-        if (res.status === 201) {
-          setEditorContent('');
-          handleClose(true)
-          SuccessMessage("Remarks added successfully");
-          TaskData()
-          setShowPrice(true);
-        }
-      })
-      .catch((err) => {
-        ErrorMessage(
-          "Error: Server busy please try again after some time later"
-        );
-      });
-  };
+  //   PrivateAxios.post("purchase/addremarks", dataToSend)
+  //     .then((res) => {
+  //       if (res.status === 201) {
+  //         setEditorContent('');
+  //         handleClose(true)
+  //         SuccessMessage("Remarks added successfully");
+  //         TaskData()
+  //         setShowPrice(true);
+  //       }
+  //     })
+  //     .catch((err) => {
+  //       ErrorMessage(
+  //         "Error: Server busy please try again after some time later"
+  //       );
+  //     });
+  // };
 
   const PriceCompare = async (ida) => {
     try {
@@ -436,36 +433,35 @@ function SendToManagement() {
     }
   };
 
-  const handleRejectChanges = async () => {
+  const handleRejectClick = () => {
     if (!ProductCompare || ProductCompare.length === 0) return;
-    
-    const purchaseOrder = ProductCompare[0];
-    
-    // Show confirmation dialog first
-    const confirmed = window.confirm("Are you sure you want to reject this purchase order?");
-    
-    if (!confirmed) {
-      return; // User cancelled, exit early
+    setShowRejectConfirmModal(true);
+  };
+
+  const executeRejectChanges = async () => {
+    if (!ProductCompare || ProductCompare.length === 0) {
+      setShowRejectConfirmModal(false);
+      return;
     }
-    
-    // Prepare data to send (similar to handleApproveByManagement)
+
+    const purchaseOrder = ProductCompare[0];
     const dataToSend = {
       remarks: remarks,
     };
-    
+
     try {
       const response = await PrivateAxios.put(
         `/purchase/rejected-by-management/${purchaseOrder.id}`,
         dataToSend
       );
-      
+
       if (response.status === 200) {
         SuccessMessage("Purchase order rejected successfully");
+        setShowRejectConfirmModal(false);
         setShowPrice(false);
         TaskData();
-        // Reset edited products
         setEditedProducts({});
-        setRemarks('');
+        setRemarks("");
         setSendToVendor(false);
       }
     } catch (error) {
@@ -1034,7 +1030,7 @@ function SendToManagement() {
           <button
             type="button"
             className="btn btn-danger"
-            onClick={handleRejectChanges}
+            onClick={handleRejectClick}
           >
             Reject
           </button>
@@ -1047,6 +1043,14 @@ function SendToManagement() {
           </button>
         </Modal.Footer>
       </Modal>
+
+      <DeleteModal
+        show={showRejectConfirmModal}
+        handleClose={() => setShowRejectConfirmModal(false)}
+        onDelete={executeRejectChanges}
+        title="Reject Purchase Order"
+        message="Are you sure you want to reject this purchase order?"
+      />
 
       {/* <Modal show={show} onHide={handleClose} closeButton backdrop="static"
         centered
