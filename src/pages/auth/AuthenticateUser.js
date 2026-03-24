@@ -13,6 +13,7 @@ function AuthenticateUser() {
   const [isFetchingUser, setIsFetchingUser] = useState(false);
   const [userFetchError, setUserFetchError] = useState("");
   const [erpUserData, setErpUserData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const token = useMemo(() => searchParams.get("token") || "", [searchParams]);
   const hasToken = token.trim().length > 0;
@@ -20,6 +21,7 @@ function AuthenticateUser() {
 
   useEffect(() => {
     const fetchUserFromErp = async () => {
+      setIsLoading(true);
       if (!hasToken || !erpBaseUrl) return;
 
       // Check if third party token is already in local storage, redirect to welcome page
@@ -44,6 +46,7 @@ function AuthenticateUser() {
         setErpUserData(response.data?.data || response.data || null);
         // Save third party token in local storage, to prevent multiple requests
         localStorage.setItem("third_party_token", token);
+        setIsLoading(false);
       } catch (err) {
         const message =
           err?.response?.data?.message ||
@@ -52,6 +55,7 @@ function AuthenticateUser() {
         setUserFetchError(message);
       } finally {
         setIsFetchingUser(false);
+        setIsLoading(false);
       }
     };
 
@@ -97,6 +101,7 @@ function AuthenticateUser() {
   };
 
   return (
+    <React.Fragment>
     <div className="container py-5">
       <div className="row justify-content-center">
         <div className="col-lg-6 col-md-8">
@@ -145,6 +150,7 @@ function AuthenticateUser() {
         </div>
       </div>
     </div>
+    </React.Fragment>
   );
 }
 

@@ -2,6 +2,7 @@ export const clearAuthStorage = () => {
   sessionStorage.removeItem("token");
   localStorage.removeItem("auth_user");
   localStorage.removeItem("permissions");
+  localStorage.removeItem("third_party_token");
 };
 
 export const logoutAndRedirect = (navigate, redirectPath = "/") => {
