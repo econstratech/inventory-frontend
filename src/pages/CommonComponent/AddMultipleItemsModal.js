@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Modal } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
+
+import { UserAuth } from "../auth/Auth";
 import { PrivateAxiosFile } from "../../environment/AxiosInstance";
 import { SuccessMessage } from "../../environment/ToastMessage";
 
 const AddMultipleItemsModal = ({ show, onClose ,FetchProduct}) => {
+  const { isVariantsAvailable } = UserAuth();
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -83,68 +86,80 @@ const AddMultipleItemsModal = ({ show, onClose ,FetchProduct}) => {
                         <th>Item Type</th>
                         <th>Category</th>
                         <th>UOM</th>
-                        <th>Weight</th>
+                        {isVariantsAvailable && (
+                          <>
+                            <th>Weight</th>
+                          </>
+                        )}
+
                         <th>Batch Applicable</th>
                         <th>Markup Percent</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td>FG0003</td>
-                        <td>Satto</td>
+                        <td>FG0001</td>
+                        <td>Wheat</td>
                         <td>FG MTS</td>
-                        <td>RM</td>
+                        <td>Grains</td>
                         <td>kg</td>
-                        <td>1</td>
+                        {isVariantsAvailable && (
+                          <>
+                            <td>1</td>
+                          </>
+                        )}
                         <td>Yes</td>
                         <td>10</td>
                       </tr>
                       <tr>
-                        <td>FG0003</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td>g</td>
-                        <td>500</td>
-                        <td></td>
-                        <td></td>
-                      </tr>
-                      <tr>
-                        <td>RM001</td>
-                        <td>Maida</td>
+                        <td>RM002</td>
+                        <td>Flour</td>
                         <td>Raw Material (RM)</td>
-                        <td>Spare parts</td>
+                        <td>Refined</td>
                         <td>kg</td>
-                        <td>10</td>
+                        {isVariantsAvailable && (
+                          <>
+                            <td>10</td>
+                          </>
+                        )}
                         <td>No</td>
-                        <td>8</td>
-                      </tr>
-                      <tr>
-                        <td>RM001</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td>kg</td>
                         <td>15</td>
-                        <td></td>
-                        <td></td>
                       </tr>
                       <tr>
-                        <td>RM001</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
+                        <td>RM003</td>
+                        <td>Sugar</td>
+                        <td>Raw Material (RM)</td>
+                        <td>Sweetener</td>
                         <td>kg</td>
-                        <td>20</td>
-                        <td></td>
-                        <td></td>
+                        {isVariantsAvailable && (
+                          <>
+                            <td>15</td>
+                          </>
+                        )}
+                        <td>Yes</td>
+                        <td>12</td>
+                      </tr>
+                      <tr>
+                        <td>RM004</td>
+                        <td>Salt</td>
+                        <td>Raw Material (RM)</td>
+                        <td>Seasoning</td>
+                        <td>kg</td>
+                        {isVariantsAvailable && (
+                          <>
+                            <td>20</td>
+                          </>
+                        )}
+                        <td>Yes</td>
+                        <td>10</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
               <p>
-                Note: This is a sample table with columns Item Code, Item Name, Item Type, Category, UOM, Weight, Batch Applicable, Markup Percent. For products with multiple variants, add additional rows with the same Item Code but different UOM and Weight values. You can add more rows in your file!
+                Note: This is a sample table with columns Item Code, Item Name, Item Type, Category, UOM, {isVariantsAvailable ? "Weight" : ""}, Batch Applicable, Markup Percent. 
+                {isVariantsAvailable ? "For products with multiple variants, add additional rows with the same Item Code but different UOM and Weight values. You can add more rows in your file!" : "You can add more rows in your file!"}
               </p>
             </div>
             <hr />
@@ -190,7 +205,7 @@ const AddMultipleItemsModal = ({ show, onClose ,FetchProduct}) => {
             <div className="gth-bg-warning-light p-3 rounded f-s-15">
               <i className="fas fa-info-circle me-2"></i>Need a reference?{" "}
               <a
-                href="/sample-csv-files/sample_bulk_product_add.csv"
+                href={isVariantsAvailable ? "/sample-csv-files/sample_bulk_product_add_with_variants.csv" : "/sample-csv-files/sample_bulk_product_add.csv"}
                 target="_blank"
                 rel="noopener noreferrer"
               >

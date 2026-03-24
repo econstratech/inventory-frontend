@@ -4,7 +4,7 @@ import { OverlayTrigger, Tooltip, Modal } from "react-bootstrap";
 import Select from "react-select";
 
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
-// import { UserAuth } from "../auth/Auth";
+import { UserAuth } from "../auth/Auth";
 // import {
 //   AllCategories,
 // } from "../../environment/GlobalApi";
@@ -13,8 +13,17 @@ import {
   PrivateAxios,
   // PrivateAxiosFile,
 } from "../../environment/AxiosInstance";
-import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import InventoryMasterEditTopBar from "./InventoryMasterEdit/InventoryMasterEditTopBar";
+
+/** API may send 1/0, null, or strings; native <select> needs "1" | "0". */
+function normalizeBatchApplicable(value) {
+  if (value === null || value === undefined || value === "") {
+    return "1";
+  }
+  return Number(value) === 1 ? "1" : "0";
+}
+
 function InventoryMasterEditItemDetails() {
   const [isEditing, setIsEditing] = useState(false);
   // const [isEditing1, setIsEditing1] = useState(false);
@@ -26,8 +35,8 @@ function InventoryMasterEditItemDetails() {
   // const [stores, setStores] = useState([]);
   // const [users, setUsers] = useState([]);
   const location = useLocation();
-  // const { user, Logout } = UserAuth();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  const { user, isVariantBased } = UserAuth();
+  // const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
   const navigate = useNavigate();
   const { data } = location.state || {};
   const { id } = useParams();
@@ -44,7 +53,7 @@ function InventoryMasterEditItemDetails() {
     product_category_id: null,
     is_batch_applicable: "1",
     brand_id: null,
-    // uom_id: null,
+    uom_id: null,
     // buffer_size: "",
     dynamic_attributes: [], // dynamic attributes,
     product_variants: [], // product variants
@@ -54,23 +63,15 @@ function InventoryMasterEditItemDetails() {
   });
   // const [message, setMessage] = useState("");
   const [error, setError] = useState({});
-  
-  // const [formData, setAddItemFormData] = useState({
-  //   product_code: "",
-  //   product_name: "",
-  //   product_type_id: null,
-  //   is_batch_applicable: "1",
-  //   uom_id: null,
-  //   buffer_size: "",
-  //   dynamic_attributes: [] // dynamic attributes
-  // });
+
   const [productTypes, setProductTypes] = useState([]);
   const [masterBrands, setMasterBrands] = useState([]);
   const [selectedProductType, setSelectedProductType] = useState([]);
-  const [selectedProductCategory, setSelectedProductCategory] = useState([]);
+  const [selectedProductCategory, setSelectedProductCategory] = useState(null);
   const [productAttributes, setProductAttributes] = useState([]);
   const [selectedBatchApplicable, setSelectedBatchApplicable] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState([]);
+  const [selectedUom, setSelectedUom] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   // const [dynamicProductAttributes, setDynamicProductAttributes] = useState([]);
   
@@ -115,12 +116,23 @@ function InventoryMasterEditItemDetails() {
    */
   const fetchProductCategories = async() => {
     try {
-      const res = await PrivateAxios.get(`master/product-category`);
-      setProductCategories(res.data.data);
+      const res = await PrivateAxios.get(`master/product-category?page=1&limit=100`);
+      const data = res.data?.data;
+      const rows = Array.isArray(data?.rows)
+        ? data.rows
+        : Array.isArray(data)
+          ? data
+          : [];
+      setProductCategories(
+        rows.map((item) => ({
+          id: item.id,
+          title: item.title,
+        }))
+      );
     } catch (error) {
       console.error(error);
     }
-  }
+  };
 
   /**
    * Fetch master product attributes
@@ -175,12 +187,16 @@ function InventoryMasterEditItemDetails() {
         }
       });
 
-      setFormData(prev => {
-        prev.dynamic_attributes = updatedAttributes;
-        return {
+      setFormData((prev) => {
+        const merged = {
           ...prev,
           ...productData,
-        }
+          is_batch_applicable: normalizeBatchApplicable(
+            productData?.is_batch_applicable
+          ),
+        };
+        merged.dynamic_attributes = updatedAttributes;
+        return merged;
       });
 
       // Load product variants
@@ -238,7 +254,9 @@ function InventoryMasterEditItemDetails() {
 
 
   useEffect(() => {
-    setSelectedBatchApplicable(formData.is_batch_applicable);
+    setSelectedBatchApplicable(
+      normalizeBatchApplicable(formData?.is_batch_applicable)
+    );
   }, [formData?.is_batch_applicable]);
 
   useEffect(() => {
@@ -255,9 +273,15 @@ function InventoryMasterEditItemDetails() {
   }, [productTypes, formData]);
 
   useEffect(() => {
-    setSelectedProductCategory(productCategories?.find(
-      opt => opt.id === formData?.product_category_id
-    ));
+    const catId = formData?.product_category_id;
+    if (catId === null || catId === undefined || catId === "") {
+      setSelectedProductCategory(null);
+      return;
+    }
+    const found = productCategories?.find(
+      (opt) => Number(opt.id) === Number(catId)
+    );
+    setSelectedProductCategory(found ?? null);
   }, [productCategories, formData]);
 
   useEffect(() => {
@@ -278,16 +302,25 @@ function InventoryMasterEditItemDetails() {
   const handleAddItemSelectChange = (fieldName) => (selectedOption) => {
     if (fieldName === 'product_type_id') {
       setSelectedProductType(selectedOption);
-    } else if (fieldName === 'is_batch_applicable') {
-      setSelectedBatchApplicable(selectedOption.value);
+    } else if (fieldName === "is_batch_applicable") {
+      const v = selectedOption?.target?.value ?? selectedOption?.value;
+      const normalized = normalizeBatchApplicable(v);
+      setSelectedBatchApplicable(normalized);
     } else if (fieldName === 'product_category_id') {
       setSelectedProductCategory(selectedOption);
     } else if (fieldName === 'brand_id') {
       setSelectedBrand(selectedOption);
+    } else if (fieldName === 'uom_id') {
+      setSelectedUom(selectedOption);
     }
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [fieldName]: selectedOption.id
+      [fieldName]:
+        fieldName === "is_batch_applicable"
+          ? normalizeBatchApplicable(
+              selectedOption?.target?.value ?? selectedOption?.value
+            )
+          : selectedOption?.id ?? null,
     }));
   };
 
@@ -342,6 +375,8 @@ function InventoryMasterEditItemDetails() {
       newErrors.product_type_id = "Item Type is required";
     }  else if (!formData.product_category_id) {
       newErrors.product_category_id = "Category is required";
+    } else if (!formData.uom_id && !isVariantBased) {
+      newErrors.uom_id = "Unit of Measurement is required";
     } else {
       // 🔥 Dynamic attributes validation (ARRAY BASED)
       formData.dynamic_attributes.forEach(attr => {
@@ -356,20 +391,23 @@ function InventoryMasterEditItemDetails() {
         }
       });
 
-      // Validate product variants - at least one complete variant is required
-      const validVariants = productVariants.filter(
-        variant => variant.uom_id && variant.weight && variant.weight.trim() !== ""
-      );
-      
-      if (validVariants.length === 0) {
-        newErrors.product_variants = "At least one product variant with Unit of Measurement and Weight is required";
+      // Validate product variants - at least one complete variant is required if variant based
+      if (isVariantBased) {
+        const validVariants = productVariants.filter(
+          variant => variant.uom_id && variant.weight && variant.weight.trim() !== ""
+        );
+        
+        if (validVariants.length === 0) {
+          newErrors.product_variants = "At least one product variant with Unit of Measurement and Weight is required";
+        }
+  
+        productVariants.forEach(variant => {
+          if (variant.weight?.trim() === "" || variant.uom_id === null) {
+            newErrors.product_variants = "Both Unit of Measurement and Weight is required for all variants";
+          }
+        });
       }
 
-      productVariants.forEach(variant => {
-        if (variant.weight?.trim() === "" || variant.uom_id === null) {
-          newErrors.product_variants = "Both Unit of Measurement and Weight is required for all variants";
-        }
-      });
     }
   
     setErrorMessage(newErrors);
@@ -404,9 +442,12 @@ function InventoryMasterEditItemDetails() {
       product_category_id: formData.product_category_id,
       is_batch_applicable: formData.is_batch_applicable,
       brand_id: formData.brand_id,
+      uom_id: formData.uom_id,
       dynamic_attributes: product_attributes_payload,
       // product_variants: variantsData
     };
+
+    // console.log("productData", productData);
 
     try {
       const response = await PrivateAxios.post(`product/update/${id}`, productData);
@@ -737,6 +778,7 @@ function InventoryMasterEditItemDetails() {
                             getOptionLabel={(option) => option.title}
                             getOptionValue={(option) => option.id}
                             value={selectedProductCategory}
+                            placeholder="Select category"
                             isDisabled={!isEditing}
                             onChange={handleAddItemSelectChange("product_category_id")}
                           />
@@ -745,6 +787,27 @@ function InventoryMasterEditItemDetails() {
                           )}
                         </div>
                       </div>
+
+                      {!isVariantBased && (
+                        <div className="col-md-6">
+                            <label className="form-label">
+                              Unit of Measurement  <span className="text-danger">*</span>
+                            </label>
+                          <Select
+                            name="uom_id"
+                            id="uom_id"
+                            options={uomData}
+                            getOptionLabel={(option) => option.label}
+                            getOptionValue={(option) => option.id}
+                            isDisabled={!isEditing}
+                            value={selectedUom}
+                            onChange={(selectedOption) => handleAddItemSelectChange("uom_id")(selectedOption)}
+                          />
+                          {errorMessage?.uom_id && (
+                            <span className="error-message">{errorMessage.uom_id}</span>
+                          )}
+                        </div>
+                      )}
 
                       <div className="col-md-6">
                         <div className="form-group">
@@ -755,7 +818,7 @@ function InventoryMasterEditItemDetails() {
                             className="form-select css-olqui2-singleValue"
                             id="is_batch_applicable"
                             name="is_batch_applicable"
-                            value={selectedBatchApplicable}
+                            value={normalizeBatchApplicable(selectedBatchApplicable)}
                             disabled={!isEditing}
                             onChange={handleAddItemSelectChange("is_batch_applicable")}
                           >
@@ -858,6 +921,8 @@ function InventoryMasterEditItemDetails() {
                   </div>
                 </div>
               </div>
+
+              {isVariantBased && (
               <div className="col-lg-6 col-md-6 col-sm-12 mb-4">
                 <div className="itemDetails_card">
                   <div className="card-header d-flex flex-wrap justify-content-between">
@@ -1007,6 +1072,9 @@ function InventoryMasterEditItemDetails() {
                   </div>
                 </div>
               </div>
+              )}
+
+
               {/* <div className="col-lg-6 col-md-6 col-sm-12 mb-4">
                 <div className="itemDetails_card">
                   <div className="card-header d-flex flex-wrap justify-content-between">

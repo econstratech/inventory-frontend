@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 // import moment from "moment";
 
-// import { UserAuth } from "../auth/Auth";
+import { UserAuth } from "../auth/Auth";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
 
 import "../global.css";
@@ -49,6 +49,7 @@ function StockMaster() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateErrors, setUpdateErrors] = useState({});
+  const { isVariantBased } = UserAuth();
 
   // Fetch warehouses for dropdown
   const fetchStores = async () => {
@@ -160,7 +161,7 @@ function StockMaster() {
       return {
         key: index + 1,
         id: item.id || "",
-        productVariant: item.productVariant || "",
+        productVariant: item?.productVariant || "",
         product: {
           id: item.product.id || "",
           product_code: item.product.product_code || "",
@@ -346,14 +347,17 @@ function StockMaster() {
   const validateUpdateForm = () => {
     const errors = {};
 
+    // Validate product
     if (!updateFormData.product || !updateFormData.product.value) {
       errors.product = "Product is required";
     }
 
+    // Validate store
     if (!updateFormData.store || !updateFormData.store.value) {
       errors.store = "Store is required";
     }
 
+    // Validate quantity
     if (!updateFormData.quantity || updateFormData.quantity.trim() === "") {
       errors.quantity = "Quantity is required";
     } else {
@@ -363,6 +367,11 @@ function StockMaster() {
       }
     }
 
+    // Validate variant
+    if (isVariantBased && !updateFormData.variant) {
+      errors.variant = "Product variant is required";
+    }
+
     setUpdateErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -370,7 +379,7 @@ function StockMaster() {
   // Handle update submit
   const handleUpdateSubmit = async () => {
     if (!validateUpdateForm()) {
-      ErrorMessage("Please fill all required fields correctly");
+      ErrorMessage(Object.keys(updateErrors).length === 0 ? "Please fill all required fields correctly" : Object.values(updateErrors).join(", "));
       return;
     }
 
@@ -381,6 +390,7 @@ function StockMaster() {
         product_id: updateFormData.product.value,
         warehouse_id: updateFormData.store.value,
         quantity: parseFloat(updateFormData.quantity),
+        product_variant_id: updateFormData.variant ? updateFormData.variant.value : null,
       };
 
       const response = await PrivateAxios.put(
@@ -486,15 +496,21 @@ function StockMaster() {
         return record?.product.masterBrand?.name || "N/A";
       },
     },
-    {
-      title: "Variant",
-      dataIndex: ["productVariant"],
-      key: "productVariant",
-      width: 150,
-      render: (_, record) => {
-        return record?.productVariant ? `${record?.productVariant.weight_per_unit} ${record?.productVariant.masterUOM?.label || ""}` : "";
-      },
-    },
+    ...(isVariantBased
+      ? [
+          {
+            title: "Variant",
+            dataIndex: ["productVariant"],
+            key: "productVariant",
+            width: 150,
+            render: (_, record) => {
+              return record?.productVariant
+                ? `${record?.productVariant.weight_per_unit} ${record?.productVariant.masterUOM?.label || ""}`
+                : "";
+            },
+          },
+        ]
+      : []),
     {
       title: "Product Type",
       dataIndex: ["product", "productType"],
@@ -850,7 +866,14 @@ function StockMaster() {
 
       {/* Update Modal */}
       <Modal
-        title="Update Stock Entry"
+        title={
+          <>
+            Add To Stock Master:{" "}
+            <span className="text-primary">
+              {updateFormData?.product?.label || "N/A"}
+            </span>
+          </>
+        }
         open={isUpdateModalVisible}
         onCancel={handleUpdateModalClose}
         footer={[
@@ -969,20 +992,23 @@ function StockMaster() {
             />
           </Form.Item>
 
-          <Form.Item
-            label={
-              <span>
-                Product Variant
-              </span>
-            }
-          >
-            <Input
-              type="text"
-              value={updateFormData.variant || "N/A"}
-              disabled
-              style={{ height: "38px" }}
-            />
-          </Form.Item>
+          {isVariantBased && (
+            <Form.Item
+              label={
+                <span>
+                  Product Variant
+                </span>
+              }
+            >
+              <Input
+                type="text"
+                value={updateFormData.variant || "N/A"}
+                disabled
+                style={{ height: "38px" }}
+              />
+            </Form.Item>
+
+          )}
 
           <Form.Item
             label={

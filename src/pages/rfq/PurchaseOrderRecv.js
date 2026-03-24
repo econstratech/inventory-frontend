@@ -70,7 +70,7 @@ function PurchaseOrderRecv() {
   const [selectedProductInfo, setSelectedProductInfo] = useState(null);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { product_id, variant_id, variantData, productData } }
-  const { user, isVariantsAvailable, getGeneralSettingssymbol } = UserAuth();
+  const { isVariantsAvailable, getGeneralSettingssymbol } = UserAuth();
   // const [setPaymentReference, PaymentReference] = useState("");
 
   const [vendor, setVendor] = useState({ vendor_id: "" });
