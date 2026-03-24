@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const MatchPermission = (permission) => {
 
         // check if user is owner, then allow all permissions
-        if (user.position === "Owner") {
+        if (user?.position === "Owner") {
             return true;
         }
        

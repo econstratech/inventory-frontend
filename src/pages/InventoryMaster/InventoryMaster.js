@@ -244,6 +244,7 @@ function InventoryMaster() {
     product_name: "",
     product_type_id: null,
     product_category_id: null,
+    uom_id: null,
     is_batch_applicable: "1",
     brand_id: null,
     dynamic_attributes: [], // dynamic attributes
@@ -390,8 +391,12 @@ function InventoryMaster() {
             // newErrors[`variant_${variant.id}`] = `both Unit of Measurement and Weight is required`;
           }
         });
+      } else if (!addItemFormData.uom_id) {
+        newErrors.uom_id = "Unit of Measurement is required";
       }
     }
+
+    console.log("addItemFormData", addItemFormData);
   
     setErrorMessage(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -496,6 +501,8 @@ function InventoryMaster() {
       ...addItemFormData,
       product_variants: variantsData
     };
+
+    // console.log("submitData", submitData);
 
     //submit data
     PrivateAxios.post("product/add", submitData)
@@ -1154,7 +1161,8 @@ function InventoryMaster() {
                   <select
                     className="form-select"
                     name="is_batch_applicable"
-                    onChange={handleAddItemSelectChange("is_batch_applicable")}
+                    value={addItemFormData.is_batch_applicable ?? "1"}
+                    onChange={handleAddItemFormChange}
                   >
                     <option value="1">Yes</option>
                     <option value="0">No</option>
@@ -1247,7 +1255,7 @@ function InventoryMaster() {
               ))}
 
               {/* Product Variants Section */}
-              {isVariantBased && (
+              {isVariantBased ? (
               <div className="col-12 mt-3">
                 <div className="card border">
                   <div className="card-header bg-light">
@@ -1342,6 +1350,35 @@ function InventoryMaster() {
                   </div>
                 </div>
               </div>
+              ) : (
+                <div className="col-md-6">
+                  <div className="form-group">
+                    <label className="form-label">
+                      Unit of Measurement <span className="text-danger">*</span>
+                    </label>
+                    <Select
+                      name="uom_id"
+                      options={uomData}
+                      getOptionLabel={(option) => option.label}
+                      getOptionValue={(option) => option.id}
+                      value={uomData.find(uom => uom.id === addItemFormData.uom_id) || null}
+                      onChange={(selectedOption) => handleAddItemSelectChange("uom_id")(selectedOption)}
+                      theme={(theme) => ({
+                        ...theme,
+                        colors: {
+                          ...theme.colors,
+                          primary25: "#ddddff",
+                          primary: "#6161ff",
+                        },
+                      })}
+                      placeholder="Select Unit of Measurement"
+                    />
+                    {errorMessage.uom_id && (
+                      <span className="error-message">{errorMessage.uom_id}</span>
+                    )}
+                  </div>
+
+                </div>
               )}
             </div>
           </Modal.Body>

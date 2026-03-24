@@ -139,8 +139,8 @@ function CompanyManagement() {
             width: "180px"
         },
         {
-            name: "GST NO.",
-            selector: (row) => row.gst,
+            name: "Owner Name",
+            selector: (row) => row.users[0]?.name || "",
             sortable: true,
             reorder: true,
             width: "180px"
@@ -265,6 +265,7 @@ function CompanyManagement() {
     const [viewModelData, setViewModelData] = useState('');
     const ShowModel = (data) => {
         setViewModel(true)
+        console.log("data", data);
         setViewModelData(data)
     }
     const HideModel = () => {
@@ -272,6 +273,34 @@ function CompanyManagement() {
         setViewModelData('')
     }
 
+    const formatViewDate = (v) =>
+        v && moment(v).isValid() ? moment(v).format("DD-MMMM-YYYY") : "—";
+
+    const formatPhoneDisplay = (isd, phone) => {
+        if (!phone) return "—";
+        return `+${isd || ""} ${phone}`.replace(/\s+/g, " ").trim();
+    };
+
+    const variantBasedLabel = (v) => {
+        if (v === 1 || v === "1") return "Yes";
+        if (v === 0 || v === "0") return "No";
+        return "—";
+    };
+
+    const viewField = (label, value) => {
+        const display =
+            value === undefined || value === null || value === ""
+                ? "—"
+                : value;
+        return (
+            <div className="col-md-6">
+                <div className="company-view-field border rounded-3 p-3 h-100 bg-light">
+                    <div className="text-muted small fw-semibold mb-1">{label}</div>
+                    <div className="mb-0 text-break text-body">{display}</div>
+                </div>
+            </div>
+        );
+    };
 
     //==================Add Company========================//
     const [showAddCompany, setShowCompany] = useState(false)
@@ -439,7 +468,7 @@ function CompanyManagement() {
             width: "80px",
         },
         {
-            name: "User Name",
+            name: "Name",
             selector: (row) => row.name,
             sortable: true,
             width: "250px",
@@ -451,8 +480,14 @@ function CompanyManagement() {
             maxWidth: "250px",
         },
         {
+            name: "User Type",
+            selector: (row) => row.position,
+            sortable: false,
+            width: "250px",
+        },
+        {
             name: "Phone",
-            selector: (row) => row.phone_number,
+            selector: (row) => row.phone_number || "—",
             sortable: true,
             reorder: true,
             width: "260px"
@@ -499,12 +534,14 @@ function CompanyManagement() {
                         ) : (
                             <div className="table-view">
                                 <DataTable
+                                    key={String(searchKeyDebounced)}
                                     columns={selectedColumns}
                                     data={companies}
                                     pagination
                                     paginationServer
                                     paginationTotalRows={totalRows}
                                     paginationDefaultPage={1}
+                                    paginationResetDefaultPage={false}
                                     paginationPerPage={limit}
                                     paginationRowsPerPageOptions={[5, 10, 25, 50]}
                                     onChangePage={(newPage) => setPage(newPage)}
@@ -512,7 +549,7 @@ function CompanyManagement() {
                                         setLimit(newLimit)
                                         setPage(newPage)
                                     }}
-                                    progressPending={loading}
+                                    progressPending={loading && companies.length === 0}
                                     theme="solarized"
                                     striped
                                     className='custom-table-wrap checklist-table-striped'
@@ -524,87 +561,56 @@ function CompanyManagement() {
             </div>
 
 
-            <Modal id="viewUserModal" show={viewModel} onHide={HideModel} backdrop="static" keyboard={false} centered size="lg">
+            <Modal id="viewUserModal" show={viewModel} onHide={HideModel} backdrop="static" keyboard={false} centered size="lg" scrollable>
                 <Modal.Header closeButton className="gth-blue-light-bg">
-                    <Modal.Title className="gth-modal-title">
-                        <h5 className="profile-name text-nowrap text-truncate">{viewModelData && viewModelData.company_name}</h5>
-
+                    <Modal.Title className="gth-modal-title w-100 pe-2">
+                        <span className="text-primary fw-semibold d-block text-truncate" title={viewModelData?.company_name}>
+                            {viewModelData?.company_name || "Company"}
+                        </span>
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className='pb-1'>
-                    <div className='row'>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Company Name</label>
-                                <p className="mb-0">{viewModelData && viewModelData.company_name}</p>
+                <Modal.Body className="px-4 py-3">
+                    <div className="row g-3">
+                        {viewField("Company Name", viewModelData?.company_name)}
+                        {viewField("Company Email", viewModelData?.company_email)}
+                        {viewField(
+                            "Company Phone",
+                            formatPhoneDisplay(viewModelData?.c_p_isd, viewModelData?.company_phone)
+                        )}
+                        {viewField("Is Variant Based?", variantBasedLabel(viewModelData?.generalSettings?.is_variant_based))}
+                        {viewField(
+                            "Company WhatsApp Number",
+                            formatPhoneDisplay(
+                                viewModelData?.w_isd,
+                                viewModelData?.whatsapp_no ?? viewModelData?.whatsapp_number
+                            )
+                        )}
+                        {viewField("Contact Person Name", viewModelData?.contact_name)}
+                        {viewField("Contact Person Email", viewModelData?.contact_email)}
+                        {viewField(
+                            "Contact Person Phone No",
+                            formatPhoneDisplay(viewModelData?.p_isd, viewModelData?.contact_phone)
+                        )}
+                        {/* {viewField("Contact Person WhatsApp Number", viewModelData?.contact_whatsapp_no)} */}
+                        {viewField("Owner Name", viewModelData?.users && viewModelData?.users.length > 0 ? viewModelData?.users[0]?.name : "")}
+                        {viewField("Owner Email", viewModelData?.users && viewModelData?.users.length > 0 ? viewModelData?.users[0]?.email : "")}
+                        {/* {viewField("Password", "Not shown for security")} */}
+                        {viewField("Renew Date", formatViewDate(viewModelData?.renew_date))}
+                        <div className="col-12">
+                            <div className="company-view-field border rounded-3 p-3 bg-light">
+                                <div className="text-muted small fw-semibold mb-1">Address</div>
+                                <div className="mb-0 text-break text-body">
+                                    {viewModelData?.address?.trim() ? viewModelData.address : "—"}
+                                </div>
                             </div>
                         </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Company Email</label>
-                                <p className="mb-0">{viewModelData && viewModelData.company_email}</p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Company Phone</label>
-                                <p className="mb-0">{viewModelData.company_phone ? `+${viewModelData && viewModelData.c_p_isd} ${viewModelData && viewModelData.company_phone}` : ""}</p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Alternate Number</label>
-                                <p className="mb-0">{viewModelData.company_alternate_phone ? `+${viewModelData && viewModelData.alternet_p_isd} ${viewModelData && viewModelData.company_alternate_phone}` : ""}</p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Address</label>
-                                <p className="mb-0">{viewModelData && viewModelData.address} </p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Name</label>
-                                <p className="mb-0">{viewModelData && viewModelData.contact_name} </p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact Email</label>
-                                <p className="mb-0">{viewModelData && viewModelData.contact_email} </p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Contact phone</label>
-                                <p className="mb-0">+{viewModelData && viewModelData.p_isd} {viewModelData && viewModelData.contact_phone}</p>
-                            </div>
-                        </div>
-                        {/* <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Whatsapp Number</label>
-                                <p className="mb-0">+{viewModelData && viewModelData.w_isd} {viewModelData && viewModelData.whatsapp_number} </p>
-                            </div>
-                        </div> */}
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Start Date</label>
-                                <p className="mb-0">{viewModelData && moment(viewModelData.start_date).format("DD-MMMM-YYYY")} </p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Renew Type</label>
-                                <p className="mb-0">{viewModelData && viewModelData.renew_type}</p>
-                            </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Renew Date</label>
-                                <p className="mb-0">{viewModelData && moment(viewModelData.renew_date).format("DD-MMMM-YYYY")}</p>
-                            </div>
-                        </div>
+
+                        {/*
+                          Not on Add Company form — kept for reference if API exposes them later:
+                          <div className='col-md-6'>Alternate Number — company_alternate_phone / alternet_p_isd</div>
+                          <div className='col-md-6'>Start Date — start_date</div>
+                          <div className='col-md-6'>Renew Type — renew_type</div>
+                        */}
                     </div>
                 </Modal.Body>
             </Modal>

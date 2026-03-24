@@ -22,6 +22,15 @@ function AuthenticateUser() {
     const fetchUserFromErp = async () => {
       if (!hasToken || !erpBaseUrl) return;
 
+      // Check if third party token is already in local storage, redirect to welcome page
+      const thirdPartyToken = localStorage.getItem("third_party_token");
+      const systemAuth = localStorage.getItem("auth_user");
+      // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
+      if (thirdPartyToken && systemAuth) {
+        navigate("/welcome");
+        return;
+      }
+
       setIsFetchingUser(true);
       setUserFetchError("");
       try {
@@ -33,6 +42,8 @@ function AuthenticateUser() {
           },
         });
         setErpUserData(response.data?.data || response.data || null);
+        // Save third party token in local storage, to prevent multiple requests
+        localStorage.setItem("third_party_token", token);
       } catch (err) {
         const message =
           err?.response?.data?.message ||
