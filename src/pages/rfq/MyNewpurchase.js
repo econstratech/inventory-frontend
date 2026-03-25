@@ -91,6 +91,22 @@ function MyNewpurchase() {
   const [expectedArrival, setExpectedArrival] = useState("");
   const [alert, setAlert] = useState("");
   const [error, setError] = useState({});
+  const [sendToVendor, setSendToVendor] = useState(false);
+  const [sendToManagement, setSendToManagement] = useState(false);
+
+  const handleSendToVendorChange = (e) => {
+    const checked = e.target.checked;
+    setSendToVendor(checked);
+    if (checked) setSendToManagement(false);
+    setError((prev) => ({ ...prev, sendDestination: "" }));
+  };
+
+  const handleSendToManagementChange = (e) => {
+    const checked = e.target.checked;
+    setSendToManagement(checked);
+    if (checked) setSendToVendor(false);
+    setError((prev) => ({ ...prev, sendDestination: "" }));
+  };
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [selectedQuotation, setSelectedQuotation] = useState(null);
@@ -298,6 +314,14 @@ function MyNewpurchase() {
       setError({ ...error, products: "Please add at least one product to the request for quotation." });
       return false;
     }
+
+    // if (!sendToVendor && !sendToManagement) {
+    //   setError({
+    //     ...error,
+    //     sendDestination: "Please select either Send to vendor or Send to Management.",
+    //   });
+    //   return false;
+    // }
     
     // Note: Variant selection is handled in the modal flow
     // If a product has variants available, the user must select one before proceeding
@@ -340,13 +364,17 @@ function MyNewpurchase() {
         // cgst: taxAmount.toFixed(2),
         // TaxAmt: (taxAmount * 2).toFixed(2),
         total_amount: totalAmount.toFixed(2),
+        send_to_vendor: sendToVendor ? true : false,
+        send_to_management: sendToManagement ? true : false,
       };
 
       const response = await PrivateAxios.post("purchase/add", data);
 
       if (response.status === 201) {
-        SuccessMessage("Data saved successfully");
+        SuccessMessage("Purchase order created successfully");
         navigate("/operation/create-rfq-active");
+      } else {
+        ErrorMessage("Failed to create purchase order");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -467,6 +495,37 @@ function MyNewpurchase() {
                       />
                       {error?.sellOrderNo && <div className="text-danger f-s-14">{error.sellOrderNo}</div>}
                     </div>
+                  </div>
+                </div>
+
+                <div className="col-lg-6 col-md-6 col-sm-6 col-12">
+                  <div className="form-group mb-0">
+
+                      <label className="custom-checkbox mb-0" style={{ marginRight: "14px" }}>
+                        <input
+                          type="checkbox"
+                          name="sendToManagement"
+                          checked={sendToManagement}
+                          onChange={handleSendToManagementChange}
+                        />
+                        <span className="checkmark"></span>
+                        <span>Send to Management</span>
+                      </label>
+
+                      <label className="custom-checkbox mb-0">
+                        <input
+                          type="checkbox"
+                          name="sendToVendor"
+                          checked={sendToVendor}
+                          onChange={handleSendToVendorChange}
+                        />
+                        <span className="checkmark"></span>
+                        <span>Send to vendor</span>
+                      </label>
+        
+                    {error?.sendDestination && (
+                      <div className="text-danger f-s-14 mt-1">{error.sendDestination}</div>
+                    )}
                   </div>
                 </div>
 

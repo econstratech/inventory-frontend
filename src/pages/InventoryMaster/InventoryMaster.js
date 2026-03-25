@@ -395,8 +395,6 @@ function InventoryMaster() {
         newErrors.uom_id = "Unit of Measurement is required";
       }
     }
-
-    console.log("addItemFormData", addItemFormData);
   
     setErrorMessage(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -579,6 +577,7 @@ function InventoryMaster() {
           is_batch_applicable: item.is_batch_applicable,
           markup_percentage: item.markup_percentage || "0",
           masterBrand: item.masterBrand,
+          uom: item?.masterUOM?.name || "",
           itemCategory: item.Categories?.title || "",
           productVariants: item.productVariants || [],
           productAttributeValues: item.productAttributeValues || [],
@@ -652,13 +651,22 @@ function InventoryMaster() {
       title: "Brand",
       dataIndex: ["masterBrand", "name"],
       key: "masterBrand",
-      width: 180,
+      width: 150,
       render: (_, record) => record.masterBrand?.name || "-",
     },
+    ...(!isVariantBased && [
+      {
+        title: "UOM",
+        dataIndex: "uom",
+        key: "uom",
+        width: 120,
+        render: (_, record) => record.uom || "-",
+      },
+    ]),
     {
       title: "Batch Product",
       key: "is_batch_applicable",
-      width: 180,
+      width: 150,
       render: (_, record) => record.is_batch_applicable && record.is_batch_applicable === 1 ? "Yes" : "No",
     },
     // {
@@ -672,7 +680,7 @@ function InventoryMaster() {
       title: "Markup %",
       dataIndex: "markup_percentage",
       key: "markup_percentage",
-      width: 240,
+      width: 120,
       render: (_, record) => record.markup_percentage || "-",
     },
     {

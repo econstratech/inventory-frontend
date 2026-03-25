@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Button, Modal } from 'react-bootstrap'
 import { PrivateAxios } from '../../../environment/AxiosInstance'
 import { ErrorMessage, SuccessMessage } from '../../../environment/ToastMessage'
+import { normalizeModuleGroups, sameModuleId } from './modulePermissionUtils'
 
 function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetchModules }) {
 
@@ -15,10 +16,11 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
 
     const GetAllPermission = async () => {
         setLoading(true)
-        await PrivateAxios.get("get-all-permissions")
+        await PrivateAxios.get("module-wise-permissions")
             .then((res) => {
                 setLoading(false)
-                setGroups(res.data.data || []);
+                const raw = res.data?.data ?? res.data ?? [];
+                setGroups(normalizeModuleGroups(Array.isArray(raw) ? raw : []));
             }).catch((err) => {
                 setLoading(false)
                 if (err.response?.status == 401) {
@@ -40,10 +42,18 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
         setAdminName(data.name || '');
         if (groups.length === 0) return;
         if (data.permissions && Array.isArray(data.permissions)) {
-            const mapped = data.permissions.map((p) => ({
-                module_id: Number(p.module ?? p.module_id),
-                permission_id: p.id,
-            })).filter((p) => p.module_id && p.permission_id);
+            const mapped = data.permissions
+                .map((p) => ({
+                    module_id: p.module_id ?? p.module,
+                    permission_id: p.id ?? p.permission_id,
+                }))
+                .filter(
+                    (p) =>
+                        p.module_id !== undefined &&
+                        p.module_id !== null &&
+                        p.permission_id !== undefined &&
+                        p.permission_id !== null
+                );
             setAllPermission(mapped);
         } else {
             setAllPermission([]);
@@ -63,7 +73,9 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
             groupsWithPermissions.every((group) =>
                 getGroupPermissions(group).every((permission) =>
                     allPermission.some(
-                        (item) => item.module_id === group.id && item.permission_id === permission.id
+                        (item) =>
+                            sameModuleId(item.module_id, group.id) &&
+                            String(item.permission_id) === String(permission.id)
                     )
                 )
             );
@@ -97,7 +109,7 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
 
     const handleGroupChange = (groupId, e) => {
         const newValue = e.target.checked;
-        const targetGroup = groups.find((group) => group.id === groupId);
+        const targetGroup = groups.find((group) => sameModuleId(group.id, groupId));
         const groupPermissions = getGroupPermissions(targetGroup);
 
         if (newValue) {
@@ -118,7 +130,9 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
                 return uniquePermissions;
             });
         } else {
-            setAllPermission((prev) => prev.filter((permission) => permission.module_id !== groupId));
+            setAllPermission((prev) =>
+                prev.filter((permission) => !sameModuleId(permission.module_id, groupId))
+            );
         }
     };
 
@@ -126,21 +140,31 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
         if (e.target.checked) {
             setAllPermission((prev) => {
                 const exists = prev.some(
-                    (item) => item.module_id === groupId && item.permission_id === itemId
+                    (item) =>
+                        sameModuleId(item.module_id, groupId) &&
+                        String(item.permission_id) === String(itemId)
                 );
                 if (exists) return prev;
                 return [...prev, { module_id: groupId, permission_id: itemId }];
             });
         } else {
-            setAllPermission((prev) => prev.filter(item =>
-                !(item.module_id === groupId && item.permission_id === itemId)
-            ));
+            setAllPermission((prev) =>
+                prev.filter(
+                    (item) =>
+                        !(
+                            sameModuleId(item.module_id, groupId) &&
+                            String(item.permission_id) === String(itemId)
+                        )
+                )
+            );
         }
     };
 
     const isPermissionSelected = (groupId, permissionId) =>
         allPermission.some(
-            (item) => item.module_id === groupId && item.permission_id === permissionId
+            (item) =>
+                sameModuleId(item.module_id, groupId) &&
+                String(item.permission_id) === String(permissionId)
         );
 
     const isGroupChecked = (group) => {
@@ -257,9 +281,9 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
                                 <div style={{ maxHeight: "44vh", overflowY: "auto", paddingRight: "4px" }}>
                                     <div className='row g-3'>
                                         {groups && groups.length > 0 && groups.map((item, i) => (
-                                            <div className='col-lg-6 col-12' key={item.id || i}>
+                                            <div className='col-lg-6 col-12' key={`module-${item.id}-${i}`}>
                                                 <div className='border rounded-3 p-3 h-100' style={{ background: "#fcfdff", borderColor: "#e2e8f0" }}>
-                                                    <div className='d-flex justify-content-between align-items-start mb-2'>
+                                                    <div className='d-flex justify-content-between align-items-start mb-3'>
                                                         <div className="form-check mb-0">
                                                             <input
                                                                 id={`module_${item.id}`}
@@ -282,27 +306,27 @@ function UpdateRole({ departmentUpdateModelClose, update, setLoading, data, fetc
                                                             {getGroupSelectedCount(item)}/{getGroupPermissions(item).length}
                                                         </small>
                                                     </div>
-                                                    <div className='row g-2 mt-1'>
-                                                        {getGroupPermissions(item).length ? getGroupPermissions(item).map((perm) => (
-                                                            <div className='col-xl-6 col-12' key={perm.id}>
-                                                                <div className="form-check mb-0">
-                                                                    <input
-                                                                        id={`permission_${item.id}_${perm.id}`}
-                                                                        type="checkbox"
-                                                                        className="form-check-input"
-                                                                        checked={isPermissionSelected(item.id, perm.id)}
-                                                                        onChange={(e) => handleItemChange(item.id, perm.id, e)}
-                                                                    />
-                                                                    <label className="form-check-label text-dark" htmlFor={`permission_${item.id}_${perm.id}`}>
-                                                                        {perm.name}
-                                                                    </label>
-                                                                </div>
+                                                    <div className="module-permission-list border-top pt-3 mt-1">
+                                                        {getGroupPermissions(item).length ? (
+                                                            <div className="d-flex flex-column gap-2">
+                                                                {getGroupPermissions(item).map((perm) => (
+                                                                    <div className="form-check mb-0" key={`perm-${item.id}-${perm.id}`}>
+                                                                        <input
+                                                                            id={`permission_${item.id}_${perm.id}`}
+                                                                            type="checkbox"
+                                                                            className="form-check-input"
+                                                                            checked={isPermissionSelected(item.id, perm.id)}
+                                                                            onChange={(e) => handleItemChange(item.id, perm.id, e)}
+                                                                        />
+                                                                        <label className="form-check-label text-dark" htmlFor={`permission_${item.id}_${perm.id}`}>
+                                                                            {perm.name}
+                                                                        </label>
+                                                                    </div>
+                                                                ))}
                                                             </div>
-                                                        )) : (
-                                                            <div className='col-12'>
-                                                                <div className="alert alert-light border text-muted py-2 px-3 mb-0">
-                                                                    No permissions available
-                                                                </div>
+                                                        ) : (
+                                                            <div className="alert alert-light border text-muted py-2 px-3 mb-0">
+                                                                No permissions available
                                                             </div>
                                                         )}
                                                     </div>

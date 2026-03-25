@@ -1,5 +1,5 @@
-Product Code,Store Name,UOM,Weight Per Unit,Quantity,Buffer Size
-RM001,Mohan Co-operative Industrial estate,kg,5,150,20
-RM001,M/s Suburb Residency Pvt. Ltd,kg,1,300,50
-FG0003,M/s Suburb Residency Pvt. Ltd,g,500,200,50
-FG0003,Mohan Co-operative Industrial estate,g,250,350,80
+Product Code,Store Name,Quantity,Buffer Size
+RM001,Mohan Co-operative Industrial estate,150,20
+RM001,M/s Suburb Residency Pvt. Ltd,300,50
+FG0003,M/s Suburb Residency Pvt. Ltd,200,50
+FG0003,Mohan Co-operative Industrial estate,350,80

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Button, Modal } from 'react-bootstrap'
 import { PrivateAxios } from '../../../environment/AxiosInstance'
 import { ErrorMessage, SuccessMessage } from '../../../environment/ToastMessage'
+import { normalizeModuleGroups, sameModuleId } from './modulePermissionUtils'
 
 function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules}) {
 
@@ -15,14 +16,14 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
 
     const GetAllPermission = async () => {
         setLoading(true)
-        await PrivateAxios.get("get-all-permissions")
+        await PrivateAxios.get("module-wise-permissions")
             .then((res) => {
                 setLoading(false)
-                setGroups(res.data.data || []);
-
+                const raw = res.data?.data ?? res.data ?? [];
+                setGroups(normalizeModuleGroups(Array.isArray(raw) ? raw : []));
             }).catch((err) => {
                 setLoading(false)
-                if (err.response.status == 401) {
+                if (err.response?.status == 401) {
                     // Logout();
                 }
             })
@@ -77,7 +78,7 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
 
     const handleGroupChange = (groupId, e) => {
         const newValue = e.target.checked;
-        const targetGroup = groups.find((group) => group.id === groupId);
+        const targetGroup = groups.find((group) => sameModuleId(group.id, groupId));
         const groupPermissions = getGroupPermissions(targetGroup);
 
         if (newValue) {
@@ -98,7 +99,9 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
                 return uniquePermissions;
             });
         } else {
-            setAllPermission((prev) => prev.filter((permission) => permission.module_id !== groupId));
+            setAllPermission((prev) =>
+                prev.filter((permission) => !sameModuleId(permission.module_id, groupId))
+            );
         }
     };
 
@@ -106,21 +109,31 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
         if (e.target.checked) {
             setAllPermission((prev) => {
                 const exists = prev.some(
-                    (item) => item.module_id === groupId && item.permission_id === itemId
+                    (item) =>
+                        sameModuleId(item.module_id, groupId) &&
+                        String(item.permission_id) === String(itemId)
                 );
                 if (exists) return prev;
                 return [...prev, { module_id: groupId, permission_id: itemId }];
             });
         } else {
-            setAllPermission((prev) => prev.filter(item =>
-                !(item.module_id === groupId && item.permission_id === itemId)
-            ));
+            setAllPermission((prev) =>
+                prev.filter(
+                    (item) =>
+                        !(
+                            sameModuleId(item.module_id, groupId) &&
+                            String(item.permission_id) === String(itemId)
+                        )
+                )
+            );
         }
     };
 
     const isPermissionSelected = (groupId, permissionId) =>
         allPermission.some(
-            (item) => item.module_id === groupId && item.permission_id === permissionId
+            (item) =>
+                sameModuleId(item.module_id, groupId) &&
+                String(item.permission_id) === String(permissionId)
         );
 
     const isGroupChecked = (group) => {
@@ -235,9 +248,9 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
                             <div className='row g-3'>
                             {
                                 groups && groups.length > 0 && groups.map((item, i) => (
-                                    <div className='col-lg-6 col-12' key={item.id || i}>
+                                    <div className='col-lg-6 col-12' key={`module-${item.id}-${i}`}>
                                         <div className='border rounded-3 p-3 h-100' style={{ background: "#fcfdff", borderColor: "#e2e8f0" }}>
-                                            <div className='d-flex justify-content-between align-items-start mb-2'>
+                                            <div className='d-flex justify-content-between align-items-start mb-3'>
                                                 <div className="form-check mb-0">
                                                 <input
                                                     id={`module_${item.id}`}
@@ -260,32 +273,29 @@ function CreateRole({departmentCreateModelClose,setLoading,create,fetchModules})
                                                     {getGroupSelectedCount(item)}/{getGroupPermissions(item).length}
                                                 </small>
                                             </div>
-                                            <div className='row g-2 mt-1'>
-                                                {
-                                                    getGroupPermissions(item).length ? getGroupPermissions(item).map((data) => (
-                                                        <div className='col-xl-6 col-12' key={data.id}>
-                                                            <div className="form-check mb-0">
-                                                            <input
-                                                                id={`permission_${item.id}_${data.id}`}
-                                                                type="checkbox"
-                                                                className="form-check-input"
-                                                                checked={isPermissionSelected(item.id, data.id)}
-                                                                onChange={(e) => {
-                                                                handleItemChange(item.id, data.id, e)
-                                                            }} />
-                                                                <label className="form-check-label text-dark" htmlFor={`permission_${item.id}_${data.id}`}>
-                                                                    {data.name}
+                                            <div className="module-permission-list border-top pt-3 mt-1">
+                                                {getGroupPermissions(item).length ? (
+                                                    <div className="d-flex flex-column gap-2">
+                                                        {getGroupPermissions(item).map((perm) => (
+                                                            <div className="form-check mb-0" key={`perm-${item.id}-${perm.id}`}>
+                                                                <input
+                                                                    id={`permission_${item.id}_${perm.id}`}
+                                                                    type="checkbox"
+                                                                    className="form-check-input"
+                                                                    checked={isPermissionSelected(item.id, perm.id)}
+                                                                    onChange={(e) => handleItemChange(item.id, perm.id, e)}
+                                                                />
+                                                                <label className="form-check-label text-dark" htmlFor={`permission_${item.id}_${perm.id}`}>
+                                                                    {perm.name}
                                                                 </label>
                                                             </div>
-                                                        </div>
-                                                    )) : (
-                                                        <div className='col-12'>
-                                                            <div className="alert alert-light border text-muted py-2 px-3 mb-0">
-                                                                No permissions available
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                }
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="alert alert-light border text-muted py-2 px-3 mb-0">
+                                                        No permissions available
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

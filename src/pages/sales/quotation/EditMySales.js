@@ -27,7 +27,7 @@ import {
   ErrorMessage,
   SuccessMessage,
 } from "../../../environment/ToastMessage";
-// import { UserAuth } from "../../auth/Auth";
+import { UserAuth } from "../../auth/Auth";
 import {
   // AllUser,
   // AllCategories,
@@ -52,8 +52,9 @@ import { calculateTotalWeight } from "../../../utils/weightConverter";
 function EditMyPurchase() {
   const { id } = useParams();
 
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  // const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  // const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  const { user, getGeneralSettingssymbol, isVariantBased } = UserAuth();
 
   const [selectedOption, setSelectedOption] = useState("");
 
@@ -80,11 +81,11 @@ function EditMyPurchase() {
   const [currentProductId, setCurrentProductId] = useState(null);
   const [variantModalBackup, setVariantModalBackup] = useState(null);
 
-  useEffect(() => {
-    if (user) {
-      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user) {
+  //     setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+  //   }
+  // }, [user]);
 
 
   useEffect(() => {
@@ -288,7 +289,10 @@ function EditMyPurchase() {
     }
     setCurrentProductIndex(productIndex);
     setCurrentProductId(productId);
-    setShowVariantModal(true);
+    // Show variant modal only if the company is set with variant based
+    if (isVariantBased) {
+      setShowVariantModal(true);
+    }
   };
 
   const handleVariantSelect = (variant, productIndex) => {
@@ -655,8 +659,13 @@ function EditMyPurchase() {
                               <th>Product</th>
                               <th>Description</th>
                               <th>Quantity</th>
-                              <th>Weight Per Unit</th>
-                              <th>Total Weight</th>
+
+                              {isVariantBased && (
+                                <>
+                                  <th>Weight Per Unit</th>
+                                  <th>Total Weight</th>
+                                </>
+                              )}
                               <th>Unit Price</th>
                               <th>Taxes (%)</th>
                               <th>Tax Excl.</th>
@@ -730,6 +739,7 @@ function EditMyPurchase() {
                                             <Popover.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
                                               <ProductDetailsContent
                                                 productData={product.productData}
+                                                isVariantBased={isVariantBased}
                                               />
                                             </Popover.Body>
                                           </Popover>
@@ -783,43 +793,48 @@ function EditMyPurchase() {
                                     />
                                   </div>
                                 </td>
-                                <td>
-                                  <div style={{ minWidth: "120px" }} className="d-flex align-items-center gap-2">
-                                    <span>
-                                      {(() => {
-                                        const currentVariant = getCurrentVariant(product);
-                                        return currentVariant
-                                          ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ""}`
-                                          : "N/A";
-                                      })()}
-                                    </span>
-                                    {product.product_id && (
-                                      <div
-                                        className="btn-sm cursor-pointer"
-                                        onClick={() => fetchProductVariants(product.product_id, index, product.productData)}
-                                        title="Click to change variant"
-                                      >
-                                        <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                {isVariantBased && (
+                                  <>
+                                    <td>
+                                      <div style={{ minWidth: "120px" }} className="d-flex align-items-center gap-2">
+                                        <span>
+                                          {(() => {
+                                            const currentVariant = getCurrentVariant(product);
+                                            return currentVariant
+                                              ? `${currentVariant.weight_per_unit} ${currentVariant.masterUOM?.label || ""}`
+                                              : "N/A";
+                                          })()}
+                                        </span>
+                                        {product.product_id && (
+                                          <div
+                                            className="btn-sm cursor-pointer"
+                                            onClick={() => fetchProductVariants(product.product_id, index, product.productData)}
+                                            title="Click to change variant"
+                                          >
+                                            <i className="fas fa-edit" style={{ color: "#007bff" }}></i>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div style={{ minWidth: "120px" }}>
-                                    {(() => {
-                                      const currentVariant = getCurrentVariant(product);
-                                      if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
-                                        const totalWeightResult = calculateTotalWeight(
-                                          product.qty,
-                                          currentVariant.weight_per_unit,
-                                          currentVariant.masterUOM.label
-                                        );
-                                        return totalWeightResult.display || "N/A";
-                                      }
-                                      return "N/A";
-                                    })()}
-                                  </div>
-                                </td>
+                                    </td>
+                                    <td>
+                                      <div style={{ minWidth: "120px" }}>
+                                        {(() => {
+                                          const currentVariant = getCurrentVariant(product);
+                                          if (currentVariant && currentVariant.weight_per_unit && currentVariant.masterUOM?.label) {
+                                            const totalWeightResult = calculateTotalWeight(
+                                              product.qty,
+                                              currentVariant.weight_per_unit,
+                                              currentVariant.masterUOM.label
+                                            );
+                                            return totalWeightResult.display || "N/A";
+                                          }
+                                          return "N/A";
+                                        })()}
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
+                     
                             
                                 <td>
                                   <div style={{ minWidth: "120px" }}>

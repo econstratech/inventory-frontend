@@ -8,10 +8,12 @@ import React from "react";
  * @param {string} [deliveryStore] - Optional delivery store name (for order context)
  * @param {Date|string} [expectedArrival] - Optional expected arrival date (for order context)
  */
+
 const ProductDetailsContent = ({
   productData,
   deliveryStore,
   expectedArrival,
+  isVariantBased = false,
 }) => {
   if (!productData) return null;
 
@@ -41,6 +43,10 @@ const ProductDetailsContent = ({
           productData.productCategory?.title ||
             productData.Categories?.title ||
             "N/A"
+        )}
+        {!isVariantBased && detailRow(
+          "Unit of Measurement",
+          productData.masterUOM?.name || "N/A"
         )}
         {detailRow(
           "Is Batch Product?",
@@ -84,7 +90,7 @@ const ProductDetailsContent = ({
       )}
 
       {/* Product Variants Section */}
-      {productData.productVariants && productData.productVariants.length > 0 && (
+      {isVariantBased && productData.productVariants && productData.productVariants.length > 0 && (
         <div className="mt-3 pt-2 border-top">
           <div
             className="d-block mb-2"
