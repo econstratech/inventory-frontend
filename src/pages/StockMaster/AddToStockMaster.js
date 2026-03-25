@@ -32,9 +32,10 @@ function StockMaster() {
   const [rowErrors, setRowErrors] = useState({});
   const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef(null);
-  const { user, isVariantsAvailable } = UserAuth();
+  const { user, isVariantBased } = UserAuth();
 
-  const SAMPLE_CSV_URL = "/sample-csv-files/sample_bulk_add_to_stock.csv";
+  // Set sample CSV URL based on company settings
+  const SAMPLE_CSV_URL = isVariantBased ? "/sample-csv-files/sample_bulk_add_to_stock_with_variants.csv" : "/sample-csv-files/sample_bulk_add_to_stock.csv";
 
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -254,7 +255,8 @@ function StockMaster() {
       )
     );
 
-    if (selectedOption?.value) {
+    // Show variant modal only if the company is set with variant based
+    if (selectedOption?.value && isVariantBased) {
       fetchProductVariants(selectedOption.value, rowId);
     }
   };
@@ -316,7 +318,7 @@ function StockMaster() {
       }
 
       // Validate variant
-      if (isVariantsAvailable && (!row.variant || !row.variant.value)) {
+      if (isVariantBased && (!row.variant || !row.variant.value)) {
         rowErrors.variant = "Variant is required";
         isValid = false;
       }
@@ -398,7 +400,8 @@ function StockMaster() {
     // Transform rows data to API payload format
     const payload = rows.map((row) => ({
       product_id: row.product.value,
-      ...(isVariantsAvailable && { product_variant_id: row.variant.value }),
+      ...(isVariantBased && { product_variant_id: row.variant.value }),
+      product_name: row.product.label,
       warehouse_id: row.store.value,
       quantity: parseFloat(row.quantity),
       buffer_size: row.buffer_size ? parseInt(row.buffer_size, 10) : null
@@ -497,7 +500,7 @@ function StockMaster() {
                 // bodyStyle={{ padding: "16px" }}
               >
                 <Row gutter={16} align="left">
-                  <Col xs={24} sm={24} md={isVariantsAvailable ? 5 : 6} lg={isVariantsAvailable ? 5 : 6}>
+                  <Col xs={24} sm={24} md={isVariantBased ? 5 : 6} lg={isVariantBased ? 5 : 6}>
                     <Form.Item
                       label="Select Product"
                       required
@@ -548,7 +551,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  {isVariantsAvailable && (
+                  {isVariantBased && (
                     <Col xs={24} sm={24} md={5} lg={5}>
                       <Form.Item
                         label="Select Variant"
@@ -597,7 +600,7 @@ function StockMaster() {
                     </Col>
                   )}
 
-                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4:5} lg={isVariantsAvailable ? 4 : 5}>
+                  <Col xs={24} sm={24} md={isVariantBased ? 4:5} lg={isVariantBased ? 4 : 5}>
                     <Form.Item
                       label="Select Store"
                       required
@@ -626,7 +629,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4 : 5} lg={isVariantsAvailable ? 4 : 5}>
+                  <Col xs={24} sm={24} md={isVariantBased ? 4 : 5} lg={isVariantBased ? 4 : 5}>
                     <Form.Item
                       label="Enter Quantity"
                       required
@@ -660,7 +663,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={isVariantsAvailable ? 4 : 5} lg={isVariantsAvailable ? 4 : 5}>
+                  <Col xs={24} sm={24} md={isVariantBased ? 4 : 5} lg={isVariantBased ? 4 : 5}>
                     <Form.Item
                       label="Buffer Size"
                       style={{ marginBottom: 0 }}

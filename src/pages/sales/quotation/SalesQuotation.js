@@ -14,14 +14,74 @@ import "handsontable/dist/handsontable.full.min.css";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import { UserAuth } from "../../auth/Auth";
 import Loader from "../../../environment/Loader";
+import { exportExcel, exportPDF } from "../../../environment/exportTable";
 
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
+import { Tooltip, Table as AntTable } from "antd";
 import SalesQuotationPageTopBar from "./SalesQuotationPageTopBar";
 // import SalesQuotationStatusBar from "./SalesQuotationStatusBar";
+
+const STATUS_LABEL_TEXT = {
+  2: "Active",
+  3: "Pending Approval",
+  4: "Sent to sales order",
+  5: "Sent back to review",
+  7: "Done",
+  8: "Rejected",
+  9: "Pending Dispatch",
+};
+
+function renderStatusBadge(status) {
+  if (status === 2) {
+    return (
+      <label className="badge badge-outline-success mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Active
+      </label>
+    );
+  }
+  if (status === 3) {
+    return (
+      <label className="badge badge-outline-yellowGreen mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval
+      </label>
+    );
+  }
+  if (status === 4) {
+    return (
+      <label className="badge badge-outline-accent mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Sent to sales order
+      </label>
+    );
+  }
+  if (status === 5) {
+    return (
+      <label className="badge badge-outline-green mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Sent back to review
+      </label>
+    );
+  }
+  if (status === 9) {
+    return (
+      <label className="badge badge-outline-meantGreen mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending Dispatch
+      </label>
+    );
+  }
+  if (status === 7) {
+    return (
+      <label className="badge badge-outline-success mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Done
+      </label>
+    );
+  }
+  if (status === 8) {
+    return (
+      <label className="badge badge-outline-danger mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Rejected
+      </label>
+    );
+  }
+  return <span className="text-muted">Unknown</span>;
+}
 
 function MypurchaseList() {
   const { isLoading, setIsLoading, getGeneralSettingssymbol, MatchPermission, companysettings } = UserAuth();
@@ -29,7 +89,6 @@ function MypurchaseList() {
   const [lgShow, setLgShow] = useState(false);
 
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
   // const [dataState, setDataState] = useState({
   //   skip: 0,
   //   take: 10,
@@ -101,25 +160,14 @@ function MypurchaseList() {
     }
   };
 
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div>
-          <span>
-            {" "}
-            {MatchPermission(["Sales Quotation Edit"]) ? (
-              <Link to={`/sales/${dataItem.id}`} className="k_table_link">
-                {dataItem.reference}
-              </Link>
-            ) : (
-              <span>{dataItem.reference}</span>
-            )}
-          </span>
-        </div>
-      </td>
+  const ReferenceCell = (dataItem) =>
+    MatchPermission(["Sales Quotation Edit"]) ? (
+      <Link to={`/sales/${dataItem.id}`} className="k_table_link text-primary">
+        {dataItem.reference}
+      </Link>
+    ) : (
+      <span>{dataItem.reference}</span>
     );
-  };
 
   const TaskData = async (statusFilter = undefined, customPageState = null, customReferenceFilter = null, customDateRangeFilter = null) => {
     setIsLoading(true);
@@ -157,31 +205,13 @@ function MypurchaseList() {
           reference: item.reference_number,
           creationDate: moment(item.created_at).format("DD/MM/YYYY"),
           deliveryDate: moment(item.expected_delivery_date).format("DD/MM/YYYY"),
-          // creationDate: new Date(item.created_at).toLocaleString(),
           customer: item.customer && item.customer?.name,
           salesPerson: item.createdBy?.name,
           storeName: item.warehouse?.name,
           total: `${getGeneralSettingssymbol}${item.total_amount}`,
           status: item.status,
           is_parent: item.is_parent,
-          status_return:
-            item.status === 1
-              ? `<label class="badge badge-outline-active"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Active</label>`
-              : item.status === 2
-                ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Quotation Created</label>`
-                : item.status === 3
-                  ? `<label class="badge badge-outline-yellowGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval</label>`
-                  : item.status === 4
-                    ? `<label class="badge badge-outline-accent mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Sent to sales order</label>`
-                    : item.status === 5
-                      ? `<label class="badge badge-outline-green mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Sent back to review</label>`
-                      : item.status === 9
-                        ? `<label class="badge badge-outline-meantGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Pending Dispatch</label>`
-                        : item.status === 7
-                          ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Done</label>`
-                          : item.status === 8
-                            ? `<label class="badge badge-outline-danger "><i class="fas fa-circle f-s-8 d-flex me-1"></i>Rejected</label>`
-                            : "Unknown",
+          statusLabel: STATUS_LABEL_TEXT[item.status] || "Unknown",
         }));
         setData(transformedData);
         setIsLoading(false);
@@ -221,15 +251,14 @@ function MypurchaseList() {
     TaskData(null, resetPageState, resetReferenceFilter, resetDateRangeFilter);
   };
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
-    // Fetch data with updated pagination and current filter
-    TaskData(selectedStatus.value, newPageState, null, null); // Pass null to use current filter values from state
+    TaskData(selectedStatus.value, newPageState, null, null);
   };
 
   const handleStatusChange = async (id, sid) => {
@@ -246,101 +275,129 @@ function MypurchaseList() {
 
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
+  const exportColumns = [
+    { name: "Sl No.", selector: (item) => item.slNo },
+    { name: "Reference", selector: (item) => item.reference },
+    { name: "Delivery Date", selector: (item) => item.deliveryDate },
+    { name: "Creation Date", selector: (item) => item.creationDate },
+    { name: "Customer", selector: (item) => item.customer },
+    { name: "Store", selector: (item) => item.storeName },
+    { name: "Sales Person", selector: (item) => item.salesPerson },
+    { name: "Total", selector: (item) => item.total },
+    { name: "Status", selector: (item) => item.statusLabel },
+  ];
 
   const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
+    exportPDF(exportColumns, data, "Sales Quotations");
   };
 
   const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
+    exportExcel(exportColumns, data, "sales-quotations");
   };
 
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-    const total = parseFloat(dataItem.total.replace(getGeneralSettingssymbol, ''));
+  const ActionCell = (dataItem) => {
+    const total = parseFloat(String(dataItem.total || "").replace(getGeneralSettingssymbol, ""));
 
     return (
-      <td>
-        <div className="d-flex gap-2">
-          {MatchPermission(["Sales Quotation Edit"]) && [2, 3, 5].includes(dataItem.status) ?
-            <Tooltip title="Edit">
-              <Link
-                to={{ pathname: `/sales/${dataItem.id}` }}
-                state={{ data: dataItem }}
-                className="me-1 icon-btn"
-              >
-                <i className="fas fa-pen d-flex"></i>
-              </Link>
-            </Tooltip>
-            : null}
-          {([4, 5, 8].includes(dataItem.status)) && (
-            <Tooltip title="Show Managment Remarks">
-              <button
-                className="me-1 icon-btn"
-                onClick={() => {
-                  setLgShow(true);
-                  showRemarks(dataItem.id);
-                }}
-              >
-                <i className="fas fa-info-circle"></i>
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip title="View Pdf">
-            <button
+      <div className="d-flex gap-2 flex-wrap">
+        {MatchPermission(["Sales Quotation Edit"]) && [2, 3, 5].includes(dataItem.status) ? (
+          <Tooltip title="Edit">
+            <Link
+              to={{ pathname: `/sales/${dataItem.id}` }}
+              state={{ data: dataItem }}
               className="me-1 icon-btn"
-              onClick={() => generatePDF(dataItem.id, dataItem.reference)}
             >
-              <i className="fas fa-eye d-flex"></i>
+              <i className="fas fa-pen d-flex"></i>
+            </Link>
+          </Tooltip>
+        ) : null}
+        {[4, 5, 8].includes(dataItem.status) && (
+          <Tooltip title="Show Managment Remarks">
+            <button
+              type="button"
+              className="me-1 icon-btn"
+              onClick={() => {
+                setLgShow(true);
+                showRemarks(dataItem.id);
+              }}
+            >
+              <i className="fas fa-info-circle"></i>
             </button>
           </Tooltip>
+        )}
+        <Tooltip title="View Pdf">
+          <button
+            type="button"
+            className="me-1 icon-btn"
+            onClick={() => generatePDF(dataItem.id, dataItem.reference)}
+          >
+            <i className="fas fa-eye d-flex"></i>
+          </button>
+        </Tooltip>
 
-          {([2, 3, 5].includes(dataItem.status)) && (
-            <Tooltip title="Send to management for approval">
-              <button
-                className="me-1 icon-btn"
-                style={{ cursor: "pointer" }}
-                onClick={() => handleStatusChange(dataItem.id, 3)}
-              >
-                <i className="fas fa-check d-flex"></i>
-              </button>
-            </Tooltip>
-          )}
+        {[2, 3, 5].includes(dataItem.status) && (
+          <Tooltip title="Send to management for approval">
+            <button
+              type="button"
+              className="me-1 icon-btn"
+              style={{ cursor: "pointer" }}
+              onClick={() => handleStatusChange(dataItem.id, 3)}
+            >
+              <i className="fas fa-check d-flex"></i>
+            </button>
+          </Tooltip>
+        )}
 
-          {(dataItem.status == 2 && total 
-          && companysettings && companysettings.min_sale_amount 
-          && parseFloat(total) < parseFloat(companysettings.min_sale_amount))
-          && (
-              <Tooltip title="Send to floor Manager">
+        {dataItem.status === 2 &&
+          total &&
+          companysettings &&
+          companysettings.min_sale_amount &&
+          parseFloat(total) < parseFloat(companysettings.min_sale_amount) && (
+            <Tooltip title="Send to floor Manager">
               <button
+                type="button"
                 className="me-1 icon-btn"
                 style={{ cursor: "pointer" }}
                 onClick={() => handleStatusChange(dataItem.id, 9)}
               >
                 <i className="fas fa-share-square"></i>
-                
               </button>
             </Tooltip>
           )}
-        </div>
-      </td>
+      </div>
     );
   };
 
-
-  const StatusCell = (props) => {
-    return (
-      <td
-        dangerouslySetInnerHTML={{ __html: props.dataItem[props.field] }}
-      ></td>
-    );
-  };
+  const tableColumns = [
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 80, fixed: "left" },
+    {
+      title: "Reference No.",
+      dataIndex: "reference",
+      key: "reference",
+      width: 120,
+      render: (_, record) => ReferenceCell(record),
+    },
+    { title: "Delivery Date", dataIndex: "deliveryDate", key: "deliveryDate", width: 130 },
+    { title: "Creation Date", dataIndex: "creationDate", key: "creationDate", width: 130 },
+    { title: "Customer", dataIndex: "customer", key: "customer", width: 160 },
+    { title: "Store", dataIndex: "storeName", key: "storeName", width: 140 },
+    { title: "Sales Person", dataIndex: "salesPerson", key: "salesPerson", width: 160 },
+    { title: "Total", dataIndex: "total", key: "total", width: 120 },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      width: 200,
+      render: (_, record) => renderStatusBadge(record.status),
+    },
+    {
+      title: "Action",
+      key: "action",
+      width: 220,
+      fixed: "right",
+      render: (_, record) => ActionCell(record),
+    },
+  ];
 
   return (
     <React.Fragment>
@@ -450,67 +507,37 @@ function MypurchaseList() {
         <div className="col-12">
           <div className="card">
             <div className="card-body p-0">
-              <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i className="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i className="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
+              {/* <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
+                <div className="table-button-group mb-2 ms-auto d-flex gap-1">
+                  <Tooltip title="Export to PDF">
+                    <button type="button" className="table-export-btn" onClick={handleExportPDF}>
+                      <i className="far fa-file-pdf d-flex f-s-20"></i>
+                    </button>
+                  </Tooltip>
+                  <Tooltip title="Export to Excel">
+                    <button type="button" className="table-export-btn" onClick={handleExportExcel}>
+                      <i className="far fa-file-excel d-flex f-s-20"></i>
+                    </button>
+                  </Tooltip>
                 </div>
-              </div>
+              </div> */}
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef} >
-                    <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      loading={loading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-
-
-                      {/* Column Definitions */}
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="80px" locked={true} />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="100px" />
-                      <GridColumn field="deliveryDate" title="Delivery Date" filterable={false} filter="text" width="200px" />
-                      {/* <GridColumn field="vendor" title="vendor" filter="text" filterable={false} width="250px" /> */}
-                      <GridColumn field="creationDate" title="Creation Date" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="customer" title="Customer" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="storeName" title="Store" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="salesPerson" title="Sales Person" filter="text" filterable={false} width="200" />
-                      {/* <GridColumn field="sourceDocument" title="source DocumentT" filterable={false} filter="text" width="200px" /> */}
-                      <GridColumn field="total" title="total" filter="text" filterable={false} width="150px" />
-                      <GridColumn
-                        field="status_return"
-                        title="Status"
-                        width="180px"
-                        cell={StatusCell} // Use custom cell renderer
-                      />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="200px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
-
-
-
+                <AntTable
+                  rowKey="id"
+                  dataSource={data}
+                  columns={tableColumns}
+                  loading={isLoading}
+                  pagination={{
+                    current: Math.floor(pageState.skip / pageState.take) + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: [10, 15, 25, 50],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1500 }}
+                />
               </div>
             </div>
           </div>

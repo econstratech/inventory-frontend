@@ -7,10 +7,10 @@ import {
   ErrorMessage,
   SuccessMessage,
 } from "../../../environment/ToastMessage";
-// import { UserAuth } from "../../auth/Auth";
-import {
-  formatDateTimeForMySQL,
-} from "../../../environment/GlobalApi";
+import { UserAuth } from "../../auth/Auth";
+// import {
+//   formatDateTimeForMySQL,
+// } from "../../../environment/GlobalApi";
 import "../../global.css";
 import { calculateTotalWeight } from "../../../utils/weightConverter";
 import {
@@ -25,8 +25,9 @@ import ProductVariantSelectionModal from "../../CommonComponent/ProductVariantSe
 
 function MyNewpurchase() {
   // Set reminder
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  // const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
+  // const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  const { user, getGeneralSettingssymbol, isVariantBased } = UserAuth();
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(null);
@@ -61,16 +62,18 @@ function MyNewpurchase() {
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [currentProductIndex, setCurrentProductIndex] = useState(null);
   const [currentProductId, setCurrentProductId] = useState(null);
+  const [sendToManagement, setSendToManagement] = useState(false);
+  const [sendToFloorManager, setSendToFloorManager] = useState(false);
 
   useEffect(() => {
     setProductData([]);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user) {
+  //     setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
+  //   }
+  // }, [user]);
 
   const calculateTotal = () => {
     let untaxedAmount = 0;
@@ -100,6 +103,22 @@ function MyNewpurchase() {
   };
   const handleClick = () => {
     ErrorMessage("Please add primary vendor data first.");
+  };
+
+  // Send to floor manager
+  const handleSendToFloorManagerChange = (e) => {
+    const checked = e.target.checked;
+    setSendToFloorManager(checked);
+    if (checked) setSendToManagement(false);
+    setError((prev) => ({ ...prev, sendDestination: "" }));
+  };
+
+  // Send to management
+  const handleSendToManagementChange = (e) => {
+    const checked = e.target.checked;
+    setSendToManagement(checked);
+    if (checked) setSendToFloorManager(false);
+    setError((prev) => ({ ...prev, sendDestination: "" }));
   };
 
   const handleProductChange = (index, field, value) => {
@@ -192,7 +211,9 @@ function MyNewpurchase() {
     updateProductWithData(productIndex, productId, selectedProductData, null, null);
     setCurrentProductIndex(productIndex);
     setCurrentProductId(productId);
-    setShowVariantModal(true);
+    if (isVariantBased) {
+      setShowVariantModal(true);
+    }
   };
 
   const handleVariantSelect = (variant, productIndex) => {
@@ -322,6 +343,8 @@ function MyNewpurchase() {
         sgst: taxAmount.toFixed(2),
         cgst: taxAmount.toFixed(2),
         total_amount: totalAmount.toFixed(2),
+        send_to_management: sendToManagement ? true : false,
+        send_to_floor_manager: sendToFloorManager ? true : false,
       };
       // console.log("Sale quotation data", data);
 
@@ -337,6 +360,8 @@ function MyNewpurchase() {
       console.error("Error:", error);
     }
   };
+
+
   return (
     <React.Fragment>
       <div className="p-4">
@@ -466,6 +491,33 @@ function MyNewpurchase() {
                   </div>
                 </div>
 
+                <div className="col-lg-6 col-md-6 col-sm-6 col-12">
+                  <div className="form-group mb-0">
+
+                      <label className="custom-checkbox mb-0" style={{ marginRight: "14px" }}>
+                        <input
+                          type="checkbox"
+                          name="sendToManagement"
+                          checked={sendToManagement}
+                          onChange={handleSendToManagementChange}
+                        />
+                        <span className="checkmark"></span>
+                        <span>Send to Management</span>
+                      </label>
+
+                      <label className="custom-checkbox mb-0">
+                        <input
+                          type="checkbox"
+                          name="sendToFloorManager"
+                          checked={sendToFloorManager}
+                          onChange={handleSendToFloorManagerChange}
+                        />
+                        <span className="checkmark"></span>
+                        <span>Send to Floor Manager</span>
+                      </label>
+                  </div>
+                </div>
+
                 <div className="col-12 mt-4">
                   <div className="w-100">
                     <ul class="nav nav-tabs gth-tabs" id="myTab" role="tablist">
@@ -499,7 +551,7 @@ function MyNewpurchase() {
                                 <th>Product</th>
                                 <th>Description</th>
                                 <th>Quantity</th>
-                                <th>Total Weight</th>
+                                {isVariantBased && <th>Total Weight</th>}
                                 <th>Unit Price</th>
                                 <th>Taxes (%)</th>
                                 <th>Tax Excl.</th>
@@ -573,6 +625,7 @@ function MyNewpurchase() {
                                               <Popover.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
                                                 <ProductDetailsContent
                                                   productData={product.productData}
+                                                  isVariantBased={isVariantBased}
                                                 />
                                               </Popover.Body>
                                             </Popover>
@@ -627,6 +680,7 @@ function MyNewpurchase() {
                                       )}
                                     </div>
                                   </td>
+                                  {isVariantBased && (
                                   <td>
                                     <div style={{ minWidth: "150px" }}>
                                       <input
@@ -645,6 +699,7 @@ function MyNewpurchase() {
                                       />
                                     </div>
                                   </td>
+                                  )}
                                   <td>
                                     <div style={{ minWidth: "200px" }}>
                                       <input
