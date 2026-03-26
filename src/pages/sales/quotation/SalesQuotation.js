@@ -89,12 +89,7 @@ function MypurchaseList() {
   const [lgShow, setLgShow] = useState(false);
 
   const [data, setData] = useState([]);
-  // const [dataState, setDataState] = useState({
-  //   skip: 0,
-  //   take: 10,
-  //   sort: [],
-  //   filter: null,
-  // });
+
   const [remarks, setRemarks] = useState([]);
   const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
   const [totalCount, setTotalCount] = useState(0);
@@ -369,7 +364,7 @@ function MypurchaseList() {
   };
 
   const tableColumns = [
-    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 80, fixed: "left" },
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 80 },
     {
       title: "Reference No.",
       dataIndex: "reference",

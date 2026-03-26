@@ -8,6 +8,7 @@ import moment from "moment";
 
 import { Tooltip, Table as AntTable } from "antd";
 
+import { UserAuth } from "../auth/Auth";
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
 
@@ -31,6 +32,7 @@ function MypurchaseList() {
   const [totalCount, setTotalCount] = useState(0);
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
+  const { isVariantBased } = UserAuth();
 
   const ReferenceCell = (dataItem) => {
     return (
@@ -270,28 +272,6 @@ function MypurchaseList() {
               })
               .join("");
           })(),
-          // status_return:
-          //   item.status === 1
-          //     ? `<label class="badge badge-outline-active"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Active</label>`
-          //     : item.status === 2
-          //       ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>RFQ</label>`
-          //       : item.status === 3
-          //         ? `<label class="badge badge-outline-yellowGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Send to management</label>`
-          //         : item.status === 4
-          //           ? `<label class="badge badge-outline-accent mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Sales Order</label>`
-          //           : item.status === 5
-          //             ? `<label class="badge badge-outline-green mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Nothing to Bill</label>`
-          //             : item.status === 6
-          //               ? `<label class="badge badge-outline-meantGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Fully Billed</label>`
-          //               : item.status === 7
-          //                 ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Done</label>`
-          //                 : item.status === 8
-          //                   ? `<label class="badge badge-outline-danger "><i class="fas fa-circle f-s-8 d-flex me-1"></i>Rejected from Admin</label>`
-          //                   : item.status === 9
-          //                     ? `<label class="badge badge-outline-yellowGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Pending Dispatch</label>`
-          //                     : item.status === 10
-          //                       ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Items Received Done</label>`
-          //                       : "Unknown",
         }));
 
         setData(transformedData);
@@ -564,6 +544,7 @@ function MypurchaseList() {
         onStoreChange={handleStoreChange}
         onProductReceive={handleReceiveSalesProduct}
         getStatusLabel={getStatusLabel}
+        isVariantBased={isVariantBased}
         // currencySymbol={getGeneralSettingssymbol}
       />
       <SaleOrderRemarksModal

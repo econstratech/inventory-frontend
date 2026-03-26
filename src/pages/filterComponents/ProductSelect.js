@@ -54,7 +54,7 @@ const ProductSelect = ({
       const params = new URLSearchParams({
         page,
         limit,
-        type: 'search',
+        // type: 'search',
         ...(searchKey && searchKey.trim() !== "" && { searchkey: searchKey.trim() }),
         ...queryParams,
       }).toString();

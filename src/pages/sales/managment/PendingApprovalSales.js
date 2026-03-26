@@ -14,7 +14,7 @@ import {
 
 import "handsontable/dist/handsontable.full.min.css";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
-// import { UserAuth } from "../../auth/Auth";
+import { UserAuth } from "../../auth/Auth";
 import Loader from "../../../environment/Loader";
 
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
@@ -27,15 +27,9 @@ import moment from "moment";
 
 // import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css"; // Import the styles
-import {
-  Grid,
-  GridColumn,
-  GridToolbar,
-} from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { Tooltip } from "antd";
+import "jspdf-autotable";
+import { Tooltip, Table } from "antd";
+import { exportExcel, exportPDF } from "../../../environment/exportTable";
 import SalesManagementPageTopBar from "./SalesManagementPageTopBar";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
 import ProductSelect from "../../filterComponents/ProductSelect";
@@ -45,18 +39,14 @@ import { calculateTotalWeight } from "../../../utils/weightConverter";
 
 
 function PendingApprovalSales() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
-  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
-  // const { id } = useParams();
+  const { user, getGeneralSettingssymbol, isVariantBased } = UserAuth();
 
-  //for-data table
-  // const [editorContent, setEditorContent] = useState("");
   const [showPrice, setShowPrice] = useState(false);
   const [ProductCompare, setProductCompare] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
 
-  const [getPid, setPid] = useState(false);
+  // const [getPid, setPid] = useState(false);
   // const [show, setShow] = useState(false);
   const [getshowRemarks, setShowremark] = useState(false);
   const [getRemarksdata, getremarkdata] = useState('');
@@ -83,17 +73,6 @@ function PendingApprovalSales() {
   const [data, setData] = useState([]);
 
 
-  useEffect(() => {
-    if (user) {
-      setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
-    }
-  }, [user]);
-
-  // const navigate = useNavigate();
-  // const getRef = (pid, ref) => {
-  //   setReff(ref)
-  //   setPid(pid)
-  // }
   const getRemarks = (rmks, refid) => {
     getremarkdata(rmks)
     getremarksRef(refid)
@@ -139,7 +118,7 @@ function PendingApprovalSales() {
             setRemarks('');
           }
         }
-        setPid(ida);
+        // setPid(ida);
       }
     } catch (error) {
       console.error("There was an error fetching the product list!", error);
@@ -273,7 +252,11 @@ function PendingApprovalSales() {
     );
     setCurrentProductRowId(product.id);
     setCurrentSelectedProductId(selectedProductData?.id || product.product_id);
-    setShowVariantModal(true);
+
+    // Show variant modal only if the company is set with variant based
+    if (isVariantBased) {
+      setShowVariantModal(true);
+    }
   };
 
   const handleVariantSelect = (variant, productRowId) => {
@@ -340,8 +323,6 @@ function PendingApprovalSales() {
       products: productsToUpdate,
       remarks: remarks,
     };
-
-    // console.log("dataToSend", dataToSend);
 
     try {
       const response = await PrivateAxios.put(
@@ -422,6 +403,29 @@ function PendingApprovalSales() {
     setPendingStatus(null);
   };
 
+  const getStatusLabelText = (status) => {
+    switch (status) {
+      case 1:
+        return "Active";
+      case 2:
+        return "Quotation Created";
+      case 3:
+        return "Pending Approval";
+      case 4:
+        return "Sent to sales order";
+      case 5:
+        return "Order Confirmed";
+      case 6:
+        return "Fully Billed";
+      case 7:
+        return "Done";
+      case 8:
+        return "Rejected";
+      default:
+        return "Unknown";
+    }
+  };
+
   const TaskData = async (customPageState = null) => {
     setIsLoading(true);
     const currentPageState = customPageState || pageState;
@@ -444,38 +448,23 @@ function PendingApprovalSales() {
         const salesquotations = res.data.data || {};
         const rows = salesquotations.rows || [];
         setTotalCount(salesquotations.pagination?.total_records || rows.length);
-        
+        const currentPage = salesquotations.pagination?.current_page || 1;
+        const perPage = salesquotations.pagination?.per_page || currentPageState.take;
+        const startingIndex = (currentPage - 1) * perPage;
+
         const transformedData = rows.map((item, index) => ({
           id: item.id,
-          slNo: index + 1,
+          slNo: startingIndex + index + 1,
           reference: item.reference_number,
           creationDate: moment(item.created_at).format("DD/MM/YYYY"),
           deliveryDate: moment(item.expected_delivery_date).format("DD/MM/YYYY"),
-          // creationDate: new Date(item.created_at).toLocaleString(),
           customer: item.customer && item.customer?.name,
           salesPerson: item.createdBy?.name,
           storeName: item.warehouse?.name,
           total: `${getGeneralSettingssymbol}${item.total_amount}`,
           status: item.status,
           is_parent: item.is_parent,
-          status_return:
-            item.status === 1
-              ? `<label class="badge badge-outline-active"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Active</label>`
-              : item.status === 2
-                ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Quotation Created</label>`
-                : item.status === 3
-                  ? `<label class="badge badge-outline-yellowGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval</label>`
-                  : item.status === 4
-                    ? `<label class="badge badge-outline-accent mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Sent to sales order</label>`
-                    : item.status === 5
-                      ? `<label class="badge badge-outline-green mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Order Confirmed</label>`
-                      : item.status === 6
-                        ? `<label class="badge badge-outline-meantGreen mb-0"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Fully Billed</label>`
-                        : item.status === 7
-                          ? `<label class="badge badge-outline-success"><i class="fas fa-circle f-s-8 d-flex me-1"></i>Done</label>`
-                          : item.status === 8
-                            ? `<label class="badge badge-outline-danger "><i class="fas fa-circle f-s-8 d-flex me-1"></i>Rejected</label>`
-                            : "Unknown",
+          statusLabel: getStatusLabelText(item.status),
         }));
         setData(transformedData);
         setIsLoading(false);
@@ -489,120 +478,131 @@ function PendingApprovalSales() {
     TaskData();
   }, []);
 
-  
   // Handle filter button click
   const handleFilter = () => {
-    setPageState({ ...pageState, skip: 0 }); // Reset to first page when filtering
-    TaskData(null);
+    const newPageState = { ...pageState, skip: 0 };
+    setPageState(newPageState);
+    TaskData(newPageState);
   };
 
   // Handle reset button click – use the same option object from statusOptions so react-select displays "All"
   const handleReset = () => {
-    setPageState({ skip: 0, take: 15, searchKey: "" });
+    const newPageState = { skip: 0, take: 15, searchKey: "" };
+    setPageState(newPageState);
     setReferenceNumberFilter("");
     setDateRangeFilter([null, null]);
-    TaskData(null);
-  };
-
-  const handlePageChange = (event) => {
-    const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
-      searchKey: pageState.searchKey,
-    };
-    setPageState(newPageState);
-    // Fetch data with updated pagination and current filter
     TaskData(newPageState);
   };
 
-
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div>
-          <span>
-            <a className="k_table_link" onClick={() => {
-              setShowPrice(true);
-              PriceCompare(dataItem.id);
-
-            }}>{dataItem.reference}
-          </a>
-          </span>
-
-        </div>
-      </td>
-    );
+  const handlePageChange = (page, pageSize) => {
+    const newPageState = {
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      searchKey: pageState.searchKey,
+    };
+    setPageState(newPageState);
+    TaskData(newPageState);
   };
 
+  const renderReference = (_, record) => (
+    <span className="k_table_link">
+      <a
+        role="button"
+        tabIndex={0}
+        className="k_table_link"
+        onClick={() => {
+          setShowPrice(true);
+          PriceCompare(record.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setShowPrice(true);
+            PriceCompare(record.id);
+          }
+        }}
+      >
+        {record.reference}
+      </a>
+    </span>
+  );
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
+  const exportColumns = [
+    { name: "Sl No.", selector: (item) => item.slNo },
+    { name: "Reference", selector: (item) => item.reference },
+    { name: "Delivery Date", selector: (item) => item.deliveryDate },
+    { name: "Creation Date", selector: (item) => item.creationDate },
+    { name: "Customer", selector: (item) => item.customer },
+    { name: "Store", selector: (item) => item.storeName },
+    { name: "Sales Person", selector: (item) => item.salesPerson },
+    { name: "Total", selector: (item) => item.total },
+    { name: "Status", selector: (item) => item.statusLabel },
+  ];
 
   const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
-    }
+    exportPDF(exportColumns, data, "Pending Approval Sales");
   };
 
   const handleExportExcel = () => {
-    if (excelExportRef.current) {
-      excelExportRef.current.save();
-    }
+    exportExcel(exportColumns, data, "pending-approval-sales");
   };
 
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div className="d-flex gap-2">
-          <Tooltip title="Approve or Reject">
-            <span
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Approve or Reject">
+        <span
+          className="me-1 icon-btn"
+          style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setShowPrice(true);
+            PriceCompare(record.id);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setShowPrice(true);
+              PriceCompare(record.id);
+            }
+          }}
+        >
+          <i className="fas fa-edit d-flex"></i>
+        </span>
+      </Tooltip>
 
-              className="me-1 icon-btn"
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                setShowPrice(true);
-                PriceCompare(dataItem.id);
-              }}
-            >
+      {record.is_parent == 1 && record.status == 4 && (
+        <Tooltip title="Confirm Order">
+          <Link
+            to={{ pathname: `/purchase/${record.id}` }}
+            state={{ data: record }}
+            className="me-1 icon-btn"
+          >
+            <i className="glyphicon glyphicon-checkbi fas fa-external-link-alt"></i>
+          </Link>
+        </Tooltip>
+      )}
+    </div>
+  );
 
-              <i class="fas fa-edit d-flex"></i>
-            </span>
-          </Tooltip>
+  const renderStatusColumn = () => (
+    <label className="badge badge-outline-yellowGreen mb-0">
+      <i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval
+    </label>
+  );
 
-          {dataItem.is_parent == 1 && dataItem.status == 4 && (
-            <Tooltip title="Confirm Order">
-              <Link
-                to={{ pathname: `/purchase/${dataItem.id}` }}
-                state={{ data: dataItem }}
-                className="me-1 icon-btn"
-              >
-                <i className="glyphicon glyphicon-checkbi fas fa-external-link-alt"></i>
-              </Link>
-            </Tooltip>
-          )}
-
-        </div>
-      </td>
-    );
-  };
-
-
-  const CustomCell = (props) => {
-    // const { dataItem, field } = props;
-
-    // Access the field value directly
-    // const value = dataItem[field];
-
-    return (
-      <td>
-
-        <label className="badge badge-outline-yellowGreen mb-0"><i className="fas fa-circle f-s-8 d-flex me-1"></i>Pending Approval</label>
-        {/* {value} */}
-      </td>
-    );
-  };
+  const tableColumns = [
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 90 },
+    { title: "Reference No.", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Delivery Date", dataIndex: "deliveryDate", key: "deliveryDate", width: 130 },
+    { title: "Creation Date", dataIndex: "creationDate", key: "creationDate", width: 130 },
+    { title: "Customer", dataIndex: "customer", key: "customer", width: 160 },
+    { title: "Store", dataIndex: "storeName", key: "storeName", width: 150 },
+    { title: "Sales Person", dataIndex: "salesPerson", key: "salesPerson", width: 180 },
+    { title: "Total", dataIndex: "total", key: "total", width: 130 },
+    { title: "Status", key: "status", width: 200, render: renderStatusColumn },
+    { title: "Action", key: "action", width: 160, render: renderAction },
+  ];
 
 
 
@@ -689,69 +689,36 @@ function PendingApprovalSales() {
           <div className="card">
             <div className="card-body p-0">
               <div className="d-flex justify-content-between flex-wrap align-items-center pt-2 px-3">
-                <div className="table-button-group mb-2 ms-auto">
-
-                  <GridToolbar className="border-0 gap-0">
-                    <Tooltip title="Export to PDF">
-                      <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                        <i class="far fa-file-pdf d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                    <Tooltip title=" Export to Excel">
-                      <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                        <i class="far fa-file-excel d-flex f-s-20"></i>
-                      </button>
-                    </Tooltip>
-                  </GridToolbar>
+                <div className="table-button-group mb-2 ms-auto d-flex gap-1">
+                  <Tooltip title="Export to PDF">
+                    <button type="button" className="table-export-btn" onClick={handleExportPDF}>
+                      <i className="far fa-file-pdf d-flex f-s-20"></i>
+                    </button>
+                  </Tooltip>
+                  <Tooltip title="Export to Excel">
+                    <button type="button" className="table-export-btn" onClick={handleExportExcel}>
+                      <i className="far fa-file-excel d-flex f-s-20"></i>
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <PDFExport data={data} ref={pdfExportRef}>
-                  <ExcelExport data={data} ref={excelExportRef} >
-                  <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      loading={isLoading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-
-
-                      {/* Column Definitions */}
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-                      <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="100px" />
-                      <GridColumn field="deliveryDate" title="Delivery Date" filterable={false} filter="text" width="200px" />
-                      <GridColumn field="creationDate" title="Creation Date" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="customer" title="Customer" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="storeName" title="Store" filterable={false} filter="text" width="150px" />
-                      <GridColumn field="salesPerson" title="Sales Person" filter="text" filterable={false} width="200" />
-                      <GridColumn field="total" title="total" filter="text" filterable={false} width="150px" />
-                      <GridColumn
-                        field="status"
-                        title="status"
-                        filter="dropdown"
-                        width="250px"
-                        filterable={false}
-                        // filterCell={CustomDropDownFilter}
-                        cells={{
-                          data: CustomCell
-                        }}
-                      />
-                      <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                    </Grid>
-                  </ExcelExport>
-                </PDFExport>
-
-
-
+                <Table
+                  rowKey="id"
+                  dataSource={data}
+                  columns={tableColumns}
+                  loading={isLoading}
+                  pagination={{
+                    current: pageState.skip / pageState.take + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1400 }}
+                />
               </div>
             </div>
           </div>
@@ -852,8 +819,12 @@ function PendingApprovalSales() {
                         <th>Product Name</th>
                         <th>Product Code</th>
                         <th>Quantity</th>
-                        <th>Weight Per Unit</th>
-                        <th>Total Weight</th>
+                        {isVariantBased && (
+                          <>
+                            <th>Weight Per Unit</th>
+                            <th>Total Weight</th>
+                          </>
+                        )}
                         <th>Unit of Measure</th>
                         <th>Unit Price</th>
                         <th>Tax (%)</th>
@@ -879,9 +850,6 @@ function PendingApprovalSales() {
                                       if (selectedOption?.productData) {
                                         openVariantSelector(product, selectedOption.productData, true);
                                       }
-                                    }}
-                                    queryParams={{
-                                      type: "dropDown",
                                     }}
                                     styles={{
                                       control: (base) => ({
@@ -974,35 +942,39 @@ function PendingApprovalSales() {
                                 step="0.01"
                               />
                             </td>
-                            <td>
-                              <div className="d-flex align-items-center gap-2" style={{ minWidth: "100px" }}>
-                                <span>
+                            {isVariantBased && (
+                              <>
+                                <td>
+                                  <div className="d-flex align-items-center gap-2" style={{ minWidth: "100px" }}>
+                                    <span>
+                                      {row.variantData
+                                        ? `${row.variantData.weight_per_unit || "N/A"} ${row.variantData.masterUOM?.label || row.variantData.master_uom?.label || ""}`.trim()
+                                        : "N/A"}
+                                    </span>
+                                    {row.productId && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-link btn-sm p-0"
+                                        onClick={() => openVariantSelector(product, row.productData, false)}
+                                        title="Change variant"
+                                      >
+                                        <i className="fas fa-edit text-primary"></i>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
                                   {row.variantData
-                                    ? `${row.variantData.weight_per_unit || "N/A"} ${row.variantData.masterUOM?.label || row.variantData.master_uom?.label || ""}`.trim()
+                                    ? calculateTotalWeight(
+                                        editedProduct.qty,
+                                        row.variantData?.weight_per_unit,
+                                        row.variantData?.masterUOM?.label ||
+                                          row.variantData?.master_uom?.label
+                                      ).display
                                     : "N/A"}
-                                </span>
-                                {row.productId && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-link btn-sm p-0"
-                                    onClick={() => openVariantSelector(product, row.productData, false)}
-                                    title="Change variant"
-                                  >
-                                    <i className="fas fa-edit text-primary"></i>
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                            <td>
-                              {row.variantData
-                                ? calculateTotalWeight(
-                                    editedProduct.qty,
-                                    row.variantData?.weight_per_unit,
-                                    row.variantData?.masterUOM?.label ||
-                                      row.variantData?.master_uom?.label
-                                  ).display
-                                : "N/A"}
-                            </td>
+                                </td>
+                              </>
+                            )}
                             <td>
                               {row.variantData?.masterUOM?.label ||
                                 row.variantData?.master_uom?.label ||

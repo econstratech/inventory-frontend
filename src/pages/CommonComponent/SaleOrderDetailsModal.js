@@ -28,6 +28,7 @@ const SaleOrderDetailsModal = ({
   onStoreChange,
   onProductReceive,
   currencySymbol = "₹",
+  isVariantBased = false,
   getStatusLabel = (status) => {
     const statusLabel = {
       10: "Dispatched",
@@ -590,8 +591,12 @@ const SaleOrderDetailsModal = ({
                   <th>Product Name</th>
                   <th>Product Code</th>
                   <th>Quantity</th>
-                  <th>Weight Per Unit</th>
-                  <th>Total Weight</th>
+                  {isVariantBased && (
+                    <>
+                      <th>Weight Per Unit</th>
+                      <th>Total Weight</th>
+                    </>
+                  )}
                   <th>Unit of Measure</th>
                   <th>Unit Price</th>
                   <th>Tax (%)</th>
@@ -653,7 +658,7 @@ const SaleOrderDetailsModal = ({
                                 selectedProductData={row.productData}
                                 isDisabled={disableEditableFields}
                                 onChange={(selectedOption) => {
-                                  if (selectedOption?.productData) {
+                                  if (selectedOption?.productData && isVariantBased) {
                                     openVariantSelector(
                                       purchase.id,
                                       product,
@@ -746,6 +751,8 @@ const SaleOrderDetailsModal = ({
                             step="0.01"
                           />
                         </td>
+                        {isVariantBased && (
+                          <>
                         <td style={{ minWidth: "130px" }}>
                           <div className="d-flex align-items-center gap-2">
                             <span>
@@ -775,6 +782,8 @@ const SaleOrderDetailsModal = ({
                               ).display
                             : "N/A"}
                         </td>
+                        </>
+                        )}
                         <td>
                           {row.variantData?.masterUOM?.label ||
                             row.variantData?.master_uom?.label ||

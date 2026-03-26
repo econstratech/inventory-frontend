@@ -15,7 +15,6 @@ import {
   // url,
 } from "../../../../environment/AxiosInstance";
 import { UserAuth } from "../../../auth/Auth";
-// import { Button, Table } from "react-bootstrap";
 
 import moment from "moment";
 import {
@@ -23,14 +22,10 @@ import {
   SuccessMessage,
 } from "../../../../environment/ToastMessage";
 
-import { Grid, GridColumn } from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-// import { ExcelExport } from "@progress/kendo-react-excel-export";
-// import { PDFExport } from "@progress/kendo-react-pdf";
 import {
   Tooltip,
   Modal,
-  Table as AntTable,
+  Table,
   Select as AntSelect,
   InputNumber,
   Button,
@@ -45,11 +40,9 @@ import SalesQuotationPageTopBar from "../SalesQuotationPageTopBar";
 import Loader from "../../../../environment/Loader";
 import FinalSaleOrderDispatchModal from "../../../CommonComponent/FinalSaleOrderDispatchModal";
 import SaleOrderRemarksModal from "../../../CommonComponent/SaleOrderRemarksModal";
-// import SaleOrderDetailsModal from "../../../CommonComponent/SaleOrderDetailsModal";
 
 function MysalesOrderDispatchList() {
-  const { isLoading, setIsLoading, Logout, getGeneralSettingssymbol } =
-    UserAuth();
+  const { isLoading, setIsLoading, Logout, getGeneralSettingssymbol, isVariantBased } = UserAuth();
   //for-data table
   // const [showConfirmModal, setShowConfirmModal] = useState(false);
   // const [selectedDispatchItem, setSelectedDispatchItem] = useState(null);
@@ -117,7 +110,7 @@ function MysalesOrderDispatchList() {
         id: item.id,
         slNo: startingIndex + index + 1,
         reference: item.reference_number,
-        creation: moment(item.created_at).format("DD-MM-YYYY H:mm"),
+        creation: moment(item.created_at).format("DD/MM/YYYY"),
         expectedDeliveryDate: moment(item.expected_delivery_date || item.expiration).format("DD/MM/YYYY"),
         paymentTerms: item.payment_terms,
         customer: item.customer && item.customer.name,
@@ -155,15 +148,14 @@ function MysalesOrderDispatchList() {
     fetchWorkOrders();
   }, []);
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
-    // Fetch data with updated pagination and current filter
-    fetchWorkOrders(newPageState, null, null); // Pass null to use current filter values from state
+    fetchWorkOrders(newPageState, null, null);
   };
 
   // Handle filter button click
@@ -349,80 +341,6 @@ function MysalesOrderDispatchList() {
 
 
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
-
-  // const handleExportPDF = () => {
-  //   if (pdfExportRef.current) {
-  //     pdfExportRef.current.save();
-  //   }
-  // };
-
-  // const handleExportExcel = () => {
-  //   if (excelExportRef.current) {
-  //     excelExportRef.current.save();
-  //   }
-  // };
-
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-
-
-
-    // const handleOpenStatusModal = async (salesId) => {
-    //   try {
-    //     const res = await PrivateAxios.get(`/sales/getproductsbypurchase/${salesId}`);
-
-    //     if (res.status === 200) {
-    //       setStatusModalData(res.data); // Set the product list
-    //       setShowStatusModal(true);     // Show the modal
-    //     }
-    //   } catch (error) {
-    //     console.error("Failed to fetch product status list", error);
-    //   }
-    // };
-
-
-    return (
-      <td>
-
-        <div className="d-flex gap-2">
-          <Tooltip title="Show sale order details">
-            <button
-              className="me-1 icon-btn"
-              onClick={() => {
-                setShowPrice(true);
-                PriceCompare(dataItem.id);
-              }}
-            >
-               <svg
-                xmlns="http://www.w3.org/2000/svg"
-                id="Layer_1"
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                width={18}
-                height={18}
-                fill="currentColor"
-              >
-                <path d="m8,0H2C.895,0,0,.895,0,2v8h10V2c0-1.105-.895-2-2-2Zm-1.5,5h-3v-2h3v2Zm-3.442,16c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5H3.058ZM12,2v10H0v7h15V5c0-1.654-1.346-3-3-3Zm5.058,19c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5h-4.885Zm-.058-2h7v-5h-7v5Zm2-13h-2v6h7v-1c0-2.757-2.243-5-5-5Z" />
-              </svg>
-            </button>
-          </Tooltip>
-
-          <Tooltip title="View remarks">
-            <button
-              className="me-1 icon-btn"
-              onClick={() => openRemarksModal(dataItem.id, dataItem.reference)}
-            >
-              <i className="fas fa-comment-dots"></i>
-            </button>
-          </Tooltip>
-
-        </div>
-      </td>
-    );
-  };
-
   // Fetch product details for the modal
   const PriceCompare = async (id) => {
     try {
@@ -453,34 +371,68 @@ function MysalesOrderDispatchList() {
     setRemarksModalSaleOrderRef("");
   };
 
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
+  const renderReference = (_, record) => (
+    <span className="text-primary">{record.reference}</span>
+  );
 
-    // Access the field value directly
-    // const value = dataItem[field];
+  const renderStatus = (_, record) =>
+    record.status === 9 ? (
+      <label className="badge badge-outline-yellowGreen mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Partially Dispatched by Floor Manager
+      </label>
+    ) : (
+      <label className="badge badge-outline-success mb-0">
+        <i className="fas fa-circle f-s-8 d-flex me-1"></i>Fully Dispatched by Floor Manager
+      </label>
+    );
 
-    return (
-      <td>
-        {dataItem.status === 9 ? (
-          <label className="badge badge-outline-yellowGreen mb-0">
-            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Partially Dispatched by Floor Manager
-          </label>
-        ) : (
-          <label className="badge badge-outline-success mb-0">
-            <i className="fas fa-circle f-s-8 d-flex me-1"></i>Fully Dispatched by Floor Manager
-          </label>
-        )}
-      </td>
-    );
-  };
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <span className="text-primary">{dataItem.reference}</span>
-      </td>
-    );
-  };
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Show sale order details">
+        <button
+          className="me-1 icon-btn"
+          onClick={() => {
+            setShowPrice(true);
+            PriceCompare(record.id);
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            id="Layer_1"
+            data-name="Layer 1"
+            viewBox="0 0 24 24"
+            width={18}
+            height={18}
+            fill="currentColor"
+          >
+            <path d="m8,0H2C.895,0,0,.895,0,2v8h10V2c0-1.105-.895-2-2-2Zm-1.5,5h-3v-2h3v2Zm-3.442,16c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5H3.058ZM12,2v10H0v7h15V5c0-1.654-1.346-3-3-3Zm5.058,19c-.034.162-.058.328-.058.5,0,1.381,1.119,2.5,2.5,2.5s2.5-1.119,2.5-2.5c0-.172-.024-.338-.058-.5h-4.885Zm-.058-2h7v-5h-7v5Zm2-13h-2v6h7v-1c0-2.757-2.243-5-5-5Z" />
+          </svg>
+        </button>
+      </Tooltip>
+
+      <Tooltip title="View remarks">
+        <button
+          className="me-1 icon-btn"
+          onClick={() => openRemarksModal(record.id, record.reference)}
+        >
+          <i className="fas fa-comment-dots"></i>
+        </button>
+      </Tooltip>
+    </div>
+  );
+
+  const columns = [
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
+    { title: "Reference No.", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Delivery Date", dataIndex: "expectedDeliveryDate", key: "expectedDeliveryDate", width: 200 },
+    { title: "Creation Date", dataIndex: "creation", key: "creation", width: 200 },
+    { title: "Customer", dataIndex: "customer", key: "customer", width: 200 },
+    { title: "Sales Person", dataIndex: "salesPerson", key: "salesPerson", width: 200 },
+    { title: "Payment Terms (Days)", dataIndex: "paymentTerms", key: "paymentTerms", width: 200 },
+    { title: "Total Amount", dataIndex: "total", key: "total", width: 150 },
+    { title: "Status", dataIndex: "status", key: "status", width: 300, render: renderStatus },
+    { title: "Action", key: "action", width: 250, render: renderAction },
+  ];
 
   return (
     <React.Fragment>
@@ -580,103 +532,22 @@ function MysalesOrderDispatchList() {
   
               </div>
               <div className="bg_succes_table_head rounded_table">
-
-                    <Grid
-                      data={data}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      filterable={false}
-                      sortable
-                      scrollable="scrollable"
-                      reorderable
-                      resizable
-                      loading={isLoading}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                    >
-
-                      <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-
-                      <GridColumn
-                        field="reference"
-                        title="reference"
-                        filterable={false}
-                        filter="text"
-                        width="150px"
-                        cell={ReferenceCell}
-                      />
-                      <GridColumn 
-                      field="expectedDeliveryDate" 
-                      title="Delivery Date" 
-                      filterable={false} 
-                      filter="text" 
-                      width="200px" 
-                      />
-                      <GridColumn
-                        field="creation"
-                        title="Creation"
-                        filterable={false}
-                        filter="numeric"
-                        width="200px"
-                      />
-                      <GridColumn
-                        field="customer"
-                        title="Customer"
-                        filterable={false}
-                        filter="text"
-                        width="200px"
-                      />
-                      {/* <GridColumn 
-                      field="storeName" 
-                      title="Store" 
-                      filterable={false} 
-                      filter="text" 
-                      width="150px" 
-                      /> */}
-                      <GridColumn 
-                      field="salesPerson" 
-                      title="Sales Person" 
-                      filter="text" 
-                      filterable={false} 
-                      width="200" 
-                      />
-                      <GridColumn 
-                      field="paymentTerms" 
-                      title="Payment Terms (Days)" 
-                      filterable={false} 
-                      filter="text" 
-                      width="200px" 
-                      />
-                      <GridColumn
-                        field="total"
-                        title="total"
-                        filter="text"
-                        filterable={false}
-                        width="150px"
-                      />
-                      <GridColumn
-                        field="status_return"
-                        title="Status"
-                        filter="dropdown"
-                        width="300px"
-                        filterable={false}
-                        cells={{
-                          data: CustomCell,
-                        }}
-                      />
-                      <GridColumn
-                        title="action"
-                        filter="text"
-                        cell={ActionCell}
-                        filterable={false}
-                        width="250px"
-                      />
-                    </Grid>
-
-
-
-
+                <Table
+                  columns={columns}
+                  dataSource={data}
+                  rowKey="id"
+                  loading={loading}
+                  pagination={{
+                    current: pageState.skip / pageState.take + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1800 }}
+                />
               </div>
             </div>
           </div>
@@ -756,6 +627,7 @@ function MysalesOrderDispatchList() {
         onHide={() => setShowFinalSaleOrderDispatchModal(false)}
         productCompare={ProductCompare}
         onSubmit={handleSubmitFinalSaleOrderDispatch}
+        isVariantBased={isVariantBased}
       />
 
       <SaleOrderRemarksModal
@@ -793,7 +665,7 @@ function MysalesOrderDispatchList() {
 
             <Typography.Text strong>Available batch details</Typography.Text>
             <div className="mt-2">
-              <AntTable
+              <Table
                 size="small"
                 rowKey="id"
                 pagination={false}
@@ -851,7 +723,7 @@ function MysalesOrderDispatchList() {
             </div>
 
             <div className="mt-2">
-              <AntTable
+              <Table
                 size="small"
                 rowKey="key"
                 pagination={false}
