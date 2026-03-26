@@ -654,15 +654,17 @@ function InventoryMaster() {
       width: 150,
       render: (_, record) => record.masterBrand?.name || "-",
     },
-    ...(!isVariantBased && [
-      {
-        title: "UOM",
-        dataIndex: "uom",
-        key: "uom",
-        width: 120,
-        render: (_, record) => record.uom || "-",
-      },
-    ]),
+    ...(!isVariantBased
+      ? [
+          {
+            title: "UOM",
+            dataIndex: "uom",
+            key: "uom",
+            width: 120,
+            render: (_, record) => record.uom || "-",
+          },
+        ]
+      : []),
     {
       title: "Batch Product",
       key: "is_batch_applicable",
