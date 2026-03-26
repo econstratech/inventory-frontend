@@ -22,6 +22,7 @@ const FinalSaleOrderDispatchModal = ({
   productCompare = [],
   currencySymbol = "₹",
   onSubmit,
+  isVariantBased = false,
 }) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState(new Set());
   const [deliveryNoteMap, setDeliveryNoteMap] = useState({});
@@ -394,9 +395,13 @@ const FinalSaleOrderDispatchModal = ({
               <th>Customer</th>
               <th>Reference</th>
               <th>Product Name</th>
-              <th>Weight per Unit</th>
               <th>Quantity</th>
-              <th>Total Weight</th>
+              {isVariantBased && (
+                <>
+                  <th>Weight Per Unit</th>
+                  <th>Total Weight</th>
+                </>
+              )}
               <th>Unit Price</th>
               <th>Tax (%)</th>
               <th>Tax Amount</th>
@@ -488,19 +493,23 @@ const FinalSaleOrderDispatchModal = ({
                         )}
                       
                     </td>
-                    <td>{product?.productVariant.weight_per_unit || "N/A"} {product?.productVariant.masterUOM?.label || ""}</td>
                     <td>{quantity}</td>
 
-                    <td>
-                      {product.productVariant
-                        ? calculateTotalWeight(
-                            quantity,
-                            product.productVariant?.weight_per_unit,
-                            product.productVariant?.masterUOM?.label ||
-                              product.productVariant?.master_uom?.label
-                          ).display
-                        : "N/A"}
-                    </td>
+                    {isVariantBased && (
+                      <>
+                        <td>{product?.productVariant.weight_per_unit || "N/A"} {product?.productVariant.masterUOM?.label || ""}</td>
+                        <td>
+                          {product.productVariant
+                            ? calculateTotalWeight(
+                                quantity,
+                                product.productVariant?.weight_per_unit,
+                                product.productVariant?.masterUOM?.label ||
+                                  product.productVariant?.master_uom?.label
+                              ).display
+                            : "N/A"}
+                        </td>
+                      </>
+                    )}
                     <td>
                       {currencySymbol} {unitPrice.toFixed(2)}
                     </td>
@@ -593,7 +602,9 @@ const FinalSaleOrderDispatchModal = ({
                         <thead className="table-light">
                           <tr>
                             <th width="2%">#</th>
-                            <th width="15%">Variant</th>
+                            {isVariantBased && (
+                              <th width="15%">Variant</th>
+                            )}
                             <th width="10%">Dispatched Qty</th>
                             {/* <th>Rejected Qty</th> */}
                             <th width="25%">Dispatched by</th>
@@ -604,7 +615,9 @@ const FinalSaleOrderDispatchModal = ({
                           {receivedList.map((rec, idx) => (
                             <tr key={rec.id}>
                               <td>{idx + 1}</td>
-                              <td>{rec.productVariant.weight_per_unit || "N/A"} {rec.productVariant.masterUOM?.label || ""}</td>
+                              {isVariantBased && (
+                                <td>{rec?.productVariant?.weight_per_unit || "N/A"} {rec?.productVariant?.masterUOM?.label || ""}</td>
+                              )}
                               <td>{Number(rec.received_quantity || 0)}</td>
                               {/* <td>{Number(rec.rejected_quantity || 0)}</td> */}
                               <td>{rec.user?.name ?? "—"}</td>

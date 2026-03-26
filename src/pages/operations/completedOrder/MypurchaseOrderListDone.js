@@ -6,7 +6,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import "jspdf-autotable";
 // import DataTable, { createTheme } from "react-data-table-component";
 import { Link } from "react-router-dom";
-import { Modal, Table } from "react-bootstrap";
+import { Modal, Table as RbTable } from "react-bootstrap";
 import DatePicker from "react-datepicker";
 
 // import { registerAllModules } from "handsontable/registry";
@@ -18,12 +18,7 @@ import moment from "moment";
 
 import { useTable, useExpanded } from 'react-table';
 
-import {
-  Grid,
-  GridColumn,
-} from "@progress/kendo-react-grid";
-// import { process } from "@progress/kendo-data-query";
-import { Tooltip } from "antd";
+import { Tooltip, Table } from "antd";
 import OperationsPageTopBar from "../OperationsPageTopBar";
 import PORemarksModalComponent from "../../ModalComponents/PORemarksModalComponent";
 // import CompletedOrdersStatusBar from "./CompletedOrdersStatusBar";
@@ -38,12 +33,6 @@ function MypurchaseOrderListDone() {
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 10,
-    sort: [],
-    filter: null,
-  });
   const [show, setShow] = useState(false);
   const [getReff, setReff] = useState('');
   const [datavalue, setDatavalue] = useState([]);
@@ -60,40 +49,7 @@ function MypurchaseOrderListDone() {
   const [lgShow, setLgShow] = useState(false);
   const [selectedPOId, setSelectedPOId] = useState(null);
 
-  //delete modal
-
-  //end update status
-
-  // const fetchData = async (pid, ref) => {
-  //   setReff(ref)
-  //   try {
-  //     const response = await PrivateAxios.get(`purchase/recv/${pid}`);
-  //     if (Array.isArray(response.data)) {
-  //       const transformedData = response.data.map(bill => ({
-  //         ...bill,
-  //         recvPro: bill.recvPro.map(recvProItem => ({
-  //           ...recvProItem,
-  //           product_name: recvProItem.ProductsItem.product_name,
-  //           unit_price: recvProItem.unit_price,
-  //           qty: recvProItem.qty,
-  //         })),
-  //       }));
-  //       setDatavalue(transformedData);
-  //     } else {
-  //       console.error("API data is not in expected format:", response.data);
-  //       setDatavalue([]);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error fetching data:", error);
-  //     setDatavalue([]);
-  //   }
-  // };
-
-  // React.useEffect(() => {
-  //   fetchData();
-  // }, []);
-
-  const columns = React.useMemo(
+  const modalColumns = React.useMemo(
     () => [
       { Header: 'Bill Number', accessor: 'bill_number' },
       { Header: 'Bill Date', accessor: 'bill_date' },
@@ -142,7 +98,7 @@ function MypurchaseOrderListDone() {
   };
 
   const tableInstance = useTable(
-    { columns, data: datavalue },
+    { columns: modalColumns, data: datavalue },
     useExpanded // Use the useExpanded plugin hook
   );
 
@@ -194,7 +150,8 @@ function MypurchaseOrderListDone() {
             slNo: ++slNo,
             reference: item.reference_number,
             // confirmationDate: moment(item.order_dateline).format("DD-MM-YYYY H:mm"),
-            vendor: item.vendor.vendor_name,
+            vendor: item.vendor?.vendor_name || "N/A",
+            store: item.warehouse?.name || "N/A",
             created_by: item.createdBy.name,
             // sourceDocument: item.source_document,
             total: `₹ ${item.total_amount}`,
@@ -236,116 +193,63 @@ function MypurchaseOrderListDone() {
     TaskData();
   }, []);
 
-  const handlePageChange = (event) => {
+  const handlePageChange = (page, pageSize) => {
     const newPageState = {
-      skip: event.page.skip,
-      take: event.page.take,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       searchKey: pageState.searchKey,
     };
     setPageState(newPageState);
-    // Fetch data with updated pagination and current filter
     TaskData(newPageState);
   };
 
-  const StatusCell = (props) => {
-    return (
-      <td
-        dangerouslySetInnerHTML={{ __html: props.dataItem[props.field] }}
-      ></td>
-    );
-  };
+  const renderReference = (_, record) => (
+    <span className="k_table_link">
+      <Link to={`/purchase/${record.id}`}>{record.reference}</Link>
+    </span>
+  );
 
-  const ReferenceCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div>
-          <span className="k_table_link"><Link to={`/purchase/${dataItem.id}`}>{dataItem.reference}</Link></span>
+  const renderStatus = (_, record) => (
+    <span dangerouslySetInnerHTML={{ __html: record.status_return }} />
+  );
 
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Edit">
+        <Link
+          to={{ pathname: `/purchase/${record.id}` }}
+          state={{ data: record }}
+          className="me-1 icon-btn"
+        >
+          <i className="fas fa-pen"></i>
+        </Link>
+      </Tooltip>
+      <Tooltip title="Show Management Remarks">
+        <button
+          type="button"
+          className="me-1 icon-btn"
+          onClick={() => {
+            setSelectedPOId(record.id);
+            setLgShow(true);
+          }}
+        >
+          <i className="fas fa-comment-dots d-flex"></i>
+        </button>
+      </Tooltip>
+    </div>
+  );
 
-          {/* {dataItem.is_parent === 1 && "   "}
-          {dataItem.is_parent == 1 && <i
-            className="fas fa-star"
-            style={{ fontSize: "15px", color: "#007bff", cursor: "pointer" }}
-          ></i>} */}
-
-        </div>
-      </td>
-    );
-  };
-
-  const ActionCell = (props) => {
-    const { dataItem } = props;
-    return (
-      <td>
-        <div className="d-flex gap-2">
-          <Tooltip title="Edit">
-            <Link
-              to={{ pathname: `/purchase/${dataItem.id}` }}
-              state={{ data: dataItem }}
-              className="me-1 icon-btn"
-            >
-              <i className="fas fa-pen"></i>
-              
-            </Link>
-          </Tooltip>
-      
-          <Tooltip title="Show Management Remarks">
-            <button
-              className="me-1 icon-btn"
-              onClick={() => {
-                setSelectedPOId(dataItem.id);
-                setLgShow(true);
-              }}
-            >
-              <i class="fas fa-comment-dots d-flex"></i>
-            </button>
-          </Tooltip>
-
-          {/* {dataItem.is_parent == 1 && dataItem.status == 2 && (
-            <Tooltip title="Send Approval">
-              <button
-                className="me-1 icon-btn"
-                style={{ cursor: "pointer" }}
-                onClick={() => handleStatusChange(dataItem.id, 3)}
-              >
-                <i className="fas fa-check"></i>
-                
-              </button>
-            </Tooltip>
-          )}
-          {dataItem.is_parent == 1 && 
-          ((dataItem.status == 2 && dataItem.total_amount && companysettings && companysettings.min_purchase_amount && parseFloat(dataItem.total_amount) < parseFloat(companysettings.min_purchase_amount)) 
-          || dataItem.status == 4)
-          && (
-     
-              <Tooltip title="Send to Vendor">
-              <button
-                className="me-1 icon-btn"
-                style={{ cursor: "pointer" }}
-                onClick={() => handleStatusChange(dataItem.id, 5)}
-              >
-                <i className="fas fa-share-square"></i>
-                
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip title="Print Purchase Order">
-            <button
-              className="me-1 icon-btn"
-              style={{ cursor: "pointer" }}
-              onClick={() =>
-                generatePDF(dataItem.id, dataItem.reference_number)
-              }
-            >
-               <i className="fas fa-print"></i>
-            </button>
-          </Tooltip> */}
-
-        </div>
-      </td>
-    );
-  };
+  const purchaseTableColumns = [
+    { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
+    { title: "Reference No.", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Vendor", dataIndex: "vendor", key: "vendor", width: 200 },
+    { title: "Store", dataIndex: "store", key: "store", width: 200 },
+    { title: "Created By", dataIndex: "created_by", key: "created_by", width: 200 },
+    { title: "Expected Arrival", dataIndex: "expected_arrival", key: "expected_arrival", width: 200 },
+    { title: "Total Amount", dataIndex: "total", key: "total", width: 250 },
+    { title: "Status", dataIndex: "status_return", key: "status_return", width: 180, render: renderStatus },
+    { title: "Action", key: "action", width: 150, render: renderAction },
+  ];
 
   return (
     <React.Fragment>
@@ -358,35 +262,56 @@ function MypurchaseOrderListDone() {
         <div className="px-4 py-3">
           <div className="row g-3 align-items-end">
             <div className="col-md-4 col-lg-2">
-              <label className="form-label mb-1 f-s-14 fw-medium">Filter by Reference No.</label>
-              <input
-                type="text"
-                name="reference_number"
-                className="form-control"
-                placeholder="Reference number"
-                value={referenceNumberFilter}
-                onChange={(e) => setReferenceNumberFilter(e.target.value)}
-                style={{ height: "38px" }}
-              />
+              <div className="d-flex flex-column">
+                <label className="form-label mb-1 f-s-14 fw-medium">Filter by Reference No.</label>
+                <input
+                  type="text"
+                  name="reference_number"
+                  className="form-control"
+                  placeholder="Reference number"
+                  value={referenceNumberFilter}
+                  onChange={(e) => setReferenceNumberFilter(e.target.value)}
+                  style={{ height: "38px" }}
+                />
+              </div>
             </div>
-            <div className="col-md-5 col-lg-4">
-              <label className="form-label mb-1 f-s-14 fw-medium">Filter by Expected Arrival</label>
-     
-              <DatePicker
-                selected={dateRangeFilter[0]}
-                onChange={(update) => {
-                  setDateRangeFilter(update);
-                }}
-                startDate={dateRangeFilter[0]}
-                endDate={dateRangeFilter[1]}
-                selectsRange
-                isClearable
-                placeholderText="Select date range"
-                className="form-control w-100"
-                dateFormat="dd-MM-yyyy"
-                name="expected_arrival"
-                style={{ height: "38px", display: "block" }}
-              />
+            <div className="col-md-5 col-lg-4" style={{ minWidth: "220px" }}>
+              <div className="d-flex flex-column w-100">
+                <label className="form-label mb-1 f-s-14 fw-medium d-block w-100" htmlFor="expected_arrival_filter">
+                  Filter by Expected Arrival
+                </label>
+                <div className="expected-arrival-picker-wrap w-100">
+                  <style>
+                    {`
+                      .expected-arrival-picker-wrap .react-datepicker-wrapper,
+                      .expected-arrival-picker-wrap .react-datepicker__input-container {
+                        width: 100%;
+                        display: block;
+                      }
+                      .expected-arrival-picker-wrap .react-datepicker__input-container input {
+                        height: 38px !important;
+                        width: 100%;
+                      }
+                    `}
+                  </style>
+                  <DatePicker
+                    id="expected_arrival_filter"
+                    selected={dateRangeFilter[0]}
+                    onChange={(update) => {
+                      setDateRangeFilter(update);
+                    }}
+                    startDate={dateRangeFilter[0]}
+                    endDate={dateRangeFilter[1]}
+                    selectsRange
+                    isClearable
+                    placeholderText="Select date range"
+                    className="form-control"
+                    dateFormat="dd-MM-yyyy"
+                    name="expected_arrival"
+                    wrapperClassName="w-100"
+                  />
+                </div>
+              </div>
             </div>
             <div className="col-md-auto">
               <div className="d-flex gap-2">
@@ -422,42 +347,22 @@ function MypurchaseOrderListDone() {
                 <div className="table-button-group mb-2 ms-auto"></div>
               </div>
               <div className="bg_succes_table_head rounded_table">
-                <Grid
-                  data={data}
-                  skip={pageState.skip}
-                  take={pageState.take}
-                  total={totalCount}
-                  onPageChange={handlePageChange}
-                  // filterable={false}
-                  sortable
-                  // scrollable="scrollable"
-                  // reorderable
-                  // resizable
-                  // {...dataState}
-                  onDataStateChange={(e) => setDataState(e.dataState)}
+                <Table
+                  columns={purchaseTableColumns}
+                  dataSource={data}
+                  rowKey="id"
                   loading={loading}
-                  pageable={{ buttonCount: 3, pageSizes: true }}
-                >
-                  {/* Column Definitions */}
-
-                  <GridColumn field="slNo" title="sl No." filterable={false} width="100px" locked={true} />
-
-                  <GridColumn field="reference" title="reference" filterable={false} filter="text" cell={ReferenceCell} width="150px" />
-                  <GridColumn field="vendor" title="vendor" filterable={false} filter="text" width="200px" />
-                  <GridColumn field="created_by" title="created by" filterable={false} filter="text" width="200px" />
-                  <GridColumn field="expected_arrival" title="Expected Arrival" filterable={false} filter="text" width="200px" format="{0:dd-MM-yyyy}" />
-                  <GridColumn field="total" title="total" filterable={false} filter="text" width="250px" />
-                  <GridColumn
-                    field="status_return"
-                    title="Status"
-                    width="180px"
-                    cell={StatusCell} // Use custom cell renderer
-                  />
-                  <GridColumn title="action" filter="text" cell={ActionCell} filterable={false} width="150px" />
-                </Grid>
-
-
-
+                  pagination={{
+                    current: pageState.skip / pageState.take + 1,
+                    pageSize: pageState.take,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    pageSizeOptions: ["10", "15", "25", "50"],
+                    onChange: handlePageChange,
+                    onShowSizeChange: handlePageChange,
+                  }}
+                  scroll={{ x: 1400 }}
+                />
               </div>
             </div>
           </div>
@@ -488,7 +393,7 @@ function MypurchaseOrderListDone() {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Table responsive {...getTableProps()} className="table table-striped">
+          <RbTable responsive {...getTableProps()} className="table table-striped">
             <thead>
               {headerGroups.map(headerGroup => (
                 <tr {...headerGroup.getHeaderGroupProps()}>
@@ -511,7 +416,7 @@ function MypurchaseOrderListDone() {
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={columns.length}>
+                        <td colSpan={modalColumns.length}>
                           <table className="table table-striped">
                             <thead>
                               <tr>
@@ -543,27 +448,27 @@ function MypurchaseOrderListDone() {
               })}
               {/* Totals row */}
               {/* <tr>
-                <td colSpan={columns.length}>Total Received: {totalReceived}</td>
+                <td colSpan={modalColumns.length}>Total Received: {totalReceived}</td>
               </tr>
               <tr>
-                <td colSpan={columns.length}>Total Rejected: {totalRejected}</td>
+                <td colSpan={modalColumns.length}>Total Rejected: {totalRejected}</td>
               </tr> */}
 
               <tr>
-                <td colSpan={columns.length}><span>Total Received</span>
+                <td colSpan={modalColumns.length}><span>Total Received</span>
                  {/* <i class="fi fi-br-arrow-trend-down text-success ms-1"></i>  */}
                  <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" className="text-success ms-1"><path d="M20.5,6h-5c-.828,0-1.5,.672-1.5,1.5s.672,1.5,1.5,1.5h3.379l-5.879,5.879-4.119-4.119c-1.037-1.037-2.725-1.037-3.762,0L.439,15.439c-.586,.586-.586,1.535,0,2.121s1.535,.586,2.121,0l4.439-4.439,4.119,4.119c.519,.519,1.199,.778,1.881,.778s1.362-.26,1.881-.778l6.119-6.119v3.379c0,.828,.672,1.5,1.5,1.5s1.5-.672,1.5-1.5v-5c0-1.93-1.57-3.5-3.5-3.5Z"/></svg>
                  <span className="text-success f-s-16 fw-semibold ms-1">{totalReceived}</span> </td>
               </tr>
               <tr>
-                <td colSpan={columns.length}>Total Rejected 
+                <td colSpan={modalColumns.length}>Total Rejected 
                 {/* <i class="fi fi-br-arrow-trend-down text-danger ms-1"></i>  */}
                 <svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" data-name="Layer 1" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" className="text-danger ms-1"><path d="M24,9.5v5c0,1.93-1.57,3.5-3.5,3.5h-5c-.828,0-1.5-.672-1.5-1.5s.672-1.5,1.5-1.5h3.379l-5.879-5.879-4.119,4.119c-1.037,1.037-2.725,1.037-3.762,0L.439,8.561c-.586-.586-.586-1.535,0-2.121s1.535-.586,2.121,0l4.439,4.439,4.08-4.08c1.059-1.059,2.781-1.059,3.84,0l6.08,6.08v-3.379c0-.828,.672-1.5,1.5-1.5s1.5,.672,1.5,1.5Z"/></svg>
                 <span className="text-danger f-s-16 fw-semibold ms-1">{totalRejected}</span></td>
               </tr>
 
             </tbody>
-          </Table>
+          </RbTable>
         </Modal.Body>
       </Modal>
 
