@@ -1,22 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react'
 import "react-datepicker/dist/react-datepicker.css";
 // import DataTable, { createTheme } from 'react-data-table-component';
-import { Link, useNavigate } from 'react-router-dom';
-import { Modal, Button } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
+import { Modal } from 'react-bootstrap';
 // import Handsontable from 'handsontable/base';
 // import { HotTable } from '@handsontable/react';
 import { SuccessMessage, ErrorMessage } from '../../environment/ToastMessage';
 import 'handsontable/dist/handsontable.full.min.css';
-import { PrivateAxios, PrivateAxiosFile, url } from '../../environment/AxiosInstance';
+import { PrivateAxios, PrivateAxiosFile } from '../../environment/AxiosInstance';
 // import { UserAuth } from '../auth/Auth';
 import Loader from '../landing/loder/Loader';
 // import { AllUser, GetTaskPriority, GetTaskStatus } from '../../environment/GlobalApi';
 // import { exportExcel, exportPDF, printTable } from '../../environment/exportTable';
-//import '@progress/kendo-theme-default/dist/all.css';
-import { PDFExport } from '@progress/kendo-react-pdf';
-import { ExcelExport } from '@progress/kendo-react-excel-export';
-import { Tooltip } from 'antd';
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
+import { Tooltip, Table, Button } from 'antd';
+import { exportExcel, exportPDF } from '../../environment/exportTable';
 import VendorsPageTopBar from './VendorsPageTopBar';
 // import Filter from '../CommonComponent/Filter';
 
@@ -47,17 +44,15 @@ function AllVendors() {
         take: 10,
         searchKey: "",
     });
-    const handlePageChange = (event) => {
+    const handlePageChange = (page, pageSize) => {
         const newPageState = {
-            skip: event.page.skip,
-            take: event.page.take,
+            skip: (page - 1) * pageSize,
+            take: pageSize,
             searchKey: pageState.searchKey,
-          };
-          setPageState(newPageState);
-          // Fetch data with updated pagination and current filter
-        fetchVendors(newPageState); // Pass null to use current filter values from state
+        };
+        setPageState(newPageState);
+        fetchVendors(newPageState);
     };
-    const pagedData = vendors.slice(pageState.skip, pageState.skip + pageState.take);
 
     //delete modal
     const deleteModalClose = () => setDeleteShow(false);
@@ -71,8 +66,6 @@ function AllVendors() {
     const handleFileChange = (event) => {
         setFile(event.target.files[0]);
     };
-    const navigate = useNavigate();
-
     const handleUpload = async () => {
         if (!file) {
             ErrorMessage('Please select a file first!');
@@ -103,7 +96,8 @@ function AllVendors() {
     const handleDelete = () => {
         PrivateAxios.delete(`vendor/${deleteId}`)
             .then((res) => {
-                setVendors(vendors.filter(item => item.id !== deleteId));
+                setVendors((prev) => prev.filter((item) => item.id !== deleteId));
+                setData((prev) => prev.filter((item) => item.id !== deleteId));
                 setDeleteShow(false);
                 setDeleteId(null);
             })
@@ -166,23 +160,73 @@ function AllVendors() {
         fetchVendors();
     }, []);
 
-    const pdfExportRef = React.createRef();
-    const excelExportRef = React.createRef();
-
+    const exportColumns = [
+        { name: "Sl No.", selector: () => {} },
+        { name: "Vendor Name", selector: (item) => item.vendor_name ?? "" },
+        { name: "Email", selector: (item) => item.email ?? "" },
+        { name: "Mobile", selector: (item) => item.mobile ?? "" },
+        { name: "Address", selector: (item) => item.address ?? "" },
+    ];
 
     const handleExportPDF = () => {
-        if (pdfExportRef.current) {
-            pdfExportRef.current.save();
+        if (!data?.length) {
+            alert("No data available for export.");
+            return;
         }
+        exportPDF(exportColumns, data, "Vendors");
     };
 
     const handleExportExcel = () => {
-        if (data && data.length > 0) {
-            excelExportRef.current.save();
-        } else {
+        if (!data?.length) {
             alert("No data available for export.");
+            return;
         }
+        exportExcel(exportColumns, data, "vendors");
     };
+
+    const renderAction = (_, record) => (
+        <div className="d-flex gap-2">
+            <Tooltip title="Edit">
+                <Link
+                    to={`/edit-vendor/${record.id}`}
+                    state={{ data: record }}
+                    className="icon-btn"
+                >
+                    <i className="fas fa-pen" />
+                </Link>
+            </Tooltip>
+            <Tooltip title="Delete">
+                <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => deleteModalShow(record.id)}
+                >
+                    <i className="fas fa-trash-alt text-danger" />
+                </button>
+            </Tooltip>
+        </div>
+    );
+
+    const columns = [
+        {
+            title: "Sl No.",
+            key: "slNo",
+            width: 90,
+            render: (_, __, index) =>
+                pageState.skip + index + 1,
+        },
+        { title: "Vendor Name", dataIndex: "vendor_name", key: "vendor_name", width: 160 },
+        { title: "Email", dataIndex: "email", key: "email", width: 200 },
+        { title: "Mobile", dataIndex: "mobile", key: "mobile", width: 140 },
+        { title: "Address", dataIndex: "address", key: "address", width: 240, ellipsis: true },
+        {
+            title: "Action",
+            key: "action",
+            width: 120,
+            fixed: "right",
+            render: renderAction,
+        },
+    ];
 
     //filter modal
     // const [filterShow, setFilterShow] = useState(false);
@@ -233,19 +277,17 @@ function AllVendors() {
                                     </div>
                                 </div>
                                 <div className='col-lg-6 col-sm-12'>
-                                    <div className="table-button-group ms-auto justify-content-end w-100">
-                                        <GridToolbar className="border-0 gap-0 py-0">
-                                            <Tooltip title="Export to PDF">
-                                                <button type='button' className=" table-export-btn" onClick={handleExportPDF}>
-                                                    <i class="far fa-file-pdf d-flex f-s-20"></i>
-                                                </button>
-                                            </Tooltip>
-                                            <Tooltip title=" Export to Excel">
-                                                <button type='button' className=" table-export-btn" onClick={handleExportExcel}>
-                                                    <i class="far fa-file-excel d-flex f-s-20"></i>
-                                                </button>
-                                            </Tooltip>
-                                        </GridToolbar>
+                                    <div className="table-button-group ms-auto justify-content-end w-100 d-flex gap-1">
+                                        <Tooltip title="Export to PDF">
+                                            <button type="button" className="table-export-btn" onClick={handleExportPDF}>
+                                                <i className="far fa-file-pdf d-flex f-s-20"></i>
+                                            </button>
+                                        </Tooltip>
+                                        <Tooltip title="Export to Excel">
+                                            <button type="button" className="table-export-btn" onClick={handleExportExcel}>
+                                                <i className="far fa-file-excel d-flex f-s-20"></i>
+                                            </button>
+                                        </Tooltip>
                                     </div>
                                 </div>
                                 <div className='col-12'>
@@ -327,134 +369,22 @@ function AllVendors() {
                                             </div>
                                         </div>
                                     </div> */}
-                                    <PDFExport data={data} ref={pdfExportRef}>
-                                        <ExcelExport data={data} ref={excelExportRef} >
-                                            <Grid
-                                                data={pagedData}
-                                                skip={pageState.skip}
-                                                take={pageState.take}
-                                                total={totalCount}
-                                                pageable={{ buttonCount: 3, pageSizes: true }}
-                                                onPageChange={handlePageChange}
-                                            >
-                                                <GridColumn
-                                                    field="slno"
-                                                    title="Sl No"
-                                                    width="80px"
-                                                    cell={(props) => (
-                                                        <td>{props.dataIndex + 1}</td>
-                                                    )}
-                                                />
-                                                <GridColumn
-                                                    field="vendor_name"
-                                                    title="Vendor Name"
-                                                    width="150px"
-                                                    // cell={(props) => {
-                                                    //     let tags = 'No tags available';
-                                                    //     try {
-                                                    //         const parsed = JSON.parse(props.dataItem.tags);
-                                                    //         tags = parsed.join(', ');
-                                                    //     } catch (e) { }
-                                                    //     return (
-                                                    //         <td>
-                                                    //             <div>
-                                                    //                 <span className="k_table_link">{props.dataItem.vendor_name}</span>
-                                                    //                 <Tooltip title={tags}>
-                                                    //                     <i className="fas fa-info-circle ms-2 text-primary" />
-                                                    //                 </Tooltip>
-                                                    //             </div>
-                                                    //         </td>
-                                                    //     );
-                                                    // }}
-                                                />
-                                                <GridColumn field="email" title="Email" width="180px" />
-                                                <GridColumn field="mobile" title="Mobile" width="180px" />
-
-                                                <GridColumn field="address" title="Address" width="230px" />
-
-                                                {/* <GridColumn
-                                                    field="gstin"
-                                                    title="GSTIN"
-                                                    width="200px"
-                                                    cell={(props) => (
-                                                        <td><div className="text-uppercase">{props.dataItem.gstin}</div></td>
-                                                    )}
-                                                />
-                                                <GridColumn
-                                                    field="pan"
-                                                    title="PAN"
-                                                    width="150px"
-                                                    cell={(props) => (
-                                                        <td><div className="text-uppercase">{props.dataItem.pan}</div></td>
-                                                    )}
-                                                /> */}
-
-                                                {/* <GridColumn
-                                                    field="attachment_file"
-                                                    title="Image"
-                                                    width="120px"
-                                                    cell={(props) => (
-                                                        <td>
-                                                            <img
-                                                                src={props.dataItem.attachment_file ? `${props.dataItem.attachment_file}` : `https://growthh.s3.ap-south-1.amazonaws.com/ERP/sample/alert.png`}
-                                                                alt="vendor"
-                                                                style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }}
-                                                            />
-                                                        </td>
-                                                    )}
-                                                /> */}
-
-                                                {/* ⭐ Star Rating Column */}
-                                                {/* <GridColumn
-                                                    title="Rating"
-                                                    width="140px"
-                                                    cell={(props) => (
-                                                        <td>
-                                                            {Array.from({ length: 5 }, (_, i) => (
-                                                                <i
-                                                                    key={i}
-                                                                    className={`bi ${i < (props.dataItem.ratings || 0) ? 'bi-star-fill' : 'bi-star'}`}
-                                                                    style={{ color: '#FF0000', fontSize: '14px' }}
-                                                                />
-                                                            ))}
-                                                        </td>
-                                                    )}
-                                                /> */}
-
-                                                {/* Action Buttons */}
-                                                <GridColumn
-                                                    title="Action"
-                                                    width="180px"
-                                                    cell={(props) => (
-                                                        <td>
-                                                            <div className="d-flex gap-2">
-                                                                <Tooltip title="Edit">
-                                                                    <Link
-                                                                        to={`/edit-vendor/${props.dataItem.id}`}
-                                                                        state={{ data: props.dataItem }}
-                                                                        className="icon-btn"
-                                                                    >
-                                                                        <i className="fas fa-pen" />
-                                                                    </Link>
-                                                                </Tooltip>
-                                                                <Tooltip title="Delete">
-                                                                    <button
-                                                                        type="button"
-                                                                        className="icon-btn"
-                                                                        onClick={() => deleteModalShow(props.dataItem.id)}
-                                                                    >
-                                                                        <i className="fas fa-trash-alt text-danger" />
-                                                                    </button>
-                                                                </Tooltip>
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                />
-                                            </Grid>
-
-
-                                        </ExcelExport>
-                                    </PDFExport>
+                                    <Table
+                                        columns={columns}
+                                        dataSource={vendors}
+                                        rowKey="id"
+                                        loading={isLoading}
+                                        pagination={{
+                                            current: pageState.skip / pageState.take + 1,
+                                            pageSize: pageState.take,
+                                            total: totalCount,
+                                            showSizeChanger: true,
+                                            pageSizeOptions: ["10", "15", "25", "50"],
+                                            onChange: handlePageChange,
+                                            onShowSizeChange: handlePageChange,
+                                        }}
+                                        scroll={{ x: 1100 }}
+                                    />
 
                                 </div>
 

@@ -1,75 +1,51 @@
 import React, { useEffect, useRef, useState } from "react";
-// import Select from "react-select";
-// import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-// import DataTable, { createTheme } from "react-data-table-component";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Modal } from "react-bootstrap";
-// import Handsontable from "handsontable/base";
-// import { HotTable } from "@handsontable/react";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import "handsontable/dist/handsontable.full.min.css";
 import {
   PrivateAxios,
   PrivateAxiosFile,
 } from "../../environment/AxiosInstance";
-// import { UserAuth } from "../auth/Auth";
 import Loader from "../landing/loder/Loader";
-// import {
-//   AllUser,
-//   GetTaskPriority,
-//   GetTaskStatus,
-// } from "../../environment/GlobalApi";
-// import {
-//   exportExcel,
-//   exportPDF,
-//   printTable,
-// } from "../../environment/exportTable";
 import VendorsPageTopBar from "../vendor/VendorsPageTopBar";
-
-// import { PDFExport } from "@progress/kendo-react-pdf";
-// import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { Tooltip } from "antd";
-// import { DropDownList } from "@progress/kendo-react-dropdowns";
-import { Grid, GridColumn } from "@progress/kendo-react-grid";
-// import Filter from "../CommonComponent/Filter";
+import { Tooltip, Table, Button } from "antd";
+import { exportExcel, exportPDF } from "../../environment/exportTable";
 
 function AllCustomers() {
-  // const { isLoading, setIsLoading, Logout } = UserAuth();
-  //for-data table
-  // const [loading, setLoading] = useState(false);
-  // const [value, setValue] = useState(true);
-  // const [grid, setGrid] = useState(false);
-  // const [doerShow, setDoerShow] = useState(false);
-  // const [detailsShow, setDetailsShow] = useState(false);
   const [deleteShow, setDeleteShow] = useState(false);
-  // const [descriptionShow, setDescriptionShow] = useState(false);
-  // const [descriptionData, setDescriptionData] = useState("");
   const [customerData, setCustomerData] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
-  // const [data, setData] = useState([]);
   const [file, setFile] = useState(null);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [pageState, setPageState] = useState({
+    skip: 0,
+    take: 15,
+    searchKey: "",
+  });
+
   const deleteModalClose = () => setDeleteShow(false);
 
-  const fetchCustomers = async () => {
-    setIsLoading(false);
+  const fetchCustomers = async (newPageState = null) => {
+    setIsLoading(true);
     try {
+      const currentPageState = newPageState || pageState;
       const urlParams = new URLSearchParams({
-        page: pageState.skip / pageState.take + 1,
-        pageSize: pageState.take,
-        ...(pageState.searchKey && { searchkey: pageState.searchKey })
+        page: currentPageState.skip / currentPageState.take + 1,
+        pageSize: currentPageState.take,
+        ...(currentPageState.searchKey && { searchkey: currentPageState.searchKey }),
       });
       const res = await PrivateAxios.get(
         `customer/all-customers?${urlParams.toString()}`
       );
       const customerList = res.data.data.rows || [];
       setCustomerData(customerList);
-      setTotalCount(res.data.total || 0); // set total items
+      setTotalCount(res.data.total || 0);
     } catch (err) {
       if (err.response?.status === 401) {
         ErrorMessage(err.message);
@@ -79,16 +55,37 @@ function AllCustomers() {
     }
   };
 
-  //delete
+  const handlePageChange = (page, pageSize) => {
+    const newPageState = {
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      searchKey: pageState.searchKey,
+    };
+    setPageState(newPageState);
+    fetchCustomers(newPageState);
+  };
+
+  const handleFilter = () => {
+    const newPageState = { ...pageState, skip: 0 };
+    setPageState(newPageState);
+    fetchCustomers(newPageState);
+  };
+
+  const handleReset = () => {
+    const resetPageState = { skip: 0, take: 15, searchKey: "" };
+    setPageState(resetPageState);
+    fetchCustomers(resetPageState);
+  };
+
   const deleteModalShow = (id) => {
     setDeleteId(id);
     setDeleteShow(true);
   };
-  //start bulk upload
+
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
   };
-  const navigate = useNavigate();
+
   const handleUpload = async () => {
     if (!file) {
       ErrorMessage("Please select a file first!");
@@ -109,18 +106,20 @@ function AllCustomers() {
           },
         }
       );
-      SuccessMessage(`${response.data.created_records} customers has been added successfully.`);
+      SuccessMessage(
+        `${response.data.created_records} customers has been added successfully.`
+      );
       fetchCustomers();
       setBulkUploadOpen(false);
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
-      ErrorMessage('Upload failed');
+      ErrorMessage("Upload failed");
     } finally {
       setIsLoading(false);
     }
   };
-  //end bulk upload
+
   const handleDelete = () => {
     PrivateAxios.delete(`customer/${deleteId}`)
       .then((res) => {
@@ -134,47 +133,77 @@ function AllCustomers() {
         setDeleteId(null);
       });
   };
-  //end delete
-
-  //description modal
-  // const descriptionModalClose = () => {
-  //   setDescriptionShow(false);
-  //   setDescriptionData("");
-  // };
-
-  const [searchInput, setSearchInput] = useState("");
-  const [pageState, setPageState] = useState({ skip: 0, take: 15, searchKey: "" });
-
-  const handlePageChange = (event) => {
-    setPageState({
-      skip: event.page.skip,
-      take: event.page.take,
-      searchKey: pageState.searchKey
-    });
-  };
-
-  const handleSearchCustomer = () => {
-    setPageState(prev => ({
-      ...prev,
-      skip: 0,
-      searchKey: searchInput.trim()
-    }));
-  };
-
-  const handleResetFilter = () => {
-    setSearchInput("");
-    setPageState({ skip: 0, take: 15, searchKey: "" });
-  };
 
   useEffect(() => {
     fetchCustomers();
-  }, [pageState.skip, pageState.take, pageState.searchKey]);
+  }, []);
 
+  const exportColumns = [
+    { name: "Sl No.", selector: () => {} },
+    { name: "Name", selector: (item) => item.name ?? "" },
+    { name: "Address", selector: (item) => item.address ?? "" },
+    { name: "Email", selector: (item) => item.email ?? "" },
+    { name: "Mobile", selector: (item) => item.phone ?? "" },
+  ];
 
-  //filter modal
-  // const [filterShow, setFilterShow] = useState(false);
-  // const filterModalClose = () => setFilterShow(false);
-  // const filterModalShow = () => setFilterShow(true);
+  const handleExportPDF = () => {
+    if (!customerData?.length) {
+      alert("No data available for export.");
+      return;
+    }
+    exportPDF(exportColumns, customerData, "Customers");
+  };
+
+  const handleExportExcel = () => {
+    if (!customerData?.length) {
+      alert("No data available for export.");
+      return;
+    }
+    exportExcel(exportColumns, customerData, "customers");
+  };
+
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Edit">
+        <Link
+          to={`/edit-customer/${record.id}`}
+          state={{ data: record }}
+          className="icon-btn"
+        >
+          <i className="fas fa-pen" />
+        </Link>
+      </Tooltip>
+      <Tooltip title="Delete">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => deleteModalShow(record.id)}
+        >
+          <i className="fas fa-trash-alt text-danger" />
+        </button>
+      </Tooltip>
+    </div>
+  );
+
+  const columns = [
+    {
+      title: "Sl No",
+      key: "slNo",
+      width: 90,
+      render: (_, __, index) => pageState.skip + index + 1,
+    },
+    { title: "Name", dataIndex: "name", key: "name", width: 200 },
+    { title: "Address", dataIndex: "address", key: "address", width: 250, ellipsis: true },
+    { title: "Email", dataIndex: "email", key: "email", width: 150 },
+    { title: "Mobile", dataIndex: "phone", key: "phone", width: 150 },
+    {
+      title: "Action",
+      key: "action",
+      width: 120,
+      fixed: "right",
+      render: renderAction,
+    },
+  ];
 
   return (
     <React.Fragment>
@@ -208,81 +237,28 @@ function AllCustomers() {
                       >
                         <i className="bi bi-upload me-2"></i>Bulk Upload
                       </button>
-                      {/* <a
-                        href={`${process.env.PUBLIC_URL || ""}/sample-csv-files/sample_bulk_add_customers.csv`}
-                        download="sample_bulk_add_customers.csv"
-                        className="btn btn-outline-secondary btn-sm ms-2"
-                      >
-                        <i className="fas fa-download me-2"></i>Download Sample
-                      </a> */}
                     </div>
                   </div>
                   <div className="col-lg-6 col-sm-12">
-                    {/* <div className="table-button-group ms-auto justify-content-end w-100">
-                      <GridToolbar className="border-0 gap-0 py-0">
-                        <Tooltip title="Export to PDF">
-                          <button
-                            type="button"
-                            className=" table-export-btn"
-                            onClick={handleExportPDF}
-                          >
-                            <i class="far fa-file-pdf d-flex f-s-20"></i>
-                          </button>
-                        </Tooltip>
-                        <Tooltip title=" Export to Excel">
-                          <button
-                            type="button"
-                            className=" table-export-btn"
-                            onClick={handleExportExcel}
-                          >
-                            <i class="far fa-file-excel d-flex f-s-20"></i>
-                          </button>
-                        </Tooltip>
-                      </GridToolbar>
-                    </div> */}
-                    {/* <div className="search-box">
-                      <Input.Search
-                        placeholder="Search..."
-                        id="searchProduct"
-                        allowClear
-                        className="product-search"
-                        onSearch={(value) => {
-                          setPageState(prev => ({
-                            ...prev,
-                            skip: 0,
-                            take: 15,
-                            searchKey: value.trim()
-                          }));
-                        }}
-                      />
-                    </div> */}
-                    <div className="search-box d-flex align-items-center gap-2">
-                      <div className="d-flex position-relative flex-grow-1">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Search..."
-                          style={{ paddingRight: 40 }}
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleSearchCustomer())}
-                        />
+                    <div className="table-button-group ms-auto justify-content-end w-100 d-flex gap-1 mb-2">
+                      <Tooltip title="Export to PDF">
                         <button
                           type="button"
-                          className="icon-btn position-absolute"
-                          style={{ top: 3, right: 3 }}
-                          onClick={() => handleSearchCustomer()}
+                          className="table-export-btn"
+                          onClick={handleExportPDF}
                         >
-                          <i className="fas fa-search" />
+                          <i className="far fa-file-pdf d-flex f-s-20"></i>
                         </button>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={handleResetFilter}
-                      >
-                        Reset Filter
-                      </button>
+                      </Tooltip>
+                      <Tooltip title="Export to Excel">
+                        <button
+                          type="button"
+                          className="table-export-btn"
+                          onClick={handleExportExcel}
+                        >
+                          <i className="far fa-file-excel d-flex f-s-20"></i>
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                   <div className="col-12">
@@ -346,159 +322,54 @@ function AllCustomers() {
                   </div>
                 </div>
 
+                <div className="p-3 border-bottom" style={{ position: "relative", zIndex: 1 }}>
+                  <div className="row g-3 align-items-end">
+                    <div className="col-md-4">
+                      <label className="form-label mb-1">Search</label>
+                      <input
+                        className="form-control"
+                        placeholder="Search..."
+                        value={pageState.searchKey}
+                        onChange={(e) =>
+                          setPageState({ ...pageState, searchKey: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="col-md-auto">
+                      <div className="d-flex gap-2">
+                        <Button type="primary" onClick={handleFilter}>
+                          Search
+                        </Button>
+                        <Button onClick={handleReset}>Clear</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="">
                   <div className="bg_succes_table_head rounded_table">
-                    <Grid
-                      data={customerData}
-                      skip={pageState.skip}
-                      take={pageState.take}
-                      total={totalCount}
-                      onPageChange={handlePageChange}
-                      pageable={{ buttonCount: 3, pageSizes: true }}
-                      sortable
-                      searchable
-                    >
-                      <GridColumn
-                        title="Sl No"
-                        width="80px"
-                        cell={(props) => <td>{props.dataIndex + 1}</td>}
-                      />
-                      <GridColumn
-                        field="name"
-                        title="Name"
-                        width="200px"
-                        // cell={(props) => {
-                        //   let tags = 'No tags available';
-                        //   try {
-                        //     const parsed = JSON.parse(props.dataItem.tags);
-                        //     tags = parsed.join(', ');
-                        //   } catch (e) { }
-                        //   return (
-                        //     <td>
-                        //       <div>
-                        //         <span className="k_table_link">{props.dataItem.name}</span>
-                        //         <Tooltip title={tags}>
-                        //           <i className="fas fa-info-circle ms-2 text-primary" />
-                        //         </Tooltip>
-                        //       </div>
-                        //     </td>
-                        //   );
-                        // }}
-                      />
-                      <GridColumn
-                        field="address"
-                        title="Address"
-                        width="250px"
-                      />
-                      <GridColumn
-                        field="email"
-                        title="Email"
-                        width="150px"
-                      />
-                      <GridColumn
-                        field="phone"
-                        title="Mobile"
-                        width="150px"
-                      />
-                      {/* <GridColumn
-                        field="gstin"
-                        title="GSTIN"
-                        width="200px"
-                        cell={(props) => (
-                          <td>
-                            <div className="text-uppercase">
-                              {props.dataItem.gstin}
-                            </div>
-                          </td>
-                        )}
-                      /> */}
-                      {/* <GridColumn
-                        field="pan"
-                        title="PAN"
-                        width="150px"
-                        cell={(props) => (
-                          <td>
-                            <div className="text-uppercase">
-                              {props.dataItem.pan}
-                            </div>
-                          </td>
-                        )}
-                      /> */}
-                      {/* <GridColumn
-                        title="Image"
-                        width="120px"
-                        cell={(props) => (
-                          <td>
-                            <img
-                              src={
-                                props.dataItem.attachment_file
-                                  ? `${props.dataItem.attachment_file}`
-                                  : `https://growthh.s3.ap-south-1.amazonaws.com/ERP/sample/alert.png`
-                              }
-                              alt="img"
-                              style={{
-                                width: "50px",
-                                height: "50px",
-                                borderRadius: "50%",
-                                objectFit: "cover",
-                              }}
-                            />
-                          </td>
-                        )}
-                      /> */}
-                      {/* 
-                      <GridColumn
-                        title="Rating"
-                        width="140px"
-                        cell={(props) => (
-                          <td>
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <i
-                                key={i}
-                                className={`bi ${i < (props.dataItem.ratings || 0) ? 'bi-star-fill' : 'bi-star'}`}
-                                style={{ color: '#FF0000', fontSize: '14px' }}
-                              />
-                            ))}
-                          </td>
-                        )}
-                      /> */}
-                      <GridColumn
-                        title="Action"
-                        width="180px"
-                        cell={(props) => (
-                          <td>
-                            <div className="d-flex gap-2">
-                              <Tooltip title="Edit">
-                                <Link
-                                  to={`/edit-customer/${props.dataItem.id}`}
-                                  state={{ data: props.dataItem }}
-                                  className="icon-btn"
-                                >
-                                  <i className="fas fa-pen" />
-                                </Link>
-                              </Tooltip>
-                              <Tooltip title="Delete">
-                                <button
-                                  className="icon-btn"
-                                  onClick={() =>
-                                    deleteModalShow(props.dataItem.id)
-                                  }
-                                >
-                                  <i className="fas fa-trash-alt text-danger" />
-                                </button>
-                              </Tooltip>
-                            </div>
-                          </td>
-                        )}
-                      />
-                    </Grid>
+                    <Table
+                      columns={columns}
+                      dataSource={customerData}
+                      rowKey="id"
+                      loading={isLoading}
+                      pagination={{
+                        current: pageState.skip / pageState.take + 1,
+                        pageSize: pageState.take,
+                        total: totalCount,
+                        showSizeChanger: true,
+                        pageSizeOptions: ["10", "15", "25", "50"],
+                        onChange: handlePageChange,
+                        onShowSizeChange: handlePageChange,
+                      }}
+                      scroll={{ x: 1100 }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Delete modal start */}
           <Modal
             show={deleteShow}
             onHide={deleteModalClose}
@@ -545,39 +416,6 @@ function AllCustomers() {
               </button>
             </Modal.Footer>
           </Modal>
-          {/* Delete modal end */}
-          {/* Description modal start */}
-          {/* <Modal
-            show={descriptionShow}
-            onHide={descriptionModalClose}
-            backdrop="static"
-            keyboard={false}
-            centered
-          >
-            <Modal.Header closeButton>
-              <Modal.Title>Message</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="row">
-                <div className="col-12">
-                  <p className="mb-0 text-muted">{descriptionData}</p>
-                </div>
-              </div>
-            </Modal.Body>
-          </Modal> */}
-
-          {/* Description modal end */}
-
-          {/* <ManagementFilter /> */}
-          {/* {["end"].map((placement, idx) => (
-            <Filter
-              show={filterShow}
-              handleClose={filterModalClose}
-              key={idx}
-              placement={placement.end}
-              name={placement}
-            />
-          ))} */}
         </>
       )}
     </React.Fragment>

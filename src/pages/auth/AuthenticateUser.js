@@ -28,7 +28,7 @@ function AuthenticateUser() {
       const thirdPartyToken = localStorage.getItem("third_party_token");
       const systemAuth = localStorage.getItem("auth_user");
       // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
-      if (thirdPartyToken && systemAuth && thirdPartyToken === token) {
+      if (thirdPartyToken && systemAuth) {
         navigate("/welcome");
         return;
       }

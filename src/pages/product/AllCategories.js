@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "react-datepicker/dist/react-datepicker.css";
-import DataTable, { createTheme } from "react-data-table-component";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { Collapse, Dropdown, Modal, OverlayTrigger } from "react-bootstrap";
+import { Link, useNavigate } from "react-router-dom";
+import { Collapse, Modal } from "react-bootstrap";
 import "handsontable/dist/handsontable.full.min.css";
 import {
   PrivateAxios,
@@ -11,31 +10,23 @@ import {
 } from "../../environment/AxiosInstance";
 import { UserAuth } from "../auth/Auth";
 import Loader from "../landing/loder/Loader";
-import { process } from "@progress/kendo-data-query";
 import { SuccessMessage } from "../../environment/ToastMessage";
 import InventoryMasterPageTopBar from "../InventoryMaster/itemMaster/InventoryMasterPageTopBar";
-import { PDFExport } from "@progress/kendo-react-pdf";
-import { ExcelExport } from "@progress/kendo-react-excel-export";
-import { Tooltip } from "antd";
-import { Grid, GridColumn, GridToolbar } from "@progress/kendo-react-grid";
+import { Tooltip, Table } from "antd";
 import CategoryStatusBar from "./CategoryStatusBar";
-
-// registerAllModules();
+import { exportExcel, exportPDF } from "../../environment/exportTable";
 
 function AllCategories() {
   const { isLoading, setIsLoading, Logout } = UserAuth();
-  //for-data table
   const [deleteShow, setDeleteShow] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [descriptionShow, setDescriptionShow] = useState(false);
   const [descriptionData, setDescriptionData] = useState("");
   const [file, setFile] = useState(null);
   const [data, setData] = useState([]);
-  //delete modal
   const navigate = useNavigate();
   const deleteModalClose = () => setDeleteShow(false);
-  //const deleteModalShow = () => setDeleteShow(true);
-  //description modal
+
   const descriptionModalClose = () => {
     setDescriptionShow(false);
     setDescriptionData("");
@@ -44,13 +35,12 @@ function AllCategories() {
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
   };
-  const [loading, setLoading] = useState(true);
-  const [dataState, setDataState] = useState({
-    skip: 0,
-    take: 20,
-    sort: [],
-    filter: null,
+
+  const [pageState, setPageState] = useState({
+    current: 1,
+    pageSize: 20,
   });
+
   const handleUpload = async () => {
     setIsLoading(true);
     if (!file) {
@@ -63,15 +53,11 @@ function AllCategories() {
     formData.append("file", file);
 
     try {
-      const response = await PrivateAxiosFile.post(
-        "/category/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      await PrivateAxiosFile.post("/category/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       SuccessMessage("Category Added successfully.");
       navigate("/category");
     } catch (error) {
@@ -81,6 +67,7 @@ function AllCategories() {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     const TaskData = async () => {
       setIsLoading(true);
@@ -91,44 +78,13 @@ function AllCategories() {
         })
         .catch((err) => {
           setIsLoading(false);
-          if (err.response.data == 401) {
+          if (err.response?.status === 401) {
             Logout();
           }
         });
     };
     TaskData();
   }, []);
-
-  const ActionCell = (props) => {
-    const { dataItem } = props || {}; // Ensure props and dataItem exist
-    if (!dataItem) return null;
-
-    return (
-      <td>
-        <div className="d-flex gap-2">
-          <Tooltip title="Edit">
-            <Link
-              to={{ pathname: `/edit-category/${dataItem.id}` }}
-              state={{ data: dataItem }}
-              className="me-1 icon-btn"
-            >
-              <i className="fas fa-pen"></i>
-            </Link>
-          </Tooltip>
-
-          <Tooltip title="Delete">
-            <button
-              type="button"
-              className="me-1 icon-btn"
-              onClick={() => deleteModalShow(dataItem.id)}
-            >
-              <i class="fas fa-trash-alt text-danger f-s-14"></i>
-            </button>
-          </Tooltip>
-        </div>
-      </td>
-    );
-  };
 
   const deleteModalShow = (id) => {
     setDeleteId(id);
@@ -137,7 +93,7 @@ function AllCategories() {
 
   const handleDelete = () => {
     PrivateAxios.delete(`category/${deleteId}`)
-      .then((res) => {
+      .then(() => {
         setData(data.filter((item) => item.id !== deleteId));
         setDeleteShow(false);
         setDeleteId(null);
@@ -149,45 +105,89 @@ function AllCategories() {
       });
   };
 
-  const pdfExportRef = React.createRef();
-  const excelExportRef = React.createRef();
+  const exportColumns = [
+    { name: "Sl No.", selector: () => {} },
+    { name: "Name", selector: (item) => item.title ?? "" },
+    { name: "Status", selector: () => "Active" },
+  ];
 
   const handleExportPDF = () => {
-    if (pdfExportRef.current) {
-      pdfExportRef.current.save();
+    if (!data?.length) {
+      alert("No data available for export.");
+      return;
     }
+    exportPDF(exportColumns, data, "Categories");
   };
 
   const handleExportExcel = () => {
-    if (data && data.length > 0) {
-      excelExportRef.current.save();
-    } else {
+    if (!data?.length) {
       alert("No data available for export.");
+      return;
     }
-  };
-  const CustomSlNoCell = (props) => {
-    const { dataIndex } = props;
-    return <td>{dataIndex + 1}</td>; // Adjust for 1-based indexing
+    exportExcel(exportColumns, data, "categories");
   };
 
-  const CustomCell = (props) => {
-    const { dataItem, field } = props;
+  const renderStatus = () => (
+    <label className="badge badge-outline-active mb-0">
+      <i className="fas fa-circle f-s-8 d-flex me-1"></i>Active
+    </label>
+  );
 
-    // Access the field value directly
-    const value = dataItem[field];
+  const renderAction = (_, record) => (
+    <div className="d-flex gap-2">
+      <Tooltip title="Edit">
+        <Link
+          to={{ pathname: `/edit-category/${record.id}` }}
+          state={{ data: record }}
+          className="me-1 icon-btn"
+        >
+          <i className="fas fa-pen"></i>
+        </Link>
+      </Tooltip>
 
-    return (
-      <td>
-        <label className="badge badge-outline-active mb-0">
-          <i className="fas fa-circle f-s-8 d-flex me-1"></i>Active
-        </label>
+      <Tooltip title="Delete">
+        <button
+          type="button"
+          className="me-1 icon-btn"
+          onClick={() => deleteModalShow(record.id)}
+        >
+          <i className="fas fa-trash-alt text-danger f-s-14"></i>
+        </button>
+      </Tooltip>
+    </div>
+  );
 
-        {/* {value} */}
-      </td>
-    );
-  };
+  const columns = [
+    {
+      title: "Sl No.",
+      key: "slNo",
+      width: 90,
+      render: (_, __, index) =>
+        (pageState.current - 1) * pageState.pageSize + index + 1,
+    },
+    { title: "Name", dataIndex: "title", key: "title", width: 240 },
+    {
+      title: "Status",
+      key: "status",
+      width: 140,
+      render: renderStatus,
+    },
+    {
+      title: "Action",
+      key: "action",
+      width: 120,
+      render: renderAction,
+    },
+  ];
 
   const [openBulkUpload, setOpenBulkUpload] = useState(false);
+
+  const handleTableChange = (pagination) => {
+    setPageState({
+      current: pagination.current,
+      pageSize: pagination.pageSize,
+    });
+  };
 
   return (
     <React.Fragment>
@@ -212,38 +212,37 @@ function AllCategories() {
                       </Link>
 
                       <button
-                        class="btn btn-exp-purple-outline btn-sm"
+                        type="button"
+                        className="btn btn-exp-purple-outline btn-sm"
                         onClick={() => setOpenBulkUpload(!openBulkUpload)}
                         aria-controls="contentId"
                         aria-expanded={openBulkUpload}
                       >
-                        <i class="bi bi-upload me-2"></i>Bulk Upload
+                        <i className="bi bi-upload me-2"></i>Bulk Upload
                       </button>
                     </div>
                   </div>
 
                   <div className="col-lg-6 col-sm-12">
-                    <div className="table-button-group ms-auto justify-content-end w-100">
-                      <GridToolbar className="border-0 gap-0 py-0">
-                        <Tooltip title="Export to PDF">
-                          <button
-                            type="button"
-                            className=" table-export-btn"
-                            onClick={handleExportPDF}
-                          >
-                            <i class="far fa-file-pdf d-flex f-s-20"></i>
-                          </button>
-                        </Tooltip>
-                        <Tooltip title=" Export to Excel">
-                          <button
-                            type="button"
-                            className=" table-export-btn"
-                            onClick={handleExportExcel}
-                          >
-                            <i class="far fa-file-excel d-flex f-s-20"></i>
-                          </button>
-                        </Tooltip>
-                      </GridToolbar>
+                    <div className="table-button-group ms-auto justify-content-end w-100 d-flex gap-1">
+                      <Tooltip title="Export to PDF">
+                        <button
+                          type="button"
+                          className="table-export-btn"
+                          onClick={handleExportPDF}
+                        >
+                          <i className="far fa-file-pdf d-flex f-s-20"></i>
+                        </button>
+                      </Tooltip>
+                      <Tooltip title="Export to Excel">
+                        <button
+                          type="button"
+                          className="table-export-btn"
+                          onClick={handleExportExcel}
+                        >
+                          <i className="far fa-file-excel d-flex f-s-20"></i>
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -280,7 +279,7 @@ function AllCategories() {
                                 <a
                                   href={url + "category.xlsx"}
                                   download={url + "category.xlsx"}
-                                  class="btn btn-warning"
+                                  className="btn btn-warning"
                                 >
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -300,10 +299,10 @@ function AllCategories() {
                             </div>
                           </div>
                         </div>
-                        <div class="card-footer d-flex justify-content-end">
+                        <div className="card-footer d-flex justify-content-end">
                           <button
                             type="button"
-                            class="btn btn-exp-primary"
+                            className="btn btn-exp-primary"
                             onClick={handleUpload}
                           >
                             Upload
@@ -316,60 +315,29 @@ function AllCategories() {
 
                 <div className="col-12">
                   <div className="bg_succes_table_head rounded_table">
-                    <PDFExport data={data} ref={pdfExportRef}>
-                      <ExcelExport data={data} ref={excelExportRef}>
-                        <Grid
-                          data={process(data, dataState)} // Add fallback for undefined data
-                          // filterable
-                          sortable
-                          scrollable="scrollable"
-                          reorderable
-                          resizable
-                          {...dataState}
-                          onDataStateChange={(e) => setDataState(e.dataState)}
-                          loading={loading}
-                          pageable={{ buttonCount: 3, pageSizes: true }}
-                        >
-                          <GridColumn
-                            field="slno"
-                            title="Sl No"
-                            filterable={false}
-                            locked={false}
-                            cell={CustomSlNoCell}
-                          />
-                          <GridColumn
-                            field="title"
-                            title="Name"
-                            filter="text"
-                            filterable={false}
-                            locked={false} // Locked column
-                          />
-                          <GridColumn
-                            field="status"
-                            title="Status"
-                            cells={{
-                              data: CustomCell,
-                            }}
-                            filterable={false}
-                          />
-                          <GridColumn
-                            field="action"
-                            title="Action"
-                            filter="text"
-                            filterable={false}
-                            cell={ActionCell}
-                          />
-                        </Grid>
-                      </ExcelExport>
-                    </PDFExport>
+                    <Table
+                      rowKey="id"
+                      columns={columns}
+                      dataSource={data}
+                      loading={isLoading}
+                      onChange={handleTableChange}
+                      pagination={{
+                        current: pageState.current,
+                        pageSize: pageState.pageSize,
+                        total: data.length,
+                        showSizeChanger: true,
+                        pageSizeOptions: ["10", "15", "20", "50"],
+                        showTotal: (total, range) =>
+                          `${range[0]}-${range[1]} of ${total} items`,
+                      }}
+                      scroll={{ x: 700 }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
-            
           </div>
 
-          {/* Delete modal start */}
           <Modal
             show={deleteShow}
             onHide={deleteModalClose}
@@ -416,8 +384,7 @@ function AllCategories() {
               </button>
             </Modal.Footer>
           </Modal>
-          {/* Delete modal end */}
-          {/* Description modal start */}
+
           <Modal
             show={descriptionShow}
             onHide={descriptionModalClose}
@@ -436,8 +403,6 @@ function AllCategories() {
               </div>
             </Modal.Body>
           </Modal>
-
-          {/* Description modal end */}
         </>
       )}
     </React.Fragment>

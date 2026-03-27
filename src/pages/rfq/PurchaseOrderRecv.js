@@ -389,7 +389,7 @@ function PurchaseOrderRecv() {
         total_amount: totalAmount.toFixed(2),
         received_status: receivedStatus.value,
       };
-      // console.log("Vendor", vendor);
+      // console.log("data", data);
       const response = await PrivateAxios.post(`purchase/recv/${id}`, data);
       if (response.status === 200) {
         SuccessMessage(response.data.message || "Bill Created successfully");
