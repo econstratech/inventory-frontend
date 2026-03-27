@@ -28,7 +28,7 @@ function AuthenticateUser() {
       const thirdPartyToken = localStorage.getItem("third_party_token");
       const systemAuth = localStorage.getItem("auth_user");
       // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
-      if (thirdPartyToken && systemAuth) {
+      if (thirdPartyToken && systemAuth && thirdPartyToken === token) {
         navigate("/welcome");
         return;
       }
@@ -38,14 +38,14 @@ function AuthenticateUser() {
       try {
         const normalizedBase = erpBaseUrl.replace(/\/+$/, "");
 
-        const response = await axios.get(`${normalizedBase}/user/user-permission`, {
+        const response = await axios.get(`${normalizedBase}/user/get-bms-user-permission-list`, {
           headers: {
             authentication: token,
           },
         });
         setErpUserData(response.data?.data || response.data || null);
         // Save third party token in local storage, to prevent multiple requests
-        localStorage.setItem("third_party_token", token);
+        // localStorage.setItem("third_party_token", token);
         setIsLoading(false);
       } catch (err) {
         const message =
@@ -76,11 +76,12 @@ function AuthenticateUser() {
       const res = await Axios.post("/user/validate-third-party-user", payload);
       if (res.status === 200 && res.data.status) {
         const authData = {
-          token: token,
+          token: res.data.data.tokenData,
           user: res.data.data.user,
           permissions: res.data.data.permissions,
         }
         setAuthUser(authData);
+        localStorage.setItem("third_party_token", token);
         SuccessMessage(res.data.message);
         navigate("/welcome");
       } else {
