@@ -20,18 +20,21 @@ function AuthenticateUser() {
   const erpBaseUrl = process.env.REACT_APP_BMS_ERP_API_URL || "";
 
   useEffect(() => {
+    // Check if third party token is already in local storage, redirect to welcome page
+    const thirdPartyToken = sessionStorage.getItem("third_party_token");
+    const systemAuth = localStorage.getItem("auth_user");
+
+    // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
+    if (thirdPartyToken && systemAuth && thirdPartyToken === token) {
+      navigate("/welcome");
+      return;
+    }
+  }, [])
+
+  useEffect(() => {
     const fetchUserFromErp = async () => {
       setIsLoading(true);
       if (!hasToken || !erpBaseUrl) return;
-
-      // Check if third party token is already in local storage, redirect to welcome page
-      const thirdPartyToken = localStorage.getItem("third_party_token");
-      const systemAuth = localStorage.getItem("auth_user");
-      // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
-      if (thirdPartyToken && systemAuth && thirdPartyToken === token) {
-        navigate("/welcome");
-        return;
-      }
 
       setIsFetchingUser(true);
       setUserFetchError("");
@@ -81,7 +84,7 @@ function AuthenticateUser() {
           permissions: res.data.data.permissions,
         }
         setAuthUser(authData);
-        localStorage.setItem("third_party_token", token);
+        sessionStorage.setItem("third_party_token", token);
         SuccessMessage(res.data.message);
         navigate("/welcome");
       } else {
