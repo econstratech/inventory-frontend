@@ -281,37 +281,65 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         const product = rp.product || {};
         const isBatchApplicable = Number(product?.is_batch_applicable) === 1;
         const batches = Array.isArray(rp.batches) ? rp.batches : [];
+        const batchCount = batches.length;
         const availableBatches = batches.map((b) => ({
           id: b.id,
           batch_no: b.batch_no,
           expiry_date: b.expiry_date,
-          available_quantity: Number(b.available_quantity) ?? 0,
+          available_quantity: Number(b.quantity) - Number(b.returned_quantity),
         }));
         const batchQuantities = batches.reduce((acc, b) => ({ ...acc, [b.id]: 0 }), {});
-        const availableQty = Number(rp.available_quantity) || 0;
+        const availableQty = Number(rp.received) - Number(rp.returned_quantity);
+        const pv = rp.productVariant;
+        const variantUnit = pv?.masterUOM?.label || pv?.masterUOM?.name || "";
+        const variantLabel = pv
+          ? `${pv.weight_per_unit ?? ""} ${variantUnit}`.trim() || `Variant #${pv.id}`
+          : "";
+        const availableVariants =
+          pv?.id != null
+            ? [
+                {
+                  value: pv.id,
+                  label: variantLabel,
+                  quantity: availableQty,
+                  itemUnit: variantUnit,
+                },
+              ]
+            : [];
+        const disableMainTransfer =
+          availableQty <= 0 || (isBatchApplicable && batchCount > 1);
         return {
           key: baseKey + i,
-          itemId: product.id,
-          selectedVariantId: null,
+          itemId: rp.id,
+          selectedVariantId: pv?.id ?? null,
           itemName: product.product_name || "",
-          product: { ...product, is_batch_applicable: product.is_batch_applicable },
+          product: { 
+            ...product, 
+            is_batch_applicable: product.is_batch_applicable,
+            warehouse_id: rp.warehouse_id ?? null
+          },
+          productVariant: pv || null,
+          lockVariantSelection: availableVariants.length > 0,
           availableQuantity: availableQty,
+          receivedQuantity: Number(rp.received) || 0,
+          returnedQuantity: Number(rp.returned_quantity) || 0,
           transferQuantity: isBatchApplicable ? "0" : "",
           batchesLoading: false,
           availableBatches,
           batchQuantities,
-          disableTransferQuantity: isBatchApplicable || availableQty <= 0,
+          disableTransferQuantity: disableMainTransfer,
           itemID: product.id,
           defaultPrice: Number(rp.unit_price) || 0,
-          itemUnit: "",
-          availableVariants: [],
+          itemUnit: variantUnit,
+          availableVariants,
           currentQuantity: String(availableQty),
           finalQuantity: "",
           changeQuantity: 1,
           comment: "",
-          storeId: null,
+          storeId: rp.warehouse_id ?? null,
         };
       });
+
       setTransferItems(mappedItems);
       setRowErrors(mappedItems.map(() => false));
       SuccessMessage(`${mappedItems.length} product(s) loaded from purchase order.`);
@@ -354,6 +382,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         }));
         const batchQuantities = batches.reduce((acc, b) => ({ ...acc, [b.id]: 0 }), {});
         const qty = Number(sp.qty) || 0;
+        const batchCount = batches.length;
         const product = {
           id: productId,
           product_name: productData.product_name ?? sp.description,
@@ -361,6 +390,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           is_batch_applicable: isBatchApplicable ? 1 : 0,
           warehouse_id: sp.warehouse_id ?? null,
         };
+        const disableMainTransfer = qty <= 0 || (isBatchApplicable && batchCount > 1);
         return {
           key: baseKey + i,
           itemId: productId,
@@ -372,7 +402,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           batchesLoading: false,
           availableBatches,
           batchQuantities,
-          disableTransferQuantity: isBatchApplicable || qty <= 0,
+          disableTransferQuantity: disableMainTransfer,
           itemID: productId,
           defaultPrice: Number(sp.unit_price) || 0,
           itemUnit: "",
@@ -384,6 +414,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           storeId: sp.warehouse_id ?? null,
         };
       });
+
       setTransferItems(mappedItems);
       setRowErrors(mappedItems.map(() => false));
       SuccessMessage(`${mappedItems.length} product(s) loaded from sales order.`);
@@ -569,12 +600,38 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
     const updatedRowErrors = [...rowErrors];
     while (updatedRowErrors.length <= index) updatedRowErrors.push(false);
 
-    if (field === "transferQuantity" && transferType === "stock_transfer") {
-      const numValue = value === "" ? "" : Number(value);
+    if (
+      field === "transferQuantity" &&
+      (transferType === "stock_transfer" ||
+        transferType === "purchase_order_return" ||
+        transferType === "sales_order_return")
+    ) {
       itemToUpdate.transferQuantity = value;
-      const transferQty =
-        typeof numValue === "number" && !Number.isNaN(numValue) ? numValue : NaN;
+
+      if (
+        (transferType === "purchase_order_return" || transferType === "sales_order_return") &&
+        Number(itemToUpdate?.product?.is_batch_applicable) === 1
+      ) {
+        const batches = itemToUpdate.availableBatches || [];
+        if (batches.length === 1) {
+          const b = batches[0];
+          const max = Number(b.available_quantity) || 0;
+          if (value === "" || value === null) {
+            itemToUpdate.batchQuantities = { ...(itemToUpdate.batchQuantities || {}), [b.id]: 0 };
+          } else {
+            const raw = Number(value);
+            const n = Number.isFinite(raw) ? Math.min(Math.max(0, raw), max) : 0;
+            itemToUpdate.batchQuantities = { ...(itemToUpdate.batchQuantities || {}), [b.id]: n };
+            itemToUpdate.transferQuantity = String(n);
+          }
+        }
+      }
+
       const availableQty = Number(itemToUpdate.availableQuantity) || 0;
+      const transferQty =
+        itemToUpdate.transferQuantity === "" || itemToUpdate.transferQuantity === null
+          ? NaN
+          : Number(itemToUpdate.transferQuantity);
       if (value === "" || value === null) {
         updatedRowErrors[index] = false;
       } else if (Number.isNaN(transferQty) || transferQty <= 0) {
@@ -609,11 +666,15 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           (s, q) => s + (Number(q) || 0),
           0
         );
+        const avail = Number(it.availableQuantity) || 0;
+        const batchCount = (it.availableBatches || []).length;
+        const isBatch = Number(it?.product?.is_batch_applicable) === 1;
+        const disableMain = avail <= 0 || (isBatch && batchCount > 1);
         return {
           ...it,
           batchQuantities: nextMap,
           transferQuantity: String(sum),
-          disableTransferQuantity: true,
+          disableTransferQuantity: disableMain,
         };
       })
     );
@@ -786,12 +847,70 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           }
         }
       }
+    } else if (isPurchaseOrderReturn || isSalesOrderReturn) {
+      for (let i = 0; i < validItems.length; i++) {
+        const item = validItems[i];
+        if (
+          Array.isArray(item.availableVariants) &&
+          item.availableVariants.length > 0 &&
+          !item.selectedVariantId
+        ) {
+          ErrorMessage(`Please select a variant for ${item.itemName || "item"}.`);
+          return;
+        }
+        const isBatchApplicable = Number(item?.product?.is_batch_applicable) === 1;
+        if (isBatchApplicable) {
+          const batches = Array.isArray(item.availableBatches) ? item.availableBatches : [];
+          if (batches.length === 0) {
+            ErrorMessage(`No batches available for ${item.itemName || "item"}.`);
+            return;
+          }
+          const qtyMap = item.batchQuantities || {};
+          const entries = Object.entries(qtyMap).filter(([, q]) => Number(q) > 0);
+          // if (entries.length === 0) {
+          //   ErrorMessage(`Enter transfer or batch quantity for ${item.itemName || "item"}.`);
+          //   return;
+          // }
+          for (const [batchId, qty] of entries) {
+            const batch = batches.find((b) => String(b.id) === String(batchId));
+            const max = Number(batch?.available_quantity) || 0;
+            const n = Number(qty) || 0;
+            if (n <= 0) {
+              ErrorMessage(
+                `Enter a positive batch quantity for ${item.itemName || "item"}.`
+              );
+              return;
+            }
+            if (n > max) {
+              ErrorMessage(
+                `Batch quantity cannot exceed available quantity for batch ${batch?.batch_no || batchId}.`
+              );
+              return;
+            }
+          }
+        } else {
+          const transferQty = Number(item.transferQuantity);
+          const availableQty = Number(item.availableQuantity) || 0;
+          if (!Number.isFinite(transferQty) || transferQty <= 0) {
+            ErrorMessage(
+              `Enter a positive transfer quantity for ${item.itemName || "item"}.`
+            );
+            return;
+          }
+          if (transferQty > availableQty) {
+            ErrorMessage(
+              `Transfer quantity cannot exceed available stock for ${item.itemName || "item"}.`
+            );
+            return;
+          }
+        }
+      }
     }
 
     const stockTransferPayload = {
       from_store: isAddToStock ? null : fromStoreId,
       to_store: toStoreId ? (isScrapItems ? null : toStoreId) : null,
-      purchase_reference_number: isPurchaseOrderReturn ? poReferenceNumber : null,
+      purchase_order_reference_number: isPurchaseOrderReturn ? poReferenceNumber : null,
       sales_order_reference_number: isSalesOrderReturn ? salesOrderReferenceNumber : null,
       comment,
       transfer_type: transferType,
@@ -799,6 +918,9 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         id: item.itemID ?? item.product?.id,
         product_variant_id: item.selectedVariantId ?? null,
         warehouse_id: item?.product?.warehouse_id ?? null,
+        received_quantity: Number(item.receivedQuantity) || 0,
+        returned_quantity: Number(item.returnedQuantity) || 0,
+        available_quantity: Number(item.availableQuantity) || 0,
         transferred_quantity: Number(item.transferQuantity) || 0,
         is_batch_applicable: Number(item?.product?.is_batch_applicable) === 1,
         ...(["scrap_items", "purchase_order_return", "sales_order_return"].includes(
@@ -825,6 +947,8 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           }),
       })),
     };
+
+    // console.log("stockTransferPayload", stockTransferPayload);
 
     try {
       const response = await PrivateAxios.post(
@@ -1007,6 +1131,9 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
             : [];
           const selectedVariant =
             variants.find((v) => String(v.value) === String(record.selectedVariantId)) || null;
+          const variantLocked =
+            Boolean(record.lockVariantSelection) &&
+            transferType === "purchase_order_return";
           return (
             <div className="custom-select-wrap">
               <DropDownList
@@ -1014,10 +1141,14 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
                 value={selectedVariant}
                 placeholder="Select Variant"
                 onChange={(e) => handleVariantChange(e.value, record.key)}
-                data={variants ?? [{ value: null, label: "No variants available" }]}
+                data={variants.length ? variants : [{ value: null, label: "No variants available" }]}
                 textField="label"
                 valueField="value"
-                disabled={!record.itemId || variants.length === 0}
+                disabled={
+                  variantLocked ||
+                  !record.itemId ||
+                  variants.length === 0
+                }
               />
             </div>
           );
