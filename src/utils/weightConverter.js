@@ -10,6 +10,9 @@
  * convertWeight(1500, "ml") // { value: 1.5, unit: "L", display: "1.5 L" }
  */
 export const convertWeight = (totalWeight, unitLabel) => {
+  const formatDisplayNumber = (value, decimals = 3) =>
+    Number(Number(value).toFixed(decimals)).toString();
+
   if (!totalWeight || totalWeight === 0) {
     return { value: 0, unit: unitLabel || "", display: `0 ${unitLabel || ""}` };
   }
@@ -28,7 +31,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(2)),
         unit: "ton",
-        display: `${value.toFixed(2)} ton`,
+        display: `${formatDisplayNumber(value, 2)} ton`,
       };
     } else if (totalWeight >= 1000) {
       // Convert to kg
@@ -36,7 +39,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(2)),
         unit: "kg",
-        display: `${value.toFixed(2)} kg`,
+        display: `${formatDisplayNumber(value, 2)} kg`,
       };
     } else {
       return {
@@ -54,7 +57,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(3)),
         unit: "kg",
-        display: `${value.toFixed(3)} kg`,
+        display: `${formatDisplayNumber(value, 3)} kg`,
       };
     } else if (totalWeight >= 1000) {
       // Convert to g
@@ -62,7 +65,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(3)),
         unit: "g",
-        display: `${value.toFixed(3)} g`,
+        display: `${formatDisplayNumber(value, 3)} g`,
       };
     } else {
       return {
@@ -80,13 +83,13 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(3)),
         unit: "ton",
-        display: `${value.toFixed(3)} ton`,
+        display: `${formatDisplayNumber(value, 3)} ton`,
       };
     } else {
       return {
         value: totalWeight,
         unit: "kg",
-        display: `${totalWeight.toFixed(3)} kg`,
+        display: `${formatDisplayNumber(totalWeight, 3)} kg`,
       };
     }
   }
@@ -95,7 +98,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
     return {
       value: totalWeight,
       unit: "ton",
-      display: `${totalWeight.toFixed(3)} ton`,
+      display: `${formatDisplayNumber(totalWeight, 3)} ton`,
     };
   }
 
@@ -107,7 +110,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
       return {
         value: parseFloat(value.toFixed(3)),
         unit: "L",
-        display: `${value.toFixed(3)} L`,
+        display: `${formatDisplayNumber(value, 3)} L`,
       };
     } else {
       return {
@@ -122,7 +125,7 @@ export const convertWeight = (totalWeight, unitLabel) => {
     return {
       value: totalWeight,
       unit: "L",
-      display: `${totalWeight.toFixed(3)} L`,
+      display: `${formatDisplayNumber(totalWeight, 3)} L`,
     };
   }
 

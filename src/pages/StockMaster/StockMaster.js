@@ -12,6 +12,7 @@ import "../global.css";
 import {
   PrivateAxios,
 } from "../../environment/AxiosInstance";
+import { convertWeight } from "../../utils/weightConverter";
 import StockMasterBulkActions from "../CommonComponent/StockMasterBulkActions";
 
 
@@ -146,45 +147,46 @@ function StockMaster() {
 
       setProductsCount(stockMasterResponse.pagination.total_records);
       const mappedData = stockMasterResponse.rows.map((item, index) => {
-      const safety_factor = Math.ceil(
-        item.buffer_size * (0.5 / 100) * 100
-      ) / 100;
-      const buffer_size = Math.ceil(
-        item.buffer_size * 100
-      ) / 100;
-      let inventory_needed = (buffer_size + safety_factor + item.sale_order_recieved)
-                       - (item.quantity + item.inventory_at_transit);
-      // if inventory_needed is less than 0, set it to 0
-      if (inventory_needed < 0) {
-        inventory_needed = 0;
-      }
-      return {
-        key: index + 1,
-        id: item.id || "",
-        productVariant: item?.productVariant || "",
-        product: {
-          id: item.product.id || "",
-          product_code: item.product.product_code || "",
-          product_name: item.product.product_name || "",
-          sku_product: item.product.sku_product || "",
-          buffer_size: item.buffer_size || "",
-          productType: item.product?.masterProductType?.name || "",
-          masterBrand: item.product?.masterBrand || "",
-        },
-        warehouse: {
-          id: item.warehouse.id || "",
-          name: item.warehouse.name || "",
-        },
-        productCategory: item.product.productCategory || "",
-        quantity: item.quantity || "",
-        quantityColour: quantityColour(item.buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
-        inventory_at_transit: item.inventory_at_transit || 0,
-        inventory_needed: inventory_needed,
-        sale_order_recieved: item.sale_order_recieved || 0,
-        safety_factor: safety_factor,
-        inventory_at_production: item.inventory_at_production || 0,
-      };
-    });
+        const safety_factor = Math.ceil(
+          item.buffer_size * (0.5 / 100) * 100
+        ) / 100;
+        const buffer_size = Math.ceil(
+          item.buffer_size * 100
+        ) / 100;
+        let inventory_needed = (buffer_size + safety_factor + item.sale_order_recieved)
+                        - (item.quantity + item.inventory_at_transit);
+        // if inventory_needed is less than 0, set it to 0
+        if (inventory_needed < 0) {
+          inventory_needed = 0;
+        }
+        return {
+          key: index + 1,
+          id: item.id || "",
+          productVariant: item?.productVariant || "",
+          product: {
+            id: item.product.id || "",
+            product_code: item.product.product_code || "",
+            product_name: item.product.product_name || "",
+            sku_product: item.product.sku_product || "",
+            buffer_size: item.buffer_size || "",
+            productType: item.product?.masterProductType?.name || "",
+            masterBrand: item.product?.masterBrand || "",
+          },
+          warehouse: {
+            id: item.warehouse.id || "",
+            name: item.warehouse.name || "",
+          },
+          productCategory: item.product.productCategory || "",
+          quantity: item.quantity || "",
+          quantityColour: quantityColour(item.buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
+          inventory_at_transit: item.inventory_at_transit || 0,
+          inventory_needed: inventory_needed,
+          sale_order_recieved: item.sale_order_recieved || 0,
+          safety_factor: safety_factor,
+          inventory_at_production: item.inventory_at_production || 0,
+          total_weight: item.productVariant ? convertWeight(item.productVariant.weight_per_unit * item.quantity, item.productVariant.masterUOM.label) : 0,
+        };
+      });
 
       setFilteredData(mappedData);
     } catch (err) {
@@ -600,6 +602,15 @@ function StockMaster() {
             {quantityValue}
           </span>
         );
+      },
+    },
+    {
+      title: "Total Weight",
+      dataIndex: ["total_weight"],
+      key: "total_weight",
+      width: 150,
+      render: (_, record) => {
+        return record?.total_weight.display || "";
       },
     },
     {
