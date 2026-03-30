@@ -71,7 +71,6 @@ const EwayBill = React.lazy(() => import("../pages/settings/gstApi/EwayBill.js")
 const MyproductList = React.lazy(() => import("../pages/product/AllProducts"));
 const MycategoryList = React.lazy(() => import("../pages/product/AllCategories"));
 const AddNewcategory = React.lazy(() => import("../pages/product/AddNewcategory"));
-const EditCategory = React.lazy(() => import("../pages/product/EditCategory"));
 const AddNewProduct = React.lazy(() => import("../pages/product/AddNewProduct"));
 const EditProduct = React.lazy(() => import("../pages/product/EditProduct"));
 //purchase
@@ -257,7 +256,6 @@ function PrivateRoutes() {
           <Route path="/products" element={<MyproductList />} />
           <Route path="/category" element={<MycategoryList />} />
           <Route path="/add-new-category" element={<AddNewcategory />} />
-          <Route path="/edit-category/:id" element={<EditCategory />} />
           <Route path="/add-new-product" element={<AddNewProduct />} />
           <Route path="/edit-product/:id" element={<EditProduct />} />
           {/* purchase */}

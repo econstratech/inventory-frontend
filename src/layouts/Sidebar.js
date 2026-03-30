@@ -645,7 +645,6 @@ function Sidebar() {
                         || location.pathname === "/category"
                         || location.pathname === "/add-new-product"
                         || location.pathname === "/add-new-category"
-                        || location.pathname === "/edit-category/:id"
                         || location.pathname.startsWith("/inventory/inventory-master-edit/")
                         || location.pathname === "/inventory/inventory-master"
                         || location.pathname === "/inventory/stock-master/add-stock"
@@ -675,7 +674,6 @@ function Sidebar() {
                       || location.pathname === "/products"
                       || location.pathname === "/add-new-product"
                       || location.pathname === "/add-new-category"
-                      || location.pathname === "/edit-category/:id"
                       || location.pathname === "/category"
                       || location.pathname.startsWith("/inventory/inventory-master-edit/")
                       || location.pathname === "/inventory/floor_manager"
@@ -742,7 +740,6 @@ function Sidebar() {
                         <div className="sidebar-item">
                           <Link to={'/category'}
                             className={`sidebar-nav-link subMenu_item ${location.pathname === "/add-new-category" ||
-                              location.pathname === "/edit-category/:id" ||
                               location.pathname === "/category"
                               ? "active" : ""
                               } `}

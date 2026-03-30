@@ -21,7 +21,7 @@ function AuthenticateUser() {
 
   useEffect(() => {
     // Check if third party token is already in local storage, redirect to welcome page
-    const thirdPartyToken = sessionStorage.getItem("third_party_token");
+    const thirdPartyToken = localStorage.getItem("third_party_token");
     const systemAuth = localStorage.getItem("auth_user");
 
     // const systemAuthData = systemAuth ? JSON.parse(systemAuth) : null;
@@ -84,7 +84,7 @@ function AuthenticateUser() {
           permissions: res.data.data.permissions,
         }
         setAuthUser(authData);
-        sessionStorage.setItem("third_party_token", token);
+        localStorage.setItem("third_party_token", token);
         SuccessMessage(res.data.message);
         navigate("/welcome");
       } else {

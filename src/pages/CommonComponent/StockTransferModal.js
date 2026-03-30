@@ -328,7 +328,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           availableBatches,
           batchQuantities,
           disableTransferQuantity: disableMainTransfer,
-          itemID: product.id,
+          itemID: rp.id,
           defaultPrice: Number(rp.unit_price) || 0,
           itemUnit: variantUnit,
           availableVariants,
@@ -393,7 +393,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
         const disableMainTransfer = qty <= 0 || (isBatchApplicable && batchCount > 1);
         return {
           key: baseKey + i,
-          itemId: productId,
+          itemId: sp.id,
           selectedVariantId: null,
           itemName: product.product_name || sp.description || "",
           product,
@@ -403,7 +403,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           availableBatches,
           batchQuantities,
           disableTransferQuantity: disableMainTransfer,
-          itemID: productId,
+          // itemID: productId,
           defaultPrice: Number(sp.unit_price) || 0,
           itemUnit: "",
           availableVariants: [],
@@ -733,6 +733,8 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       return;
     }
 
+    console.log("transferItems", transferItems);
+
     const validItems = transferItems.filter(
       (item) => item.itemID != null && item.itemID !== "" && item.product != null
     );
@@ -948,7 +950,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       })),
     };
 
-    // console.log("stockTransferPayload", stockTransferPayload);
+    console.log("stockTransferPayload", stockTransferPayload);
 
     try {
       const response = await PrivateAxios.post(
