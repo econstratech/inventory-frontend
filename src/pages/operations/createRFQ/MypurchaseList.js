@@ -398,12 +398,12 @@ function MypurchaseList() {
 
   const columns = [
     { title: "Sl No.", dataIndex: "slNo", key: "slNo", width: 100 },
-    { title: "Reference", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
+    { title: "Reference No.", dataIndex: "reference", key: "reference", width: 150, render: renderReference },
     { title: "Vendor", dataIndex: "vendor", key: "vendor", width: 200 },
     { title: "Store", dataIndex: "store", key: "store", width: 200 },
     { title: "Created By", dataIndex: "buyer", key: "createdByUser", width: 200 },
     { title: "Expected Arrival", dataIndex: "expected_arrival", key: "expected_arrival", width: 200 },
-    { title: "Total", dataIndex: "total", key: "total", width: 150 },
+    { title: "Total Amount", dataIndex: "total", key: "total", width: 150 },
     { title: "Status", dataIndex: "status_return", key: "status_return", width: 150, render: renderStatus },
     { title: "Action", key: "action", width: 250, render: renderAction },
   ];
@@ -458,10 +458,11 @@ function MypurchaseList() {
                 selectsRange
                 isClearable
                 placeholderText="Select date range"
+                wrapperClassName="w-100"
                 className="form-control"
                 dateFormat="dd-MM-yyyy"
                 name="expected_arrival"
-                style={{ display: "block" }}
+                style={{ display: "block", height: "38px", width: "100%" }}
               />
             </div>
             <div className="d-flex gap-2 align-items-end">

@@ -10,22 +10,35 @@ import {
 } from "../../environment/AxiosInstance";
 import { UserAuth } from "../auth/Auth";
 import Loader from "../landing/loder/Loader";
-import { SuccessMessage } from "../../environment/ToastMessage";
+import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import InventoryMasterPageTopBar from "../InventoryMaster/itemMaster/InventoryMasterPageTopBar";
-import { Tooltip, Table } from "antd";
-import CategoryStatusBar from "./CategoryStatusBar";
+import { Tooltip, Table, Switch } from "antd";
+// import CategoryStatusBar from "./CategoryStatusBar";
 import { exportExcel, exportPDF } from "../../environment/exportTable";
 
 function AllCategories() {
   const { isLoading, setIsLoading, Logout } = UserAuth();
   const [deleteShow, setDeleteShow] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [editShow, setEditShow] = useState(false);
+  const [editCategoryId, setEditCategoryId] = useState(null);
+  const [editCategoryTitle, setEditCategoryTitle] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const [descriptionShow, setDescriptionShow] = useState(false);
   const [descriptionData, setDescriptionData] = useState("");
   const [file, setFile] = useState(null);
   const [data, setData] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [titleFilter, setTitleFilter] = useState("");
   const navigate = useNavigate();
   const deleteModalClose = () => setDeleteShow(false);
+  const editModalClose = () => {
+    setEditShow(false);
+    setEditCategoryId(null);
+    setEditCategoryTitle("");
+  };
 
   const descriptionModalClose = () => {
     setDescriptionShow(false);
@@ -37,9 +50,39 @@ function AllCategories() {
   };
 
   const [pageState, setPageState] = useState({
-    current: 1,
-    pageSize: 20,
+    skip: 0,
+    take: 10,
   });
+
+  const fetchCategories = async (customPageState = null, customFilters = null) => {
+    setIsLoading(true);
+    try {
+      const currentPageState = customPageState || pageState;
+      const filters = customFilters || {
+        status: statusFilter,
+        title: titleFilter,
+      };
+      const urlParams = new URLSearchParams({
+        page: currentPageState.skip / currentPageState.take + 1,
+        limit: currentPageState.take,
+        ...(filters.status !== "" && { status: filters.status }),
+        ...(String(filters.title || "").trim() && { title: String(filters.title).trim() }),
+      });
+      const res = await PrivateAxios.get(`product-category?${urlParams.toString()}`);
+      const payload = res.data?.data || {};
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      const pagination = payload?.pagination || {};
+
+      setData(rows);
+      setTotalCount(Number(pagination?.total_records) || 0);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        Logout();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleUpload = async () => {
     setIsLoading(true);
@@ -69,21 +112,7 @@ function AllCategories() {
   };
 
   useEffect(() => {
-    const TaskData = async () => {
-      setIsLoading(true);
-      PrivateAxios.get("product-category")
-        .then((res) => {
-          setData(res.data.data);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          setIsLoading(false);
-          if (err.response?.status === 401) {
-            Logout();
-          }
-        });
-    };
-    TaskData();
+    fetchCategories();
   }, []);
 
   const deleteModalShow = (id) => {
@@ -91,10 +120,16 @@ function AllCategories() {
     setDeleteShow(true);
   };
 
+  const editModalShow = (record) => {
+    setEditCategoryId(record?.id ?? null);
+    setEditCategoryTitle(record?.title ?? "");
+    setEditShow(true);
+  };
+
   const handleDelete = () => {
     PrivateAxios.delete(`category/${deleteId}`)
       .then(() => {
-        setData(data.filter((item) => item.id !== deleteId));
+        fetchCategories(pageState);
         setDeleteShow(false);
         setDeleteId(null);
       })
@@ -108,7 +143,7 @@ function AllCategories() {
   const exportColumns = [
     { name: "Sl No.", selector: () => {} },
     { name: "Name", selector: (item) => item.title ?? "" },
-    { name: "Status", selector: () => "Active" },
+    { name: "Status", selector: (item) => (Number(item.status) === 1 ? "Active" : "Inactive") },
   ];
 
   const handleExportPDF = () => {
@@ -127,35 +162,85 @@ function AllCategories() {
     exportExcel(exportColumns, data, "categories");
   };
 
-  const renderStatus = () => (
-    <label className="badge badge-outline-active mb-0">
-      <i className="fas fa-circle f-s-8 d-flex me-1"></i>Active
+  const renderStatus = (value) => (
+    <label
+      className={`badge mb-0 ${Number(value) === 1 ? "badge-outline-active" : "badge-outline-danger"}`}
+    >
+      <i className="fas fa-circle f-s-8 d-flex me-1"></i>
+      {Number(value) === 1 ? "Active" : "Inactive"}
     </label>
   );
 
-  const renderAction = (_, record) => (
-    <div className="d-flex gap-2">
-      <Tooltip title="Edit">
-        <Link
-          to={{ pathname: `/edit-category/${record.id}` }}
-          state={{ data: record }}
-          className="me-1 icon-btn"
-        >
-          <i className="fas fa-pen"></i>
-        </Link>
-      </Tooltip>
+  const handleStatusToggle = async (record, checked) => {
+    const nextStatus = checked ? 1 : 0;
+    const previousStatus = Number(record.status) === 1 ? 1 : 0;
 
-      <Tooltip title="Delete">
-        <button
-          type="button"
-          className="me-1 icon-btn"
-          onClick={() => deleteModalShow(record.id)}
-        >
-          <i className="fas fa-trash-alt text-danger f-s-14"></i>
-        </button>
-      </Tooltip>
-    </div>
-  );
+    setData((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(record.id)
+          ? { ...item, status: nextStatus }
+          : item
+      )
+    );
+    setUpdatingStatusId(record.id);
+
+    try {
+      const res = await PrivateAxios.put(
+        `/product-category-update/${record.id}`,
+        { status: nextStatus }
+      );
+      SuccessMessage(
+        res?.data?.message ||
+          `Category marked as ${nextStatus === 1 ? "Active" : "Inactive"}.`
+      );
+    } catch (error) {
+      setData((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(record.id)
+            ? { ...item, status: previousStatus }
+            : item
+        )
+      );
+      ErrorMessage(error?.response?.data?.message || "Failed to update category status.");
+      if (error?.response?.status === 401) {
+        Logout();
+      }
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
+  const handleEditCategorySubmit = async () => {
+    const trimmedTitle = String(editCategoryTitle || "").trim();
+    if (!editCategoryId) return;
+    if (!trimmedTitle) {
+      ErrorMessage("Category title is required.");
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      const res = await PrivateAxios.put(
+        `/product-category/${editCategoryId}`,
+        { title: trimmedTitle }
+      );
+      setData((prev) =>
+        prev.map((item) =>
+          String(item.id) === String(editCategoryId)
+            ? { ...item, title: trimmedTitle }
+            : item
+        )
+      );
+      SuccessMessage(res?.data?.message || "Category title updated successfully.");
+      editModalClose();
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to update category title.");
+      if (error?.response?.status === 401) {
+        Logout();
+      }
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   const columns = [
     {
@@ -163,29 +248,77 @@ function AllCategories() {
       key: "slNo",
       width: 90,
       render: (_, __, index) =>
-        (pageState.current - 1) * pageState.pageSize + index + 1,
+        pageState.skip + index + 1,
     },
     { title: "Name", dataIndex: "title", key: "title", width: 240 },
     {
       title: "Status",
       key: "status",
+      dataIndex: "status",
       width: 140,
       render: renderStatus,
     },
     {
       title: "Action",
       key: "action",
-      width: 120,
-      render: renderAction,
+      width: 180,
+      render: (_, record) => (
+        <div className="d-flex align-items-center gap-2">
+          <Switch
+            checked={Number(record.status) === 1}
+            checkedChildren="Active"
+            unCheckedChildren="Inactive"
+            loading={String(updatingStatusId) === String(record.id)}
+            onChange={(checked) => handleStatusToggle(record, checked)}
+          />
+          <Tooltip title="Edit Category">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => editModalShow(record)}
+            >
+              <i className="fas fa-pen"></i>
+            </button>
+          </Tooltip>
+        </div>
+      ),
     },
   ];
 
   const [openBulkUpload, setOpenBulkUpload] = useState(false);
 
   const handleTableChange = (pagination) => {
-    setPageState({
-      current: pagination.current,
-      pageSize: pagination.pageSize,
+    const newPageState = {
+      skip: (pagination.current - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+    };
+    setPageState(newPageState);
+    fetchCategories(newPageState);
+  };
+
+  const handleFilter = () => {
+    const newPageState = {
+      skip: 0,
+      take: pageState.take,
+    };
+    setPageState(newPageState);
+    fetchCategories(newPageState, {
+      status: statusFilter,
+      title: titleFilter,
+    });
+  };
+
+  const handleResetFilter = () => {
+    const newPageState = {
+      skip: 0,
+      take: 10,
+    };
+    setStatusFilter("");
+    setTitleFilter("");
+    setPageState(newPageState);
+    fetchCategories(newPageState, {
+      status: "",
+      title: "",
     });
   };
 
@@ -196,7 +329,7 @@ function AllCategories() {
       ) : (
         <>
           <InventoryMasterPageTopBar />
-          <CategoryStatusBar />
+          {/* <CategoryStatusBar /> */}
           <div className="p-4">
             <div className="card">
               <div className="card-body p-0">
@@ -245,6 +378,66 @@ function AllCategories() {
                       </Tooltip>
                     </div>
                   </div>
+                </div>
+
+                <div className="col-12">
+                  <div className="p-3 border-top border-bottom">
+                    <div className="row g-3 align-items-end">
+                      <div className="col-md-3">
+                        <label className="form-label mb-1">Filter by Status</label>
+                        <select
+                          className="form-select"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                          style={{ height: "38px" }}
+                        >
+                          <option value="">All</option>
+                          <option value="1">Active</option>
+                          <option value="0">Inactive</option>
+                        </select>
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label mb-1">Filter by Category Name</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Category name"
+                          value={titleFilter}
+                          onChange={(e) => setTitleFilter(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleFilter();
+                            }
+                          }}
+                          style={{ height: "38px" }}
+                        />
+                      </div>
+                      <div className="col-md-auto">
+                        <div className="d-flex gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-exp-primary"
+                            style={{ height: "38px" }}
+                            onClick={handleFilter}
+                          >
+                            <i className="fas fa-filter me-2"></i>
+                            Filter
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            style={{ height: "38px" }}
+                            onClick={handleResetFilter}
+                          >
+                            <i className="fas fa-redo me-2"></i>
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
                 <div className="col-12">
@@ -320,13 +513,16 @@ function AllCategories() {
                       columns={columns}
                       dataSource={data}
                       loading={isLoading}
-                      onChange={handleTableChange}
                       pagination={{
-                        current: pageState.current,
-                        pageSize: pageState.pageSize,
-                        total: data.length,
+                        current: pageState.skip / pageState.take + 1,
+                        pageSize: pageState.take,
+                        total: totalCount,
                         showSizeChanger: true,
-                        pageSizeOptions: ["10", "15", "20", "50"],
+                        pageSizeOptions: ["10", "15", "25", "50"],
+                        onChange: (page, pageSize) =>
+                          handleTableChange({ current: page, pageSize }),
+                        onShowSizeChange: (page, pageSize) =>
+                          handleTableChange({ current: page, pageSize }),
                         showTotal: (total, range) =>
                           `${range[0]}-${range[1]} of ${total} items`,
                       }}
@@ -381,6 +577,54 @@ function AllCategories() {
                 onClick={handleDelete}
               >
                 Delete
+              </button>
+            </Modal.Footer>
+          </Modal>
+
+          <Modal
+            show={editShow}
+            onHide={editModalClose}
+            backdrop="static"
+            keyboard={false}
+            centered
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Edit Category</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="form-group mb-0">
+                <label className="form-label">Category Title</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter category title"
+                  value={editCategoryTitle}
+                  onChange={(e) => setEditCategoryTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleEditCategorySubmit();
+                    }
+                  }}
+                />
+              </div>
+            </Modal.Body>
+            <Modal.Footer className="justify-content-center">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={editModalClose}
+                disabled={editSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-exp-primary"
+                onClick={handleEditCategorySubmit}
+                disabled={editSubmitting}
+              >
+                {editSubmitting ? "Saving..." : "Save"}
               </button>
             </Modal.Footer>
           </Modal>
