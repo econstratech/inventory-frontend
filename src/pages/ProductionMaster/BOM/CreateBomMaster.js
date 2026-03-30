@@ -1,8 +1,9 @@
 import React, { useState, useRef } from "react";
-import { Form, Input, Button, Card } from "antd";
+import { Form, Input, Button, Card, Select } from "antd";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeftOutlined, PlusOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 
+import { UserAuth } from "../../auth/Auth";
 import { SuccessMessage, ErrorMessage } from "../../../environment/ToastMessage";
 import { PrivateAxios, PrivateAxiosFile } from "../../../environment/AxiosInstance";
 import ProductSelect from "../../filterComponents/ProductSelect";
@@ -14,6 +15,9 @@ const initialRow = () => ({
   key: Date.now() + Math.random(),
   fgProductId: null,
   rmProductId: null,
+  rmVariantId: null,
+  variantOptions: [],
+  variantLoading: false,
   quantity: "",
 });
 
@@ -25,11 +29,13 @@ function CreateBomMaster() {
   const [rows, setRows] = useState([initialRow()]);
   const [rowErrors, setRowErrors] = useState({});
   const fileInputRef = useRef(null);
+  const { isVariantBased } = UserAuth();
 
   const validateRow = (row) => {
     const err = {};
     if (!row.fgProductId) err.fgProduct = "FG Product is required";
     if (!row.rmProductId) err.rmProduct = "RM Product is required";
+    if (isVariantBased && !row.rmVariantId) err.rmVariant = "Variant is required";
     const q = row.quantity;
     if (q === undefined || q === null || String(q).trim() === "") {
       err.quantity = "Quantity is required";
@@ -78,13 +84,20 @@ function CreateBomMaster() {
     setRows((prev) =>
       prev.map((r) => (r.key === key ? { ...r, [field]: value } : r))
     );
+    const errorFieldMap = {
+      fgProductId: "fgProduct",
+      rmProductId: "rmProduct",
+      rmVariantId: "rmVariant",
+      quantity: "quantity",
+    };
+    const mappedErrorField = errorFieldMap[field] || field;
     const err = rowErrors[key];
-    if (err && err[field]) {
+    if (err && err[mappedErrorField]) {
       setRowErrors((prev) => {
         const next = { ...prev };
         if (next[key]) {
           next[key] = { ...next[key] };
-          delete next[key][field];
+          delete next[key][mappedErrorField];
           if (Object.keys(next[key]).length === 0) delete next[key];
         }
         return next;
@@ -92,10 +105,58 @@ function CreateBomMaster() {
     }
   };
 
+  const fetchVariantsForRow = async (rowKey, productId) => {
+    if (!productId) return;
+    setRows((prev) =>
+      prev.map((r) =>
+        r.key === rowKey
+          ? { ...r, variantLoading: true, variantOptions: [], rmVariantId: null }
+          : r
+      )
+    );
+    try {
+      const res = await PrivateAxios.get(`/product/variants/${productId}`);
+      const variants = Array.isArray(res.data?.data?.variants) ? res.data.data.variants : [];
+      const options = variants.map((v) => {
+        const uomLabel = v?.masterUOM?.label || v?.masterUOM?.name || "";
+        const variantLabel = `${v?.weight_per_unit ?? ""} ${uomLabel}`.trim();
+        return {
+          value: v.id,
+          label: variantLabel || `Variant #${v.id}`,
+        };
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.key === rowKey
+            ? {
+                ...r,
+                variantLoading: false,
+                variantOptions: options,
+              }
+            : r
+        )
+      );
+    } catch (error) {
+      setRows((prev) =>
+        prev.map((r) =>
+          r.key === rowKey
+            ? {
+                ...r,
+                variantLoading: false,
+                variantOptions: [],
+                rmVariantId: null,
+              }
+            : r
+        )
+      );
+      ErrorMessage(error?.response?.data?.message || "Failed to fetch product variants.");
+    }
+  };
+
   const handleDownloadSample = () => {
     const link = document.createElement("a");
     link.href = SAMPLE_CSV_URL;
-    link.download = "sample_bom_upload.csv";
+    link.download = isVariantBased ? "sample_bom_upload_with_variants.csv" : "sample_bom_upload.csv";
     link.click();
   };
 
@@ -136,6 +197,7 @@ function CreateBomMaster() {
     const createBOMPayload = rows.map((row) => ({
       final_product_id: row.fgProductId,
       raw_material_product_id: row.rmProductId,
+      ...(isVariantBased && { raw_material_variant_id: row.rmVariantId }),
       quantity: Number(row.quantity),
     }));
 
@@ -225,7 +287,7 @@ function CreateBomMaster() {
                       />
                     </div>
                     <div className="row g-2">
-                      <div className="col-12 col-md-4">
+                      <div className={`col-12 ${isVariantBased ? "col-md-3" : "col-md-4"}`}>
                         <Form.Item
                           label="FG Product"
                           required
@@ -253,7 +315,7 @@ function CreateBomMaster() {
                           />
                         </Form.Item>
                       </div>
-                      <div className="col-12 col-md-4">
+                      <div className={`col-12 ${isVariantBased ? "col-md-3" : "col-md-4"}`}>
                         <Form.Item
                           label="RM Product"
                           required
@@ -265,7 +327,20 @@ function CreateBomMaster() {
                             placeholder="Search and select RM Product..."
                             value={row.rmProductId}
                             onChange={(option) => {
-                              updateRow(row.key, "rmProductId", option ? option.value : null);
+                              const nextProductId = option ? option.value : null;
+                              updateRow(row.key, "rmProductId", nextProductId);
+                              if (isVariantBased) {
+                                setRows((prev) =>
+                                  prev.map((r) =>
+                                    r.key === row.key
+                                      ? { ...r, rmVariantId: null, variantOptions: [] }
+                                      : r
+                                  )
+                                );
+                                if (nextProductId) {
+                                  fetchVariantsForRow(row.key, nextProductId);
+                                }
+                              }
                             }}
                             error={err.rmProduct}
                             onErrorClear={() => {
@@ -281,6 +356,29 @@ function CreateBomMaster() {
                           />
                         </Form.Item>
                       </div>
+                      {isVariantBased && (
+                        <div className="col-12 col-md-3">
+                          <Form.Item
+                            label="Variant"
+                            required
+                            validateStatus={err.rmVariant ? "error" : ""}
+                            help={err.rmVariant}
+                            className="mb-2"
+                          >
+                            <Select
+                              placeholder={row.rmProductId ? "Select variant" : "Select RM Product first"}
+                              value={row.rmVariantId}
+                              onChange={(value) => updateRow(row.key, "rmVariantId", value)}
+                              options={row.variantOptions}
+                              loading={row.variantLoading}
+                              disabled={!row.rmProductId}
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                          </Form.Item>
+                        </div>
+                      )}
                       <div className="col-12 col-md-3">
                         <Form.Item
                           label="Quantity"
