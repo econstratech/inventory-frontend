@@ -60,6 +60,7 @@ function BomMaster() {
           bom_no: item.bom_no || "",
           FGProduct: item.finalProduct ? `${item.finalProduct?.product_name} (${item.finalProduct?.product_code})` : "",
           RMProduct: item.rawMaterialProduct ? `${item.rawMaterialProduct?.product_name} (${item.rawMaterialProduct?.product_code})` : "",
+          RMVariant: item.rawMaterialProductVariant ? `${item.rawMaterialProductVariant?.weight_per_unit} ${item.rawMaterialProductVariant?.masterUOM.label}` : "",
           quantity: item.quantity || "",
         };
       });
@@ -250,6 +251,12 @@ function BomMaster() {
       width: 150,
     },
     {
+      title: "RM Variant",
+      dataIndex: ["RMVariant"],
+      key: "RMVariant",
+      width: 150,
+    },
+    {
       title: "Quantity",
       dataIndex: ["quantity"],
       key: "quantity",
@@ -426,6 +433,18 @@ function BomMaster() {
           >
             <div className="ant-form-item-control-input" style={{ padding: '4px 0', color: 'rgba(0, 0, 0, 0.88)', fontSize: 14 }}>
               {updateBomFormData?.RMProduct ?? '—'}
+            </div>
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <span>
+                RM Variant
+              </span>
+            }
+          >
+            <div className="ant-form-item-control-input" style={{ padding: '4px 0', color: 'rgba(0, 0, 0, 0.88)', fontSize: 14 }}>
+              {updateBomFormData?.RMVariant ?? "—"}
             </div>
           </Form.Item>
 
