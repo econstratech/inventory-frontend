@@ -128,6 +128,7 @@ const RolePermission = React.lazy(() => import("../pages/settings/RolePermission
 const EinvoiceApiAccount = React.lazy(() => import("../pages/settings/EinvoiceApiAccount.js"));
 const GatewaySettings = React.lazy(() => import("../pages/settings/GatewaySettings.js"));
 const ProductAttributes = React.lazy(() => import("../pages/settings/ProductAttributes.js"));
+const ManageProductionFlow = React.lazy(() => import("../pages/settings/ManageProductionFlow.js"));
 
 //Inventory
 const InventoryMaster = React.lazy(() => import("../pages/InventoryMaster/InventoryMaster.js"));
@@ -332,6 +333,7 @@ function PrivateRoutes() {
           <Route path="/settings/gst/einvoice-api-account" element={<EinvoiceApiAccount />} />
           <Route path="/settings/pos/gateway" element={<GatewaySettings />} />
           <Route path="/settings/product-attributes" element={<ProductAttributes />} />
+          <Route path="/settings/manage-production-flow" element={<ManageProductionFlow />} />
 
           {/* user list */}
           {/* <Route path="/users" element={<UsersList />} /> */}

@@ -1,6 +1,6 @@
-Item Code,Item Name,Item Type,Category,UOM,Weight,Batch Applicable,Markup Percent
-FG0003,Satto,FG MTS,RM,kg,1,Yes,10
-FG0003,,,,g,500,,
-RM001,Maida,Raw Material (RM),Spare parts,kg,10,No,8
-RM001,,,,kg,15,,
-RM001,,,,kg,20,,
+Item Code,Item Name,Item Type,Category,UOM,Weight,Batch Applicable,Markup Percent,Brand
+FG0003,Satto,FG MTS,RM,kg,1,Yes,10,Britania
+FG0003,,,,g,500,,,
+RM001,Maida,Raw Material (RM),Spare parts,kg,10,No,8,Nestley
+RM001,,,,kg,15,,,
+RM001,,,,kg,20,,,
