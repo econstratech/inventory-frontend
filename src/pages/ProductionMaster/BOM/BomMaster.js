@@ -59,6 +59,7 @@ function BomMaster() {
           id: item.id || "",
           bom_no: item.bom_no || "",
           FGProduct: item.finalProduct ? `${item.finalProduct?.product_name} (${item.finalProduct?.product_code})` : "",
+          FGVariant: item.finalProductVariant ? `${item.finalProductVariant?.weight_per_unit} ${item.finalProductVariant?.masterUOM.label}` : "",
           RMProduct: item.rawMaterialProduct ? `${item.rawMaterialProduct?.product_name} (${item.rawMaterialProduct?.product_code})` : "",
           RMVariant: item.rawMaterialProductVariant ? `${item.rawMaterialProductVariant?.weight_per_unit} ${item.rawMaterialProductVariant?.masterUOM.label}` : "",
           quantity: item.quantity || "",
@@ -245,6 +246,12 @@ function BomMaster() {
       width: 150,
     },
     {
+      title: "FG Variant",
+      dataIndex: ["FGVariant"],
+      key: "FGVariant",
+      width: 150,
+    },
+    {
       title: "RM Product",
       dataIndex: ["RMProduct"],
       key: "RMProduct",
@@ -419,6 +426,18 @@ function BomMaster() {
           >
             <div className="ant-form-item-control-input" style={{ padding: '4px 0', color: 'rgba(0, 0, 0, 0.88)', fontSize: 14 }}>
               {updateBomFormData?.FGProduct ?? '—'}
+            </div>
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <span>
+                FG Variant
+              </span>
+            }
+          >
+            <div className="ant-form-item-control-input" style={{ padding: '4px 0', color: 'rgba(0, 0, 0, 0.88)', fontSize: 14 }}>
+              {updateBomFormData?.FGVariant ?? "—"}
             </div>
           </Form.Item>
 

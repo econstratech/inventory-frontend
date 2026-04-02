@@ -760,7 +760,8 @@ function Sidebar() {
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button
-                      className={`accordion-button ${location.pathname === "/production/work-orders"
+                      className={`accordion-button ${location.pathname === "/production/work-orders" ||
+                        location.pathname === "/settings/manage-production-flow"
                         ? ""
                         : "collapsed"
                         } sidebar-nav-link`}
@@ -776,7 +777,8 @@ function Sidebar() {
                   </div>
                   <div
                     id="ProductionMenu"
-                    className={`accordion-collapse collapse ${location.pathname === "/production/work-orders"
+                    className={`accordion-collapse collapse ${location.pathname === "/production/work-orders" ||
+                      location.pathname === "/settings/manage-production-flow"
                       ? "show"
                       : ""
                       }`}
@@ -792,6 +794,17 @@ function Sidebar() {
                             }`}
                         >
                           <p>Work Orders</p>
+                        </Link>
+                      </div>
+                      <div className="sidebar-item">
+                        <Link
+                          to="/settings/manage-production-flow"
+                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/settings/manage-production-flow"
+                            ? "active"
+                            : ""
+                            }`}
+                        >
+                          <p>Manage Production Flow</p>
                         </Link>
                       </div>
                     </div>
@@ -1613,8 +1626,7 @@ function Sidebar() {
                         location.pathname === "/settings/gst/eway-bill-api-account" ||
                         location.pathname === "/settings/gst/einvoice-api-account" ||
                         location.pathname === "settings/gst/einvoice-api-account" ||
-                        location.pathname === "/settings/product-attributes" ||
-                        location.pathname === "/settings/manage-production-flow"
+                        location.pathname === "/settings/product-attributes"
                         ? ""
                         : "collapsed"
                         } sidebar-nav-link`}
@@ -1647,7 +1659,6 @@ function Sidebar() {
                         location.pathname === "/company-info" ||
                         location.pathname === "/settings/user" ||
                         location.pathname === "/settings/product-attributes" ||
-                        location.pathname === "/settings/manage-production-flow" ||
                         location.pathname === "/settings/brands"
 
                         ? "show" : ""
@@ -1769,14 +1780,6 @@ function Sidebar() {
                             className={`sidebar-nav-link ${location.pathname === "/settings/product-attributes" ? "active" : ""}`}
                           >
                             <p>Product Attributes</p>
-                          </Link>
-                        </li>
-                        <li className="sidebar-item">
-                          <Link
-                            to="/settings/manage-production-flow"
-                            className={`sidebar-nav-link ${location.pathname === "/settings/manage-production-flow" ? "active" : ""}`}
-                          >
-                            <p>Manage Production Flow</p>
                           </Link>
                         </li>
                       </ul>
