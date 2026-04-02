@@ -767,6 +767,8 @@ function SendToManagement() {
                       {ProductCompare[0].products?.map((product, productIndex) => {
                         const editedProduct = editedProducts[product.id] || { qty: product.qty, unit_price: product.unit_price };
                         const calculations = getProductCalculations(product);
+                        const productDataToShow = editedProduct?.productData || product?.ProductsItem || null;
+                        const selectedProductId = editedProduct?.product_id || product?.product_id || null;
                         
                         return (
                           <tr key={product.id}>
@@ -774,7 +776,8 @@ function SendToManagement() {
                               <div className="d-flex align-items-center gap-2" style={{ minWidth: "300px" }}>
                                 <div style={{ flex: 1 }}>
                                   <ProductSelect
-                                    value={product.product_id}
+                                    value={selectedProductId}
+                                    selectedProductData={productDataToShow}
                                     onChange={(selectedOption) => handleProductChange(product.id, productIndex, selectedOption)}
                                     placeholder="Search and select product..."
                                     isClearable={false}
@@ -787,10 +790,13 @@ function SendToManagement() {
                                       }),
                                     }}
                                   />
+                                  {!productDataToShow && selectedProductId && (
+                                    <small className="text-muted d-block mt-1">
+                                      Selected product unavailable (ID: {selectedProductId}). Use search to change.
+                                    </small>
+                                  )}
                                 </div>
                                 {(() => {
-                                  const editedProduct = editedProducts[product.id];
-                                  const productDataToShow = editedProduct?.productData || product.ProductsItem;
                                   return productDataToShow && (
                                     <OverlayTrigger
                                       trigger="click"
@@ -852,13 +858,7 @@ function SendToManagement() {
                               </div>
                             </td>
                             <td>
-                              {(() => {
-                                const editedProduct = editedProducts[product.id];
-                                if (editedProduct?.productData) {
-                                  return editedProduct.productData.product_code || 'N/A';
-                                }
-                                return product.ProductsItem?.product_code || 'N/A';
-                              })()}
+                              {productDataToShow?.product_code || 'N/A'}
                             </td>
                             <td>
                               <input
