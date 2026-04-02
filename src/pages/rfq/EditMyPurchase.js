@@ -1052,9 +1052,27 @@ function EditMyPurchase() {
                                     <div style={{ flex: 1 }}>
                                       <Select
                                         placeholder="Search and select product..."
-                                        value={productOptions.find(
-                                          (option) => option.value === product.product_id
-                                        ) || null}
+                                        value={
+                                          productOptions.find(
+                                            (option) =>
+                                              String(option.value) === String(product.product_id)
+                                          ) ||
+                                          (product?.product_id
+                                            ? {
+                                                value: product.product_id,
+                                                label: `${
+                                                  product?.ProductsItem?.product_name ||
+                                                  product?.description ||
+                                                  "Selected product"
+                                                }${
+                                                  product?.ProductsItem?.product_code || product?.product_code
+                                                    ? ` (${product?.ProductsItem?.product_code || product?.product_code})`
+                                                    : ""
+                                                }`,
+                                                productData: product?.ProductsItem || null,
+                                              }
+                                            : null)
+                                        }
                                         onChange={(selectedOption) => {
                                           if (selectedOption) {
                                             const selectedProduct = selectedOption.productData;
@@ -1151,12 +1169,20 @@ function EditMyPurchase() {
                                           }),
                                         }}
                                       />
+                                      {/* {!productOptions.some(
+                                        (option) => String(option.value) === String(product.product_id)
+                                      ) &&
+                                        product?.product_id && (
+                                          <small className="text-muted d-block mt-1">
+                                            Selected product unavailable in list. Search to change.
+                                          </small>
+                                        )} */}
                                       {error.products && !product.product_id && (
                                         <small className="text-danger">{error.products}</small>
                                       )}
                                     </div>
 
-                                    {product.product_id && product.ProductsItem && (
+                                    {product.product_id && (
                                       <OverlayTrigger
                                         trigger="click"
                                         placement="left"
@@ -1169,7 +1195,20 @@ function EditMyPurchase() {
                                             </Popover.Header>
                                             <Popover.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
                                               <ProductDetailsContent
-                                                productData={product.ProductsItem}
+                                                productData={
+                                                  product?.ProductsItem ||
+                                                  productOptions.find(
+                                                    (option) =>
+                                                      String(option.value) === String(product.product_id)
+                                                  )?.productData ||
+                                                  {
+                                                    id: product.product_id,
+                                                    product_name: product?.description || "Selected product",
+                                                    product_code: product?.product_code || "",
+                                                    regular_buying_price: product?.unit_price || 0,
+                                                    tax: product?.tax || 18,
+                                                  }
+                                                }
                                               />
                                             </Popover.Body>
                                           </Popover>

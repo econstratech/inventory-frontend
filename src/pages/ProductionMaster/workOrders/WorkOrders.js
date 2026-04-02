@@ -40,6 +40,9 @@ function WorkOrders() {
   const [materialIssueDraftQty, setMaterialIssueDraftQty] = useState("");
   const [materialIssueSubmittingId, setMaterialIssueSubmittingId] = useState(null);
   const [materialIssueCompleting, setMaterialIssueCompleting] = useState(false);
+  const [productionFlowDrafts, setProductionFlowDrafts] = useState({});
+  const [productionFlowSavingId, setProductionFlowSavingId] = useState(null);
+  const [editingInProgressStepId, setEditingInProgressStepId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
   const [formData, setFormData] = useState({
@@ -70,6 +73,83 @@ function WorkOrders() {
       })),
     [flowSteps]
   );
+
+  const normalizeWorkOrderSteps = (steps = []) =>
+    (Array.isArray(steps) ? steps : [])
+      .slice()
+      .sort((a, b) => Number(a?.sequence) - Number(b?.sequence))
+      .map((step) => ({
+        id: step?.id,
+        stepId: step?.step_id,
+        status: Number(step?.status) || 1,
+        sequence: Number(step?.sequence) || 0,
+        processName: step?.processName || step?.step?.name || "N/A",
+        inputQty: step?.inputQty ?? step?.input_qty,
+        outputQty: step?.outputQty ?? step?.output_qty,
+        wasteQty: step?.wasteQty ?? step?.waste_qty,
+        yieldPercent: step?.yieldPercent ?? step?.yield_percent,
+      }));
+
+  const buildProductionStepDrafts = (steps = []) =>
+    (Array.isArray(steps) ? steps : []).reduce((acc, step, index) => {
+      const stepKey = step?.id || `${step?.stepId || step?.step_id}-${index}`;
+      acc[stepKey] = {
+        inputQty: step?.inputQty ?? step?.input_qty ?? "",
+        outputQty: step?.outputQty ?? step?.output_qty ?? "",
+        status: Number(step?.status) || 1,
+      };
+      return acc;
+    }, {});
+
+  const getProductionStepStatusLabel = (status) => {
+    const code = Number(status);
+    if (code === 1) return "Pending";
+    if (code === 2) return "In-progress";
+    if (code === 3) return "Completed";
+    if (code === 4) return "Skipped";
+    return "Pending";
+  };
+
+  const productionFlowRows = useMemo(() => {
+    const steps = Array.isArray(materialIssueWorkOrder?.workOrderSteps)
+      ? materialIssueWorkOrder.workOrderSteps
+      : [];
+
+    return steps
+      .slice()
+      .sort((a, b) => Number(a?.sequence) - Number(b?.sequence))
+      .map((step, index) => {
+        const inputQty = step?.inputQty ?? step?.input_qty ?? null;
+        const outputQty = step?.outputQty ?? step?.output_qty ?? null;
+        const wasteQty = step?.wasteQty ?? step?.waste_qty ?? null;
+        const yieldPercent = step?.yieldPercent ?? step?.yield_percent ?? null;
+        const rowId = String(step?.id ?? `${step?.stepId ?? step?.step_id}-${index}`);
+        const draft = productionFlowDrafts?.[rowId] || {};
+        const mappedStepId = step?.stepId ?? step?.step_id;
+        const status = Number(
+          draft.status ??
+            step?.status ??
+            1
+        );
+        const isCurrentStep =
+          String(mappedStepId) === String(materialIssueWorkOrder?.currentStep);
+
+        return {
+          id: rowId,
+          woStepId: step?.id,
+          stepId: mappedStepId,
+          sequence: Number(step?.sequence) || index + 1,
+          processName: step?.processName || step?.step?.name || "N/A",
+          inputQty: draft.inputQty ?? (inputQty ?? ""),
+          outputQty: draft.outputQty ?? (outputQty ?? ""),
+          wasteQty,
+          yieldPercent,
+          status,
+          statusLabel: getProductionStepStatusLabel(status),
+          isCurrentStep,
+        };
+      });
+  }, [materialIssueWorkOrder?.workOrderSteps, materialIssueWorkOrder?.currentStep, productionFlowDrafts]);
 
   const fetchCompanyFlow = async () => {
     if (!companyId) return;
@@ -149,20 +229,21 @@ function WorkOrders() {
         finishedGoodVariant: item?.finalProductVariant?.weight_per_unit ? `${item?.finalProductVariant?.weight_per_unit} ${item?.finalProductVariant?.masterUOM.label}` : "",
         qty: Number(item?.planned_qty) || 0,
         status: Number(item?.status) || 0,
-        statusLabel:
-          item?.productionStep?.name ||
-          "Pending",
+        statusLabel: item?.status < 3 ? "Not Started Yet" : item?.productionStep?.name || "Pending",
         workOrderStatus: item?.status === 1 ? "Pending Material Issue" : item?.status === 2 ? "In-progress" : item?.status === 3 ? "Material Issued" : item?.status === 4 ? "Completed" : "Cancelled",
         progress: Number(item?.progress_percentage) || 0,
+        currentStep: Number(item?.production_step_id || item?.productionStep?.id) || 0,
         processFlow: Array.isArray(item?.workOrderSteps)
           ? item.workOrderSteps.map((p) => p?.step?.name || p).filter(Boolean)
           : [],
+        workOrderSteps: normalizeWorkOrderSteps(item?.workOrderSteps),
         materialProgress: Number(item?.material_progress_percentage) || 0,
         dueDate: item?.due_date ? dayjs(item.due_date).format("DD/MM/YYYY") : "N/A",
         materialIssuedBy: item?.materialIssuedBy?.name || "N/A",
         materialIssuedAt: item?.material_issued_at
           ? dayjs(item.material_issued_at).format("DD/MM/YYYY")
           : "N/A",
+        fgUomLabel: item?.finalProductVariant?.masterUOM?.label || "kg",
       };
     });
 
@@ -333,6 +414,9 @@ function WorkOrders() {
     setMaterialIssueOpen(false);
     setMaterialIssueRows([]);
     setMaterialIssueWorkOrder(null);
+    setProductionFlowDrafts({});
+    setProductionFlowSavingId(null);
+    setEditingInProgressStepId(null);
     setEditingMaterialIssueRowId(null);
     setMaterialIssueDraftQty("");
     setMaterialIssueSubmittingId(null);
@@ -343,6 +427,7 @@ function WorkOrders() {
     setMaterialIssueOpen(true);
     setMaterialIssueLoading(true);
     setMaterialIssueWorkOrder(record);
+    setEditingInProgressStepId(null);
 
     try {
       const res = await PrivateAxios.get(`/production/work-order/bom-list/${record.id}`);
@@ -397,7 +482,13 @@ function WorkOrders() {
         ...(prev || record),
         orderId: record?.orderId || prev?.orderId,
         workOrderStatus: parseInt(workOrder?.status),
+        currentStep:
+          Number(workOrder?.production_step_id || workOrder?.productionStep?.id) ||
+          Number(record?.currentStep) ||
+          Number(prev?.currentStep) ||
+          0,
       }));
+      setProductionFlowDrafts(buildProductionStepDrafts(record?.workOrderSteps));
 
     } catch (error) {
       setMaterialIssueRows([]);
@@ -482,6 +573,148 @@ function WorkOrders() {
       ErrorMessage(error?.response?.data?.message || "Failed to complete material issue.");
     } finally {
       setMaterialIssueCompleting(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log("Production flow drafts:", productionFlowDrafts);
+  }, [productionFlowDrafts]);
+
+  const handleProductionStepDraftChange = (rowId, field, value) => {
+    if (rowId === null || rowId === undefined || rowId === "") return;
+    const draftKey = String(rowId);
+    console.log("Draft key:", draftKey);
+    console.log("Field:", field);
+    console.log("Value:", value);
+    setProductionFlowDrafts((prev) => ({
+      ...prev,
+      [draftKey]: {
+        ...(prev?.[draftKey] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const startInProgressStepEdit = (stepRow) => {
+    if (stepRow?.id === null || stepRow?.id === undefined || stepRow?.id === "") return;
+    const draftKey = String(stepRow.id);
+    setEditingInProgressStepId(draftKey);
+    setProductionFlowDrafts((prev) => ({
+      ...prev,
+      [draftKey]: {
+        ...(prev?.[draftKey] || {}),
+        inputQty: stepRow?.inputQty ?? "",
+        outputQty: stepRow?.outputQty ?? "",
+        status: Number(stepRow?.status) || 2,
+      },
+    }));
+  };
+
+  const submitProductionStepData = async (stepRow) => {
+    const isEditingPreviousInProgress =
+      String(editingInProgressStepId) === String(stepRow?.id);
+    if (!stepRow?.isCurrentStep && !isEditingPreviousInProgress) return;
+    const woId = materialIssueWorkOrder?.id;
+    if (!woId || !stepRow?.woStepId) {
+      ErrorMessage("Work order or work order step is missing.");
+      return;
+    }
+
+    const draftKey = String(stepRow?.id);
+    const latestDraft = productionFlowDrafts?.[draftKey] || {};
+    const inputQty = Number(latestDraft?.inputQty ?? stepRow?.inputQty);
+    const outputQty = Number(latestDraft?.outputQty ?? stepRow?.outputQty);
+    const status = Number(latestDraft?.status ?? stepRow?.status);
+    if (!Number.isFinite(inputQty) || inputQty < 0) {
+      ErrorMessage("Input quantity must be 0 or greater.");
+      return;
+    }
+    if (!Number.isFinite(outputQty) || outputQty < 0) {
+      ErrorMessage("Output quantity must be 0 or greater.");
+      return;
+    }
+    if (![1, 2, 3, 4].includes(status)) {
+      ErrorMessage("Invalid production status.");
+      return;
+    }
+
+    const payload = {
+      wo_id: woId,
+      wo_step_id: stepRow.woStepId,
+      input_qty: inputQty,
+      output_qty: outputQty,
+      status,
+    };
+
+    setProductionFlowSavingId(stepRow.id);
+    try {
+      const res = await PrivateAxios.post("/production/work-order/save-production-data", payload);
+      SuccessMessage(res?.data?.message || "Production step saved successfully.");
+      const updatedWorkOrder =
+        res?.data?.data?.workOrder ||
+        (res?.data?.data?.id ? res.data.data : null) ||
+        res?.data?.workOrder ||
+        null;
+
+      if (updatedWorkOrder?.id) {
+        const normalizedSteps = normalizeWorkOrderSteps(updatedWorkOrder?.workOrderSteps);
+        setMaterialIssueWorkOrder((prev) => ({
+          ...(prev || {}),
+          workOrderSteps: normalizedSteps,
+          currentStep:
+            Number(updatedWorkOrder?.production_step_id || updatedWorkOrder?.productionStep?.id) ||
+            Number(prev?.currentStep) ||
+            0,
+        }));
+        setProductionFlowDrafts(buildProductionStepDrafts(normalizedSteps));
+      } else {
+        setMaterialIssueWorkOrder((prev) => {
+          if (!prev) return prev;
+          const existingSteps = Array.isArray(prev.workOrderSteps) ? prev.workOrderSteps : [];
+          const nextWasteQty = Number((Math.max(inputQty - outputQty, 0)).toFixed(3));
+          const nextYieldPercent =
+            inputQty > 0 ? Number(((outputQty / inputQty) * 100).toFixed(2)) : 0;
+          const updatedSteps = existingSteps.map((step) =>
+            String(step?.id) === String(stepRow.woStepId)
+              ? {
+                  ...step,
+                  inputQty,
+                  outputQty,
+                  wasteQty: nextWasteQty,
+                  yieldPercent: nextYieldPercent,
+                  status,
+                }
+              : step
+          );
+
+          const nextCurrentStep = updatedSteps
+            .slice()
+            .sort((a, b) => Number(a?.sequence) - Number(b?.sequence))
+            .find((step) => ![3, 4].includes(Number(step?.status)))?.stepId ?? prev.currentStep;
+
+          return {
+            ...prev,
+            workOrderSteps: updatedSteps,
+            currentStep: nextCurrentStep,
+          };
+        });
+        setProductionFlowDrafts((prev) => ({
+          ...prev,
+          [draftKey]: {
+            ...(prev?.[draftKey] || {}),
+            inputQty,
+            outputQty,
+            status,
+          },
+        }));
+      }
+
+      fetchWorkOrders(pageState, filters);
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to save production step data.");
+    } finally {
+      setProductionFlowSavingId(null);
+      setEditingInProgressStepId(null);
     }
   };
 
@@ -1265,6 +1498,186 @@ function WorkOrders() {
                   ]),
             ]}
           />
+        </div>
+
+        <div className="mt-4">
+          <h6 className="mb-1 fw-semibold">Manage Production</h6>
+          <div className="small text-muted mb-2">
+            Production Flow:{" "}
+            {productionFlowRows.length > 0
+              ? productionFlowRows.map((step) => step.processName).join(" -> ")
+              : "N/A"}
+          </div>
+          <div className="bg_succes_table_head rounded_table">
+            <Table
+              rowKey="id"
+              loading={materialIssueLoading}
+              dataSource={productionFlowRows}
+              pagination={false}
+              locale={{ emptyText: "No production steps found." }}
+              columns={[
+                {
+                  title: "Step",
+                  dataIndex: "sequence",
+                  key: "sequence",
+                  width: 80,
+                },
+                {
+                  title: "Process",
+                  dataIndex: "processName",
+                  key: "processName",
+                  width: 180,
+                  render: (value) => <span className="fw-semibold">{value}</span>,
+                },
+                {
+                  title: "Status",
+                  dataIndex: "statusLabel",
+                  key: "statusLabel",
+                  width: 170,
+                  render: (value, record) =>
+                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                      <Select
+                        value={Number(record?.status) || 1}
+                        onChange={(nextStatus) =>
+                          handleProductionStepDraftChange(record.id, "status", Number(nextStatus))
+                        }
+                        options={[
+                          { value: 1, label: "Pending" },
+                          { value: 2, label: "In-Progress" },
+                          { value: 3, label: "Completed" },
+                          { value: 4, label: "Skipped" },
+                        ]}
+                        style={{ width: 150 }}
+                      />
+                    ) : (
+                      <label
+                        className={`badge ${
+                          value === "Completed"
+                            ? "badge-outline-success"
+                            : value === "In-progress"
+                              ? "badge-outline-meantGreen"
+                              : value === "Skipped"
+                                ? "badge-outline-secondary"
+                                : "badge-outline-yellowGreen"
+                        } mb-0`}
+                      >
+                        {value}
+                      </label>
+                    ),
+                },
+                {
+                  title: `Input Qty (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  dataIndex: "inputQty",
+                  key: "inputQty",
+                  width: 150,
+                  render: (value, record) =>
+                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={value}
+                        onChange={(e) =>
+                          handleProductionStepDraftChange(record.id, "inputQty", e.target.value)
+                        }
+                        placeholder="Enter"
+                      />
+                    ) : value === null || value === undefined || value === "" ? (
+                      "-"
+                    ) : (
+                      value
+                    ),
+                },
+                {
+                  title: `Output Qty (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  dataIndex: "outputQty",
+                  key: "outputQty",
+                  width: 150,
+                  render: (value, record) =>
+                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={value}
+                        onChange={(e) =>
+                          handleProductionStepDraftChange(record.id, "outputQty", e.target.value)
+                        }
+                        placeholder="Enter"
+                      />
+                    ) : value === null || value === undefined || value === "" ? (
+                      "-"
+                    ) : (
+                      value
+                    ),
+                },
+                {
+                  title: `Waste (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  dataIndex: "wasteQty",
+                  key: "wasteQty",
+                  width: 130,
+                  render: (value) => (value === null || value === undefined ? "-" : value),
+                },
+                {
+                  title: "Yield %",
+                  dataIndex: "yieldPercent",
+                  key: "yieldPercent",
+                  width: 120,
+                  render: (value) =>
+                    value === null || value === undefined ? (
+                      "-"
+                    ) : (
+                      <span className="text-success fw-semibold">{value}%</span>
+                    ),
+                },
+                {
+                  title: "Action",
+                  key: "action",
+                  width: 170,
+                  render: (_, record) =>
+                    record.isCurrentStep ? (
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-sm"
+                        onClick={() => submitProductionStepData(record)}
+                        disabled={productionFlowSavingId === record.id}
+                        style={{ minWidth: 72 }}
+                      >
+                        {productionFlowSavingId === record.id ? "Saving..." : "Save"}
+                      </button>
+                    ) : Number(record?.status) === 2 && String(editingInProgressStepId) === String(record.id) ? (
+                      <div className="d-flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-warning btn-sm"
+                          onClick={() => submitProductionStepData(record)}
+                          disabled={productionFlowSavingId === record.id}
+                          style={{ minWidth: 72 }}
+                        >
+                          {productionFlowSavingId === record.id ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary btn-sm"
+                          onClick={() => setEditingInProgressStepId(null)}
+                          disabled={productionFlowSavingId === record.id}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : Number(record?.status) === 2 ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline-warning btn-sm"
+                        onClick={() => startInProgressStepEdit(record)}
+                      >
+                        Change
+                      </button>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    ),
+                },
+              ]}
+            />
+          </div>
         </div>
       </Modal>
 
