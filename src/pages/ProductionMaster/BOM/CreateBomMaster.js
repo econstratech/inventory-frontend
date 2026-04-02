@@ -14,10 +14,13 @@ const SAMPLE_CSV_URL = "/sample-csv-files/sample_bom_upload.csv";
 const initialRow = () => ({
   key: Date.now() + Math.random(),
   fgProductId: null,
+  fgVariantId: null,
+  fgVariantOptions: [],
+  fgVariantLoading: false,
   rmProductId: null,
   rmVariantId: null,
-  variantOptions: [],
-  variantLoading: false,
+  rmVariantOptions: [],
+  rmVariantLoading: false,
   quantity: "",
 });
 
@@ -34,8 +37,9 @@ function CreateBomMaster() {
   const validateRow = (row) => {
     const err = {};
     if (!row.fgProductId) err.fgProduct = "FG Product is required";
+    if (isVariantBased && !row.fgVariantId) err.fgVariant = "FG Variant is required";
     if (!row.rmProductId) err.rmProduct = "RM Product is required";
-    if (isVariantBased && !row.rmVariantId) err.rmVariant = "Variant is required";
+    if (isVariantBased && !row.rmVariantId) err.rmVariant = "RM Variant is required";
     const q = row.quantity;
     if (q === undefined || q === null || String(q).trim() === "") {
       err.quantity = "Quantity is required";
@@ -86,6 +90,7 @@ function CreateBomMaster() {
     );
     const errorFieldMap = {
       fgProductId: "fgProduct",
+      fgVariantId: "fgVariant",
       rmProductId: "rmProduct",
       rmVariantId: "rmVariant",
       quantity: "quantity",
@@ -105,12 +110,17 @@ function CreateBomMaster() {
     }
   };
 
-  const fetchVariantsForRow = async (rowKey, productId) => {
+  const fetchVariantsForRow = async (rowKey, productId, type) => {
     if (!productId) return;
+    const isFg = type === "fg";
+    const variantIdField = isFg ? "fgVariantId" : "rmVariantId";
+    const variantOptionsField = isFg ? "fgVariantOptions" : "rmVariantOptions";
+    const variantLoadingField = isFg ? "fgVariantLoading" : "rmVariantLoading";
+
     setRows((prev) =>
       prev.map((r) =>
         r.key === rowKey
-          ? { ...r, variantLoading: true, variantOptions: [], rmVariantId: null }
+          ? { ...r, [variantLoadingField]: true, [variantOptionsField]: [], [variantIdField]: null }
           : r
       )
     );
@@ -130,8 +140,8 @@ function CreateBomMaster() {
           r.key === rowKey
             ? {
                 ...r,
-                variantLoading: false,
-                variantOptions: options,
+                [variantLoadingField]: false,
+                [variantOptionsField]: options,
               }
             : r
         )
@@ -142,9 +152,9 @@ function CreateBomMaster() {
           r.key === rowKey
             ? {
                 ...r,
-                variantLoading: false,
-                variantOptions: [],
-                rmVariantId: null,
+                [variantLoadingField]: false,
+                [variantOptionsField]: [],
+                [variantIdField]: null,
               }
             : r
         )
@@ -197,7 +207,8 @@ function CreateBomMaster() {
     const createBOMPayload = rows.map((row) => ({
       final_product_id: row.fgProductId,
       raw_material_product_id: row.rmProductId,
-      ...(isVariantBased && { raw_material_variant_id: row.rmVariantId }),
+      final_product_variant_id: isVariantBased && row.fgVariantId ? row.fgVariantId : null,
+      raw_material_variant_id: isVariantBased && row.rmVariantId ? row.rmVariantId : null,
       quantity: Number(row.quantity),
     }));
 
@@ -299,7 +310,20 @@ function CreateBomMaster() {
                             placeholder="Search and select FG Product..."
                             value={row.fgProductId}
                             onChange={(option) => {
-                              updateRow(row.key, "fgProductId", option ? option.value : null);
+                              const nextProductId = option ? option.value : null;
+                              updateRow(row.key, "fgProductId", nextProductId);
+                              if (isVariantBased) {
+                                setRows((prev) =>
+                                  prev.map((r) =>
+                                    r.key === row.key
+                                      ? { ...r, fgVariantId: null, fgVariantOptions: [] }
+                                      : r
+                                  )
+                                );
+                                if (nextProductId) {
+                                  fetchVariantsForRow(row.key, nextProductId, "fg");
+                                }
+                              }
                             }}
                             error={err.fgProduct}
                             onErrorClear={() => {
@@ -315,6 +339,29 @@ function CreateBomMaster() {
                           />
                         </Form.Item>
                       </div>
+                      {isVariantBased && (
+                        <div className="col-12 col-md-3">
+                          <Form.Item
+                            label="FG Variant"
+                            required
+                            validateStatus={err.fgVariant ? "error" : ""}
+                            help={err.fgVariant}
+                            className="mb-2"
+                          >
+                            <Select
+                              placeholder={row.fgProductId ? "Select FG Variant" : "Select FG Product first"}
+                              value={row.fgVariantId}
+                              onChange={(value) => updateRow(row.key, "fgVariantId", value)}
+                              options={row.fgVariantOptions}
+                              loading={row.fgVariantLoading}
+                              disabled={!row.fgProductId}
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                          </Form.Item>
+                        </div>
+                      )}
                       <div className={`col-12 ${isVariantBased ? "col-md-3" : "col-md-4"}`}>
                         <Form.Item
                           label="RM Product"
@@ -333,12 +380,12 @@ function CreateBomMaster() {
                                 setRows((prev) =>
                                   prev.map((r) =>
                                     r.key === row.key
-                                      ? { ...r, rmVariantId: null, variantOptions: [] }
+                                      ? { ...r, rmVariantId: null, rmVariantOptions: [] }
                                       : r
                                   )
                                 );
                                 if (nextProductId) {
-                                  fetchVariantsForRow(row.key, nextProductId);
+                                  fetchVariantsForRow(row.key, nextProductId, "rm");
                                 }
                               }
                             }}
@@ -359,7 +406,7 @@ function CreateBomMaster() {
                       {isVariantBased && (
                         <div className="col-12 col-md-3">
                           <Form.Item
-                            label="Variant"
+                            label="RM Variant"
                             required
                             validateStatus={err.rmVariant ? "error" : ""}
                             help={err.rmVariant}
@@ -369,8 +416,8 @@ function CreateBomMaster() {
                               placeholder={row.rmProductId ? "Select variant" : "Select RM Product first"}
                               value={row.rmVariantId}
                               onChange={(value) => updateRow(row.key, "rmVariantId", value)}
-                              options={row.variantOptions}
-                              loading={row.variantLoading}
+                              options={row.rmVariantOptions}
+                              loading={row.rmVariantLoading}
                               disabled={!row.rmProductId}
                               allowClear
                               showSearch
