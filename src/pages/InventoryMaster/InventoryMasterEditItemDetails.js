@@ -612,9 +612,21 @@ function InventoryMasterEditItemDetails() {
     <>
       <InventoryMasterEditTopBar />
       <div className="p-4">
+        <div className="mb-2">
+          <button
+            type="button"
+            className="link-btn text-dark "
+            onClick={() => navigate(-1)} // Navigate back in history
+          >
+            <i className="fas fa-arrow-left me-1" />
+            <span className="ms-2 f-s-16">Back</span>
+          </button>
+        </div>
+
         <div className="card">
-          <div className="card-header text-dark text-danger">
+          <div className="card-header text-dark text-danger d-flex align-items-center justify-content-between">
             <h5 className="mb-0">Item Details ({formData.product_code})</h5>
+   
           </div>
           <div className="card-body">
             <div className="row">
