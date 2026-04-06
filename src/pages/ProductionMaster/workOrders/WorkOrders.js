@@ -231,7 +231,7 @@ function WorkOrders() {
         status: Number(item?.status) || 0,
         statusLabel: item?.status < 3 ? "Not Started Yet" : item?.productionStep?.name || "Pending",
         workOrderStatus: item?.status === 1 ? "Pending Material Issue" : item?.status === 2 ? "In-progress" : item?.status === 3 ? "Material Issued" : item?.status === 4 ? "Completed" : "Cancelled",
-        progress: Number(item?.progress_percentage) || 0,
+        progress: Number(item?.progress_percent) || 0,
         currentStep: Number(item?.production_step_id || item?.productionStep?.id) || 0,
         processFlow: Array.isArray(item?.workOrderSteps)
           ? item.workOrderSteps.map((p) => p?.step?.name || p).filter(Boolean)
@@ -576,16 +576,10 @@ function WorkOrders() {
     }
   };
 
-  useEffect(() => {
-    console.log("Production flow drafts:", productionFlowDrafts);
-  }, [productionFlowDrafts]);
 
   const handleProductionStepDraftChange = (rowId, field, value) => {
     if (rowId === null || rowId === undefined || rowId === "") return;
     const draftKey = String(rowId);
-    console.log("Draft key:", draftKey);
-    console.log("Field:", field);
-    console.log("Value:", value);
     setProductionFlowDrafts((prev) => ({
       ...prev,
       [draftKey]: {

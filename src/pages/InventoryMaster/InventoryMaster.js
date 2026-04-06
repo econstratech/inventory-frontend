@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router-dom";
 import { Table, Input } from "antd";
 import Select from "react-select";
+import moment from "moment";
 
 import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
@@ -23,36 +24,41 @@ import InventoryMasterPageTopBar from "./itemMaster/InventoryMasterPageTopBar";
 import AddMultipleItemsModal from "../CommonComponent/AddMultipleItemsModal";
 import StockMasterBulkActions from "../CommonComponent/StockMasterBulkActions";
 import ProductCategorySelect from "../filterComponents/ProductCategorySelect";
+import DeleteModal from "../CommonComponent/DeleteModal";
 // import DeleteMultipleItemsModal from "../CommonComponent/DeleteMultipleItemsModal";
 import TallyIntegrationModal from "../CommonComponent/TallyIntegrationModal";
 import ExploreAllFeaturesModal from "../CommonComponent/ExploreAllFeaturesModal";
 // const { Option } = Select;
 function InventoryMaster() {
   //modal transfer qty only
-  const [showqty, setShowqty] = useState(false);
-  const handleCloseqty = () => setShowqty(false);
+  // const [showqty, setShowqty] = useState(false);
+  // const handleCloseqty = () => setShowqty(false);
 
-  const [getitemId, setitemId] = useState(null);
+  // const [getitemId, setitemId] = useState(null);
   const [stores, setStores] = useState([]);
 
-  const [productData, setProductData] = useState(null);
+  // const [productData, setProductData] = useState(null);
   const [productsCount, setProductsCount] = useState(0);
   const [productController, setProductController] = useState({
     page: 1,
     rowsPerPage: 6,
     searchKey: ""
   }); 
-  const [selectedStore, setSelectedStore] = useState("");
-  const [currentStock, setCurrentStock] = useState(0);
-  const [changeQuantity, setChangeQuantity] = useState(0);
-  const [finalQuantity, setFinalQuantity] = useState(0);
-  const [getActualQuantity, setActualQuantity] = useState(0);
-  const [finalUoM, setFinalUoM] = useState(0);
+  // const [selectedStore, setSelectedStore] = useState("");
+  // const [currentStock, setCurrentStock] = useState(0);
+  // const [changeQuantity, setChangeQuantity] = useState(0);
+  // const [finalQuantity, setFinalQuantity] = useState(0);
+  // const [getActualQuantity, setActualQuantity] = useState(0);
+  // const [finalUoM, setFinalUoM] = useState(0);
 
-  const [getButtonClassNamePlus, setButtonClassNamePlus] = useState('');
-  const [getButtonClassNameNeg, setButtonClassNameNeg] = useState('');
+  // const [getButtonClassNamePlus, setButtonClassNamePlus] = useState('');
+  // const [getButtonClassNameNeg, setButtonClassNameNeg] = useState('');
   const [file, setFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState({});
+  const [deleteModalShow, setDeleteModalShow] = useState(false);
+  const [deleteProductId, setDeleteProductId] = useState(null);
+  const [deleteMode, setDeleteMode] = useState("single");
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -70,141 +76,141 @@ function InventoryMaster() {
   }, []);
 
   // Handle store change
-  const handleStoreChange = (selectedOption) => {
-    if (selectedOption) {
-      const selectedStoreId = selectedOption.id;
-      setSelectedStore(selectedStoreId);
+  // const handleStoreChange = (selectedOption) => {
+  //   if (selectedOption) {
+  //     const selectedStoreId = selectedOption.id;
+  //     setSelectedStore(selectedStoreId);
 
-      // Find the corresponding store's stock
-      const selectedStoreStock = productData.TrackProductStock.find(
-        (stock) => stock.store_id === selectedStoreId
-      );
+  //     // Find the corresponding store's stock
+  //     const selectedStoreStock = productData.TrackProductStock.find(
+  //       (stock) => stock.store_id === selectedStoreId
+  //     );
 
-      // Calculate total stock in (status_in_out === "1") and stock out (status_in_out === "0")
-      const totalStoreStockIn = productData.TrackProductStock.filter(
-        (stock) =>
-          stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 1
-      ).reduce((total, stock) => total + stock.quantity_changed, 0);
+  //     // Calculate total stock in (status_in_out === "1") and stock out (status_in_out === "0")
+  //     const totalStoreStockIn = productData.TrackProductStock.filter(
+  //       (stock) =>
+  //         stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 1
+  //     ).reduce((total, stock) => total + stock.quantity_changed, 0);
 
-      const totalStoreStockOut = productData.TrackProductStock.filter(
-        (stock) =>
-          stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 0
-      ).reduce((total, stock) => total + stock.quantity_changed, 0);
+  //     const totalStoreStockOut = productData.TrackProductStock.filter(
+  //       (stock) =>
+  //         stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 0
+  //     ).reduce((total, stock) => total + stock.quantity_changed, 0);
 
-      // Final total stock is stock in minus stock out
-      const finalTotalStock = totalStoreStockIn - totalStoreStockOut;
+  //     // Final total stock is stock in minus stock out
+  //     const finalTotalStock = totalStoreStockIn - totalStoreStockOut;
 
-      // Update the changeQuantity field with the calculated final stock
-      setChangeQuantity(0);
-      setCurrentStock(finalTotalStock);
-      setFinalQuantity(finalTotalStock);
-    } else {
-      setCurrentStock(0);
-      setFinalQuantity(0);
-      setChangeQuantity(0);
-    }
-  };
+  //     // Update the changeQuantity field with the calculated final stock
+  //     setChangeQuantity(0);
+  //     setCurrentStock(finalTotalStock);
+  //     setFinalQuantity(finalTotalStock);
+  //   } else {
+  //     setCurrentStock(0);
+  //     setFinalQuantity(0);
+  //     setChangeQuantity(0);
+  //   }
+  // };
 
-  // Handle change quantity input
-  const handleChangeQuantity = (e) => {
-    const value = parseInt(e.target.value, 10) || 0;
-    setChangeQuantity(value);
+  // // Handle change quantity input
+  // const handleChangeQuantity = (e) => {
+  //   const value = parseInt(e.target.value, 10) || 0;
+  //   setChangeQuantity(value);
 
-    let updatedFinalQuantity;
+  //   let updatedFinalQuantity;
 
-    if (getButtonClassNamePlus === 'active') {
-      updatedFinalQuantity = parseInt(currentStock) + value;
-    } else if (getButtonClassNameNeg === 'active') {
-      updatedFinalQuantity = parseInt(currentStock) - value;
-    }
+  //   if (getButtonClassNamePlus === 'active') {
+  //     updatedFinalQuantity = parseInt(currentStock) + value;
+  //   } else if (getButtonClassNameNeg === 'active') {
+  //     updatedFinalQuantity = parseInt(currentStock) - value;
+  //   }
 
-    // Prevent negative final quantity
-    if (updatedFinalQuantity < 0) {
-      ErrorMessage("Final quantity cannot be negative.");
-      setFinalQuantity(0);
-      setActualQuantity(updatedFinalQuantity);
-    } else {
-      setFinalQuantity(updatedFinalQuantity);
-      setActualQuantity(updatedFinalQuantity);
-    }
-  };
+  //   // Prevent negative final quantity
+  //   if (updatedFinalQuantity < 0) {
+  //     ErrorMessage("Final quantity cannot be negative.");
+  //     setFinalQuantity(0);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   } else {
+  //     setFinalQuantity(updatedFinalQuantity);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   }
+  // };
 
-  const incrementQuantity = () => {
-    setButtonClassNamePlus('active');
-    setButtonClassNameNeg('');
+  // const incrementQuantity = () => {
+  //   setButtonClassNamePlus('active');
+  //   setButtonClassNameNeg('');
 
-    const updatedFinalQuantity = parseInt(currentStock) + parseInt(changeQuantity || 0);
+  //   const updatedFinalQuantity = parseInt(currentStock) + parseInt(changeQuantity || 0);
 
-    if (updatedFinalQuantity < 0) {
-      ErrorMessage("Final quantity cannot be negative.");
-      setFinalQuantity(0);
-      setActualQuantity(updatedFinalQuantity);
-    } else {
-      setFinalQuantity(updatedFinalQuantity);
-      setActualQuantity(updatedFinalQuantity);
-    }
-  };
+  //   if (updatedFinalQuantity < 0) {
+  //     ErrorMessage("Final quantity cannot be negative.");
+  //     setFinalQuantity(0);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   } else {
+  //     setFinalQuantity(updatedFinalQuantity);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   }
+  // };
 
-  const decrementQuantity = () => {
-    setButtonClassNamePlus('');
-    setButtonClassNameNeg('active');
+  // const decrementQuantity = () => {
+  //   setButtonClassNamePlus('');
+  //   setButtonClassNameNeg('active');
 
-    const updatedFinalQuantity = parseInt(currentStock) - parseInt(changeQuantity || 0);
+  //   const updatedFinalQuantity = parseInt(currentStock) - parseInt(changeQuantity || 0);
 
-    if (updatedFinalQuantity < 0) {
-      ErrorMessage("Final quantity cannot be negative.");
-      setFinalQuantity(0);
-      setActualQuantity(updatedFinalQuantity);
-    } else {
-      setFinalQuantity(updatedFinalQuantity);
-      setActualQuantity(updatedFinalQuantity);
-    }
-  };
+  //   if (updatedFinalQuantity < 0) {
+  //     ErrorMessage("Final quantity cannot be negative.");
+  //     setFinalQuantity(0);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   } else {
+  //     setFinalQuantity(updatedFinalQuantity);
+  //     setActualQuantity(updatedFinalQuantity);
+  //   }
+  // };
 
-  // stock update
-  const handleSubmitStore = async (e) => {
-    e.preventDefault();
+  // // stock update
+  // const handleSubmitStore = async (e) => {
+  //   e.preventDefault();
 
-    const data = {
-      from_store: selectedStore, // Make sure this contains the store information
-      transferItems: [
-        {
-          itemID: productData.id, // Product ID
-          itemName: productData.product_name, // Product name
-          changeQuantity, // Quantity change from the form
-          finalQuantity, // Final quantity in the store
-          defaultPrice: productData.product_price, // Default price
-          comment, // Any comment from the user (if available)
-          itemUnit: finalUoM, // Unit of Measurement
-          AdjustmentType: getButtonClassNameNeg === 'active' ? "Out" : "adjustment", // Corrected AdjustmentType logic
+  //   const data = {
+  //     from_store: selectedStore, // Make sure this contains the store information
+  //     transferItems: [
+  //       {
+  //         itemID: productData.id, // Product ID
+  //         itemName: productData.product_name, // Product name
+  //         changeQuantity, // Quantity change from the form
+  //         finalQuantity, // Final quantity in the store
+  //         defaultPrice: productData.product_price, // Default price
+  //         comment, // Any comment from the user (if available)
+  //         itemUnit: finalUoM, // Unit of Measurement
+  //         AdjustmentType: getButtonClassNameNeg === 'active' ? "Out" : "adjustment", // Corrected AdjustmentType logic
 
-        },
-      ],
-      use_fifo_price: useFIFOPrice, // FIFO price flag if needed
-      comment, // Add any additional comments
-    };
-    try {
-      const response = await PrivateAxios.post(
-        "/product/update-stockonly",
-        data
-      );
-      if (response.status === 200) {
-        SuccessMessage("Store updated successfully.");
-        setChangeQuantity(0);
-        handleCloseqty();
-        fetchData();
-      } else {
-        // console.log(response.status);
-        ErrorMessage("Error !! Please check again.");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
+  //       },
+  //     ],
+  //     use_fifo_price: useFIFOPrice, // FIFO price flag if needed
+  //     comment, // Add any additional comments
+  //   };
+  //   try {
+  //     const response = await PrivateAxios.post(
+  //       "/product/update-stockonly",
+  //       data
+  //     );
+  //     if (response.status === 200) {
+  //       SuccessMessage("Store updated successfully.");
+  //       setChangeQuantity(0);
+  //       handleCloseqty();
+  //       fetchData();
+  //     } else {
+  //       // console.log(response.status);
+  //       ErrorMessage("Error !! Please check again.");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //   }
+  // };
   // end stock update
 
-  const [useFIFOPrice, setUseFIFOPrice] = useState(false);
-  const [comment, setComment] = useState("");
+  // const [useFIFOPrice, setUseFIFOPrice] = useState(false);
+  // const [comment, setComment] = useState("");
 
   // const [products, setProducts] = useState([]);
   // const [transferItems, setTransferItems] = useState([
@@ -606,6 +612,110 @@ function InventoryMaster() {
     }));
   };
 
+  const handleDeleteItem = (id) => {
+    setDeleteMode("single");
+    setDeleteProductId(id || null);
+    setDeleteModalShow(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (!selectedProductIds.length) {
+      ErrorMessage("Please select at least one item for bulk delete.");
+      return;
+    }
+    setDeleteMode("bulk");
+    setDeleteModalShow(true);
+  };
+
+  const closeDeleteItemModal = () => {
+    setDeleteModalShow(false);
+    setDeleteProductId(null);
+    setDeleteMode("single");
+  };
+
+  const confirmDeleteItem = async () => {
+    try {
+      if (deleteMode === "bulk") {
+        const idsToDelete = selectedProductIds.filter(Boolean);
+        if (!idsToDelete.length) {
+          closeDeleteItemModal();
+          return;
+        }
+        const res = await PrivateAxios.delete("/product/delete-multiple", {
+          data: { ids: idsToDelete },
+        });
+        SuccessMessage(res?.data?.message || "Selected items deleted successfully.");
+        setSelectedProductIds([]);
+      } else {
+        if (!deleteProductId) {
+          closeDeleteItemModal();
+          return;
+        }
+        const res = await PrivateAxios.delete(`/product/${deleteProductId}`);
+        SuccessMessage(res?.data?.message || "Product has benn been removed successfully");
+      }
+      closeDeleteItemModal();
+      fetchData();
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to delete product.");
+    }
+  };
+
+  const rowSelection = {
+    selectedRowKeys: selectedProductIds,
+    onChange: (nextSelectedRowKeys) => {
+      setSelectedProductIds(nextSelectedRowKeys);
+    },
+    preserveSelectedRowKeys: true,
+  };
+
+  const handleBulkExportClick = async () => {
+    try {
+      const idsToExport = selectedProductIds.length ? selectedProductIds : [];
+      const exportPayload = {
+        ids: idsToExport,
+        ...(String(productController.searchKey || "").trim() && {
+          searchkey: String(productController.searchKey).trim(),
+        }),
+      };
+      const res = await PrivateAxios.post(
+        "/product/bulk-export",
+        exportPayload,
+        { responseType: "blob" }
+      );
+
+      const timestamp = moment().format("YYYYMMDDHHmmss");
+      const filename = `inventory_master_${timestamp}.csv`;
+
+      const disposition = res?.headers?.["content-disposition"] || "";
+      const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+      const decodedFileName = fileNameMatch?.[1]
+        ? decodeURIComponent(fileNameMatch[1].replace(/"/g, ""))
+        : filename;
+
+      const fileBlob = new Blob([res.data], {
+        type: res?.headers?.["content-type"] || "text/csv;charset=utf-8;",
+      });
+      const url = window.URL.createObjectURL(fileBlob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = decodedFileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+      setSelectedProductIds([]);
+
+      SuccessMessage(
+        selectedProductIds.length
+          ? "Selected products exported successfully."
+          : "All products exported successfully."
+      );
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to export products.");
+    }
+  };
+
   // Table columns configuration
   const columns = [
     {
@@ -619,19 +729,19 @@ function InventoryMaster() {
       title: "Item Name",
       dataIndex: "itemName",
       key: "itemName",
-      fixed: "left",
       width: 240,
-      render: (text, record) => (
-        <Link
-          to={`/inventory/inventory-master-edit/${record.id}/item-details`}
-          state={{ data: record }}
-          className="bg-light px-2 py-1 rounded d-inline-block"
-        >
-          {record.itemName}
-          <i className="fas fa-external-link-alt ms-3"></i>
+      // render: (text, record) => (
+      //   {record.itemName}
+      //   // <Link
+      //   //   to={`/inventory/inventory-master-edit/${record.id}/item-details`}
+      //   //   state={{ data: record }}
+      //   //   className="bg-light px-2 py-1 rounded d-inline-block"
+      //   // >
+      //   //   {record.itemName}
+      //   //   <i className="fas fa-external-link-alt ms-3"></i>
 
-        </Link>
-      ),
+      //   // </Link>
+      // ),
       sorter: (a, b) => a.itemName.localeCompare(b.itemName),
     },
     {
@@ -710,7 +820,42 @@ function InventoryMaster() {
           <span className="text-muted">N/A</span>
         ))
       },
-    }
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 120,
+      render: (_, record) => (
+        <div className="d-flex align-items-center gap-2">
+        <OverlayTrigger
+          placement="top"
+          overlay={<Tooltip id={`edit-item-tooltip-${record.id}`}>Edit item</Tooltip>}
+        >
+          <Link
+            to={{ pathname: `/inventory/inventory-master-edit/${record.id}/item-details` }}
+            state={{ data: record }}
+            className="d-inline-flex align-items-center justify-content-center"
+            style={{ minWidth: 40, textDecoration: "none" }}
+          >
+            <i className="fas fa-pen me-1 text-success"></i>
+          </Link>
+        </OverlayTrigger>
+        <OverlayTrigger
+          placement="top"
+          overlay={<Tooltip id={`delete-item-tooltip-${record.id}`}>Delete item</Tooltip>}
+        >
+          <button
+            type="button"
+            className="btn btn-link p-0 d-inline-flex align-items-center justify-content-center"
+            onClick={() => handleDeleteItem(record.id)}
+            style={{ minWidth: 40, textDecoration: "none" }}
+          >
+            <i className="fas fa-trash-alt me-1 text-danger"></i>
+          </button>
+        </OverlayTrigger>
+        </div>
+      ),
+    },
     // {
     //   title: "Type",
     //   dataIndex: "type",
@@ -847,7 +992,6 @@ function InventoryMaster() {
   // Disable background scroll when any modal is open (must be after all modal state declarations)
   useEffect(() => {
     const modalOpen =
-      showqty ||
       showAddSingleItemModal ||
       alternate ||
       removeItem ||
@@ -866,7 +1010,6 @@ function InventoryMaster() {
       };
     }
   }, [
-    showqty,
     showAddSingleItemModal,
     alternate,
     removeItem,
@@ -890,6 +1033,35 @@ function InventoryMaster() {
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center flex-wrap ">
                   <div className="d-flex gap-2 ms-auto">
+                    <Dropdown align="end">
+                      <Dropdown.Toggle className="btn btn-outline-danger btn-sm" variant="unset">
+                        <i className="fas fa-tasks me-2"></i>
+                        Bulk Actions
+                        {selectedProductIds.length > 0 ? ` (${selectedProductIds.length})` : ""}
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <button
+                          type="button"
+                          className="dropdown-item"
+                          onClick={handleBulkExportClick}
+                        >
+                          <i className="fas fa-file-csv me-2 text-primary"></i>
+                          Bulk export
+                          {/* <span className="text-muted ms-1">
+                            {selectedProductIds.length ? "(selected)" : "(all)"}
+                          </span> */}
+                        </button>
+                        <button
+                          type="button"
+                          className="dropdown-item"
+                          onClick={handleBulkDeleteClick}
+                          disabled={!selectedProductIds.length}
+                        >
+                          <i className="fas fa-trash-alt me-2 text-danger"></i>
+                          Bulk delete
+                        </button>
+                      </Dropdown.Menu>
+                    </Dropdown>
 
                   <Dropdown align="end">
                     <Dropdown.Toggle className="btn btn-outline-primary btn-sm" variant="unset">
@@ -1021,6 +1193,8 @@ function InventoryMaster() {
                             <Table
                               columns={columns}
                               dataSource={filteredData}
+                              rowKey="id"
+                              rowSelection={rowSelection}
                               pagination={{
                                 current: productController.page,
                                 pageSize: productController.rowsPerPage,
@@ -1403,7 +1577,7 @@ function InventoryMaster() {
 
 
       {/* Update Product Stock qyt only Modal */}
-      <Modal
+      {/* <Modal
         show={showqty}
         onHide={handleCloseqty}
         backdrop="static"
@@ -1414,7 +1588,6 @@ function InventoryMaster() {
         <Modal.Header closeButton>
           <Modal.Title>Update Product Stock - {getitemId}</Modal.Title>
         </Modal.Header>
-        {/* <Modal.Body> */}
         <form action="" onSubmit={handleSubmitStore} method="post">
           <Modal.Body className="pb-1 moday-body-overflow-none">
             <div className="row">
@@ -1493,21 +1666,6 @@ function InventoryMaster() {
                       value={changeQuantity}
                       onChange={handleChangeQuantity}
                     />
-                    {/* <input
-                      type="text"
-                      name="change_quantity"
-                      className="form-control w-100"
-                      value={changeQuantity}  
-                      onChange={handleChangeQuantity}
-                      onKeyDown={(e) => {
-                        // Prevent increment/decrement with arrow keys
-                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                        }
-                      }}
-                      inputMode="decimal" // Allows decimal inputs on mobile keyboards
-                      pattern="[0-9]*\.?[0-9]*" // Validates decimal numbers
-                    /> */}
                     <div className="d-flex align-items-center ms-2 gap-2 w-25">
                       <button type="button" className={` btn-outline-success ${getButtonClassNamePlus} modalAdd_btn`} onClick={incrementQuantity}>
                         <i className="fas fa-plus"></i>
@@ -1542,8 +1700,7 @@ function InventoryMaster() {
             </button>
           </Modal.Footer>
         </form>
-        {/* </Modal.Body> */}
-      </Modal>
+      </Modal> */}
       {/* Update Product Stock qyt only Modal */}
 
 
@@ -1881,6 +2038,17 @@ function InventoryMaster() {
         handleClose={handleCloseExploreAllFeaturesModal}
       />
       {/* Explore All Features Modal end*/}
+      <DeleteModal
+        show={deleteModalShow}
+        handleClose={closeDeleteItemModal}
+        onDelete={confirmDeleteItem}
+        title={deleteMode === "bulk" ? "Bulk Delete Products" : "Delete Product"}
+        message={
+          deleteMode === "bulk"
+            ? `Are you sure you want to delete ${selectedProductIds.length} selected item(s)? This action cannot be undone.`
+            : "Are you sure you want to delete this product? This action cannot be undone."
+        }
+      />
 
       {/* Product Variants & Attributes Modal */}
       <Modal
