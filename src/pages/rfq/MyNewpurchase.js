@@ -19,8 +19,28 @@ import ProductSelect from "../filterComponents/ProductSelect";
 import ProductDetailsContent from "../CommonComponent/ProductDetailsContent";
 import ProductVariantSelectionModal from "../CommonComponent/ProductVariantSelectionModal";
 import SalesQuotationSelect from "../filterComponents/SalesQuotationSelect";
+import { calculateTotalWeight } from "../../utils/weightConverter";
 
 function MyNewpurchase() {
+  const unitFactorMap = {
+    mg: { group: "weight", factor: 0.001 },
+    g: { group: "weight", factor: 1 },
+    kg: { group: "weight", factor: 1000 },
+    ton: { group: "weight", factor: 1000000 },
+    tonne: { group: "weight", factor: 1000000 },
+    ml: { group: "volume", factor: 1 },
+    l: { group: "volume", factor: 1000 },
+  };
+
+  const normalizeUnit = (unit) => String(unit || "").trim().toLowerCase();
+
+  const convertUnitValue = (value, fromUnit, toUnit) => {
+    const from = unitFactorMap[normalizeUnit(fromUnit)];
+    const to = unitFactorMap[normalizeUnit(toUnit)];
+    if (!from || !to || from.group !== to.group) return null;
+    const baseValue = Number(value) * from.factor;
+    return baseValue / to.factor;
+  };
 
   const calculateTotal = () => {
     let untaxedAmount = 0;
@@ -80,6 +100,8 @@ function MyNewpurchase() {
       vendor_id: "",
       productData: null,
       variant_id: null,
+      total_weight_value: "",
+      total_weight_unit: "kg",
     },
   ]);
 
@@ -137,6 +159,15 @@ function MyNewpurchase() {
 
     newProducts[index][field] = value;
 
+    if (field === "qty" && newProducts[index]?.variantData?.weight_per_unit) {
+      const variantWeight = parseFloat(newProducts[index].variantData.weight_per_unit) || 0;
+      const variantUnit = newProducts[index].variantData.masterUOM?.label || "kg";
+      const qty = parseFloat(newProducts[index].qty) || 0;
+      const totalWeight = qty * variantWeight;
+      newProducts[index].total_weight_value = Number(totalWeight.toFixed(3));
+      newProducts[index].total_weight_unit = variantUnit;
+    }
+
     const qty = parseFloat(newProducts[index].qty) || 0;
     const unitPrice = parseFloat(newProducts[index].unit_price) || 0;
     const taxRate = parseFloat(newProducts[index].tax) || 0;
@@ -164,6 +195,8 @@ function MyNewpurchase() {
         tax: 18,
         productData: null,
         variant_id: null,
+        total_weight_value: "",
+        total_weight_unit: "kg",
       },
     ]);
   };
@@ -191,6 +224,36 @@ function MyNewpurchase() {
         variantData: variantData,
         vendor_id: vendorId?.vendor_id || "",
       };
+
+      if (variantData?.weight_per_unit && variantData?.masterUOM?.label) {
+        const variantWeightPerUnit = parseFloat(variantData.weight_per_unit) || 0;
+        const variantUnit = variantData.masterUOM.label;
+        const enteredTotalWeight = parseFloat(newProducts[productIndex]?.total_weight_value);
+        const enteredTotalWeightUnit =
+          newProducts[productIndex]?.total_weight_unit || variantUnit;
+
+        if (
+          Number.isFinite(enteredTotalWeight) &&
+          enteredTotalWeight > 0 &&
+          variantWeightPerUnit > 0
+        ) {
+          const convertedWeight = convertUnitValue(
+            enteredTotalWeight,
+            enteredTotalWeightUnit,
+            variantUnit
+          );
+          if (convertedWeight !== null) {
+            newProducts[productIndex].qty = Number(
+              (convertedWeight / variantWeightPerUnit).toFixed(3)
+            );
+          }
+        } else {
+          const qty = parseFloat(newProducts[productIndex].qty) || 0;
+          const totalWeight = qty * variantWeightPerUnit;
+          newProducts[productIndex].total_weight_value = Number(totalWeight.toFixed(3));
+          newProducts[productIndex].total_weight_unit = variantUnit;
+        }
+      }
   
       // Calculate tax
       const qty = parseFloat(newProducts[productIndex].qty) || 0;
@@ -211,6 +274,62 @@ function MyNewpurchase() {
       return newProducts;
     });
   
+  };
+
+  const handleTotalWeightChange = (index, field, value) => {
+    setProducts((prevProducts) => {
+      const newProducts = [...prevProducts];
+      const current = { ...newProducts[index], [field]: value };
+
+      if (current.variantData?.weight_per_unit && current.variantData?.masterUOM?.label) {
+        const totalWeightValue = parseFloat(current.total_weight_value);
+        const variantUnit = current.variantData.masterUOM.label;
+        const variantWeightPerUnit = parseFloat(current.variantData.weight_per_unit) || 0;
+        const convertedWeight = convertUnitValue(
+          totalWeightValue,
+          current.total_weight_unit || "kg",
+          variantUnit
+        );
+
+        if (
+          Number.isFinite(totalWeightValue) &&
+          totalWeightValue >= 0 &&
+          convertedWeight !== null &&
+          variantWeightPerUnit > 0
+        ) {
+          current.qty = Number((convertedWeight / variantWeightPerUnit).toFixed(3));
+        }
+      }
+
+      const qty = parseFloat(current.qty) || 0;
+      const unitPrice = parseFloat(current.unit_price) || 0;
+      const taxRate = parseFloat(current.tax) || 0;
+      const taxExcl = qty * unitPrice;
+      const taxAmount = (taxExcl * taxRate) / 100;
+
+      current.taxExcl = taxExcl;
+      current.taxAmount = taxAmount;
+      current.taxIncl = taxExcl + taxAmount;
+      current.vendor_id = vendorId.vendor_id;
+
+      newProducts[index] = current;
+      return newProducts;
+    });
+  };
+
+  const promptVariantForTotalWeight = (index) => {
+    const product = products[index];
+    const totalWeightValue = parseFloat(product?.total_weight_value);
+    if (
+      isVariantBased &&
+      product?.product_id &&
+      Number.isFinite(totalWeightValue) &&
+      totalWeightValue > 0 &&
+      !product?.variantData
+    ) {
+      ErrorMessage("Please choose a variant to calculate quantity from total weight.");
+      fetchProductVariants(product.product_id, index, product.productData);
+    }
   };
 
   // Show variant selection modal - component will handle fetching variants
@@ -246,6 +365,8 @@ function MyNewpurchase() {
         productData: null,
         variant_id: null,
         variantData: null,
+        total_weight_value: "",
+        total_weight_unit: "kg",
       };
       setProducts(newProducts);
     }
@@ -602,6 +723,7 @@ function MyNewpurchase() {
                                 <th>Product</th>
                                 <th>Description</th>
                                 <th>Quantity</th>
+                                {isVariantBased && <th>Total Weight</th>}
                                 <th>Unit Price</th>
                                 <th>Taxes (%)</th>
                                 <th>Tax Excl.</th>
@@ -637,6 +759,8 @@ function MyNewpurchase() {
                                                 productData: null,
                                                 variant_id: null,
                                                 variantData: null,
+                                                total_weight_value: "",
+                                                total_weight_unit: "kg",
                                               };
                                               setProducts(newProducts);
                                             }
@@ -747,6 +871,47 @@ function MyNewpurchase() {
                                       />
                                     </div>
                                   </td>
+                                  {isVariantBased && (
+                                    <>
+                                      <td>
+                                        <div style={{ minWidth: "180px" }} className="d-flex gap-2">
+                                          <input
+                                            type="number"
+                                            className="form-control"
+                                            min="0"
+                                            step="0.001"
+                                            placeholder="Weight"
+                                            value={product.total_weight_value}
+                                            onChange={(e) =>
+                                              handleTotalWeightChange(index, "total_weight_value", e.target.value)
+                                            }
+                                            onBlur={() => promptVariantForTotalWeight(index)}
+                                          />
+                                          <select
+                                            className="form-select"
+                                            value={product.total_weight_unit || "kg"}
+                                            onChange={(e) =>
+                                              handleTotalWeightChange(index, "total_weight_unit", e.target.value)
+                                            }
+                                          >
+                                            <option value="g">g</option>
+                                            <option value="kg">kg</option>
+                                          </select>
+                                        </div>
+                                        {product?.variantData?.weight_per_unit &&
+                                          product?.variantData?.masterUOM?.label && (
+                                            <small className="text-muted d-block mt-1">
+                                              Actual:{" "}
+                                              {calculateTotalWeight(
+                                                product.qty,
+                                                product.variantData.weight_per_unit,
+                                                product.variantData.masterUOM.label
+                                              ).display}
+                                            </small>
+                                          )}
+                                      </td>
+                                    </>
+                                  )}
                                   <td>
                                     <div style={{ minWidth: "100px" }}>
                                       <input
