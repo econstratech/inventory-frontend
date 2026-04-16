@@ -546,6 +546,15 @@ function StockMaster() {
       },
     },
     {
+      title: "Inventory at Production",
+      dataIndex: ["inventory_at_production"],
+      key: "inventory_at_production",
+      width: 150,
+      render: (_, record) => {
+        return record?.inventory_at_production || "0";
+      },
+    },
+    {
       title: "Available Quantity",
       dataIndex: ["quantity"],
       key: "quantity",

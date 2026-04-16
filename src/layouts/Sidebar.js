@@ -761,7 +761,9 @@ function Sidebar() {
                   <div className="accordion-header sidebar-item">
                     <button
                       className={`accordion-button ${location.pathname === "/production/work-orders" ||
-                        location.pathname === "/settings/manage-production-flow"
+                        location.pathname === "/settings/manage-production-flow" ||
+                        location.pathname === "/production/dispatch" ||
+                        location.pathname === "/production/dashboard"
                         ? ""
                         : "collapsed"
                         } sidebar-nav-link`}
@@ -778,13 +780,26 @@ function Sidebar() {
                   <div
                     id="ProductionMenu"
                     className={`accordion-collapse collapse ${location.pathname === "/production/work-orders" ||
-                      location.pathname === "/settings/manage-production-flow"
+                      location.pathname === "/settings/manage-production-flow" ||
+                      location.pathname === "/production/dispatch" ||
+                      location.pathname === "/production/dashboard"
                       ? "show"
                       : ""
                       }`}
                     data-bs-parent="#menuAccordian"
                   >
                     <div className="accordion-body">
+                      <div className="sidebar-item">
+                        <Link
+                          to="/production/dashboard"
+                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/dashboard"
+                            ? "active"
+                            : ""
+                            }`}
+                        >
+                          <p>Dashboard</p>
+                        </Link>
+                      </div>
                       <div className="sidebar-item">
                         <Link
                           to="/production/work-orders"
@@ -805,6 +820,17 @@ function Sidebar() {
                             }`}
                         >
                           <p>Manage Production Flow</p>
+                        </Link>
+                      </div>
+                      <div className="sidebar-item">
+                        <Link
+                          to="/production/dispatch"
+                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/dispatch"
+                            ? "active"
+                            : ""
+                            }`}
+                        >
+                          <p>Dispatch & Delivery</p>
                         </Link>
                       </div>
                     </div>
