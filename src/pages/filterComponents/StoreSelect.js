@@ -11,6 +11,7 @@ const StoreSelect = ({
   isClearable = true,
   isSearchable = true,
   isDisabled = false,
+  cwhfg = false,
   styles = {},
   ...otherProps
 }) => {
@@ -25,6 +26,7 @@ const StoreSelect = ({
     try {
       const queryParams = new URLSearchParams({
         ...(searchKey && searchKey.trim() !== "" && { searchkey: searchKey.trim() }),
+        ...(cwhfg && { cwhfg: "true" }),
       }).toString();
 
       const response = await PrivateAxios.get(`/warehouse?${queryParams}`);
@@ -48,7 +50,7 @@ const StoreSelect = ({
       setIsLoadingStores(false);
       setHasInitialLoaded(true);
     }
-  }, []);
+  }, [cwhfg]);
 
   // Load stores on mount
   useEffect(() => {
@@ -105,6 +107,11 @@ const StoreSelect = ({
       ...base,
       zIndex: 9999,
       ...(styles.menu ? styles.menu(base) : {}),
+    }),
+    menuPortal: (base) => ({
+      ...base,
+      zIndex: 9999,
+      ...(styles.menuPortal ? styles.menuPortal(base) : {}),
     }),
     ...styles,
   };

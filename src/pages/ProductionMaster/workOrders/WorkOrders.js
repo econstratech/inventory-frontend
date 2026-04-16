@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Input, Modal, Progress, Select, Table, Tooltip } from "antd";
 import dayjs from "dayjs";
 import CustomerSelect from "../../filterComponents/CustomerSelect";
+import StoreSelect from "../../filterComponents/StoreSelect";
 import ProductSelect from "../../filterComponents/ProductSelect";
 import DeleteModal from "../../CommonComponent/DeleteModal";
 import { UserAuth } from "../../auth/Auth";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
+import { render } from "react-dom";
 
 function WorkOrders() {
   const { user, isVariantBased } = UserAuth();
@@ -16,6 +18,11 @@ function WorkOrders() {
   const [listLoading, setListLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [pageState, setPageState] = useState({ skip: 0, take: 15 });
+  const [sortState, setSortState] = useState({
+    sort: null,
+    order: null,
+    columnKey: null,
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     orderId: "",
@@ -40,13 +47,21 @@ function WorkOrders() {
   const [materialIssueDraftQty, setMaterialIssueDraftQty] = useState("");
   const [materialIssueSubmittingId, setMaterialIssueSubmittingId] = useState(null);
   const [materialIssueCompleting, setMaterialIssueCompleting] = useState(false);
+  const [completingProduction, setCompletingProduction] = useState(false);
   const [productionFlowDrafts, setProductionFlowDrafts] = useState({});
   const [productionFlowSavingId, setProductionFlowSavingId] = useState(null);
   const [editingInProgressStepId, setEditingInProgressStepId] = useState(null);
   const [saving, setSaving] = useState(false);
+  // const [startingProductionId, setStartingProductionId] = useState(null);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
+  const [modalMode, setModalMode] = useState("add"); // "add" | "edit"
+  const [editWorkOrderId, setEditWorkOrderId] = useState(null);
+  const [editWorkOrderLoading, setEditWorkOrderLoading] = useState(false);
+  const [uomList, setUomList] = useState([]);
+  const [uomLoading, setUomLoading] = useState(false);
   const [formData, setFormData] = useState({
     customer: null,
+    store: null,
     finishedGoodId: null,
     finishedGoodData: null,
     finishedGoodVariantId: null,
@@ -74,6 +89,11 @@ function WorkOrders() {
     [flowSteps]
   );
 
+  const uomOptions = useMemo(
+    () => uomList.map((u) => ({ value: u.id, label: `${u.name} (${u.label})` })),
+    [uomList]
+  );
+
   const normalizeWorkOrderSteps = (steps = []) =>
     (Array.isArray(steps) ? steps : [])
       .slice()
@@ -84,6 +104,7 @@ function WorkOrders() {
         status: Number(step?.status) || 1,
         sequence: Number(step?.sequence) || 0,
         processName: step?.processName || step?.step?.name || "N/A",
+        uomId: step?.uomId ?? step?.uom_id ?? null,
         inputQty: step?.inputQty ?? step?.input_qty,
         outputQty: step?.outputQty ?? step?.output_qty,
         wasteQty: step?.wasteQty ?? step?.waste_qty,
@@ -96,6 +117,7 @@ function WorkOrders() {
       acc[stepKey] = {
         inputQty: step?.inputQty ?? step?.input_qty ?? "",
         outputQty: step?.outputQty ?? step?.output_qty ?? "",
+        uomId: step?.uomId ?? step?.uom_id ?? step?.input_uom_id ?? step?.output_uom_id ?? null,
         status: Number(step?.status) || 1,
       };
       return acc;
@@ -142,6 +164,7 @@ function WorkOrders() {
           processName: step?.processName || step?.step?.name || "N/A",
           inputQty: draft.inputQty ?? (inputQty ?? ""),
           outputQty: draft.outputQty ?? (outputQty ?? ""),
+          uomId: draft.uomId ?? null,
           wasteQty,
           yieldPercent,
           status,
@@ -170,6 +193,22 @@ function WorkOrders() {
   useEffect(() => {
     fetchCompanyFlow();
   }, [companyId]);
+
+  const fetchUomList = async () => {
+    setUomLoading(true);
+    try {
+      const res = await PrivateAxios.get("/master/uom/list");
+      setUomList(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch {
+      setUomList([]);
+    } finally {
+      setUomLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUomList();
+  }, []);
 
   const fetchFinishedGoodVariants = async (productId) => {
     if (!productId || !isVariantBased) {
@@ -203,6 +242,19 @@ function WorkOrders() {
     return `${formatted} ${unit}`.trim();
   };
 
+  // Returns a human-readable total weight string from a unit count.
+  // e.g. formatWeightFromUnits(280, 500, "g") => "140 kg"
+  const formatWeightFromUnits = (units, weightPerUnit, uomLabel) => {
+    const qty = Number(units);
+    const wpu = Number(weightPerUnit);
+    if (!Number.isFinite(qty) || !Number.isFinite(wpu) || wpu === 0) return null;
+    const total = qty * wpu;
+    if ((uomLabel || "").toLowerCase() === "g" && total >= 1000) {
+      return `${Number((total / 1000).toFixed(3))} kg`;
+    }
+    return `${Number(total.toFixed(3))} ${uomLabel || ""}`.trim();
+  };
+
   const mapWorkOrderRows = (list = []) =>
     (Array.isArray(list) ? list : []).map((item) => {
       const finishedGoodName =
@@ -220,6 +272,7 @@ function WorkOrders() {
         id: item?.id,
         orderId: item?.wo_number ?? "N/A",
         createdAt: item?.created_at ? dayjs(item.created_at).format("DD/MM/YYYY") : "N/A",
+        warehouse: item?.warehouse || "",
         customer:
           item?.customer?.name ||
           item?.customer_name ||
@@ -228,6 +281,7 @@ function WorkOrders() {
         finishedGood: `${finishedGoodName}${finishedGoodCode ? ` (${finishedGoodCode})` : ""}`,
         finishedGoodVariant: item?.finalProductVariant?.weight_per_unit ? `${item?.finalProductVariant?.weight_per_unit} ${item?.finalProductVariant?.masterUOM.label}` : "",
         qty: Number(item?.planned_qty) || 0,
+        plannedQty: Number(item?.planned_qty) || 0,
         status: Number(item?.status) || 0,
         statusLabel: item?.status < 3 ? "Not Started Yet" : item?.productionStep?.name || "Pending",
         workOrderStatus: item?.status === 1 ? "Pending Material Issue" : item?.status === 2 ? "In-progress" : item?.status === 3 ? "Material Issued" : item?.status === 4 ? "Completed" : "Cancelled",
@@ -237,7 +291,7 @@ function WorkOrders() {
           ? item.workOrderSteps.map((p) => p?.step?.name || p).filter(Boolean)
           : [],
         workOrderSteps: normalizeWorkOrderSteps(item?.workOrderSteps),
-        materialProgress: Number(item?.material_progress_percentage) || 0,
+        materialProgress: Number(item?.material_issue_percent) || 0,
         dueDate: item?.due_date ? dayjs(item.due_date).format("DD/MM/YYYY") : "N/A",
         materialIssuedBy: item?.materialIssuedBy?.name || "N/A",
         materialIssuedAt: item?.material_issued_at
@@ -247,9 +301,11 @@ function WorkOrders() {
       };
     });
 
-  const fetchWorkOrders = async (customPageState = null, customFilters = null) => {
+  const fetchWorkOrders = async (customPageState = null, customFilters = null, customSortState = null) => {
     const currentPageState = customPageState || pageState;
     const currentFilters = customFilters || filters;
+    const currentSortState = customSortState || sortState;
+
     setListLoading(true);
     try {
       const page = currentPageState.skip / currentPageState.take + 1;
@@ -257,6 +313,9 @@ function WorkOrders() {
         page: String(page),
         limit: String(currentPageState.take),
         status: 'active',
+        ...(currentSortState?.sort && currentSortState?.order
+          ? { sort: String(currentSortState.sort), order: String(currentSortState.order) }
+          : {}),
         ...(String(currentFilters.orderId || "").trim() && { wo_number: String(currentFilters.orderId).trim() }),
         ...(currentFilters.customer?.id || currentFilters.customer?.value
           ? { customer_id: String(currentFilters.customer?.id ?? currentFilters.customer?.value) }
@@ -289,11 +348,14 @@ function WorkOrders() {
 
   useEffect(() => {
     fetchWorkOrders(pageState, filters);
-  }, [pageState.skip, pageState.take]);
+  }, [pageState.skip, pageState.take, sortState.sort, sortState.order]);
 
   const openAddModal = () => {
+    setModalMode("add");
+    setEditWorkOrderId(null);
     setFormData({
       customer: null,
+      warehouse: null,
       finishedGoodId: null,
       finishedGoodData: null,
       finishedGoodVariantId: null,
@@ -307,6 +369,59 @@ function WorkOrders() {
 
   const closeAddModal = () => {
     setIsAddModalOpen(false);
+    setEditWorkOrderId(null);
+    setModalMode("add");
+  };
+
+  const openEditModal = async (record) => {
+    if (!record?.id) return;
+    setModalMode("edit");
+    setEditWorkOrderId(record.id);
+    setFinishedGoodVariants([]);
+    setFormData({
+      customer: null,
+      store: null,
+      finishedGoodId: null,
+      finishedGoodData: null,
+      finishedGoodVariantId: null,
+      quantity: "",
+      workOrderStepIds: [],
+      dueDate: null,
+    });
+    setIsAddModalOpen(true);
+    setEditWorkOrderLoading(true);
+    try {
+      const res = await PrivateAxios.get(`/production/work-order/${record.id}`);
+      const data = res.data?.data || {};
+      const stepIds = (Array.isArray(data.workOrderSteps) ? data.workOrderSteps : [])
+        .slice()
+        .sort((a, b) => Number(a.sequence) - Number(b.sequence))
+        .map((s) => s.step_id);
+      const customerOption = data.customer
+        ? { id: data.customer.id, name: data.customer.name, value: data.customer.id, label: data.customer.name }
+        : null;
+      const storeOption = data.warehouse
+        ? { value: data.warehouse.id, label: `${data.warehouse.name || "N/A"} (${data.warehouse.city || "N/A"})`, storeData: data.warehouse }
+        : null;
+      setFormData({
+        customer: customerOption,
+        store: storeOption,
+        finishedGoodId: data.product?.id || null,
+        finishedGoodData: data.product || null,
+        finishedGoodVariantId: data.finalProductVariant?.id || null,
+        quantity: String(data.planned_qty ?? ""),
+        workOrderStepIds: stepIds,
+        dueDate: data.due_date ? dayjs(data.due_date) : null,
+      });
+      if (data.product?.id && isVariantBased) {
+        fetchFinishedGoodVariants(data.product.id);
+      }
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to fetch work order details.");
+      setIsAddModalOpen(false);
+    } finally {
+      setEditWorkOrderLoading(false);
+    }
   };
 
   const handleStepToggle = (stepId) => {
@@ -327,6 +442,10 @@ function WorkOrders() {
   const handleSave = async () => {
     if (!formData.customer) {
       ErrorMessage("Customer is required.");
+      return;
+    }
+    if (!formData.store) {
+      ErrorMessage("Store is required.");
       return;
     }
     if (!formData.finishedGoodId) {
@@ -355,6 +474,7 @@ function WorkOrders() {
     try {
       const payload = {
         customer_id: formData.customer?.id ?? formData.customer?.value,
+        warehouse_id: formData.store?.value,
         product_id: formData.finishedGoodId,
         final_product_variant_id: isVariantBased ? formData.finishedGoodVariantId : null,
         planned_qty: qty,
@@ -379,11 +499,119 @@ function WorkOrders() {
     }
   };
 
+  const handleUpdate = async () => {
+    if (!formData.customer) {
+      ErrorMessage("Customer is required.");
+      return;
+    }
+    if (!formData.store) {
+      ErrorMessage("Store is required.");
+      return;
+    }
+    if (!formData.finishedGoodId) {
+      ErrorMessage("Finished Good is required.");
+      return;
+    }
+    if (isVariantBased && !formData.finishedGoodVariantId) {
+      ErrorMessage("Finished Good Variant is required.");
+      return;
+    }
+    const qty = Number(formData.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      ErrorMessage("Quantity must be a positive number.");
+      return;
+    }
+    if (!formData.workOrderStepIds || formData.workOrderStepIds.length === 0) {
+      ErrorMessage("Please select work order steps in sequence.");
+      return;
+    }
+    if (!formData.dueDate) {
+      ErrorMessage("Due Date is required.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        customer_id: formData.customer?.id ?? formData.customer?.value,
+        warehouse_id: formData.store?.value,
+        product_id: formData.finishedGoodId,
+        final_product_variant_id: isVariantBased ? formData.finishedGoodVariantId : null,
+        planned_qty: qty,
+        due_date: dayjs(formData.dueDate).format("YYYY-MM-DD"),
+        production_step_id: formData.workOrderStepIds[0],
+        work_order_steps: formData.workOrderStepIds.map((id, index) => ({
+          step_id: id,
+          sequence: index + 1,
+        })),
+      };
+      const res = await PrivateAxios.put(`/production/work-order/update/${editWorkOrderId}`, payload);
+      SuccessMessage(res?.data?.message || "Work order updated successfully.");
+      fetchWorkOrders(pageState, filters);
+      closeAddModal();
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to update work order.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handlePageChange = (page, pageSize) => {
     setPageState({
       skip: (page - 1) * pageSize,
       take: pageSize,
     });
+  };
+
+  const toApiOrder = (antOrder) => {
+    if (antOrder === "ascend") return "asc";
+    if (antOrder === "descend") return "desc";
+    return null;
+  };
+
+  const toAntOrder = (apiOrder) => {
+    if (apiOrder === "asc") return "ascend";
+    if (apiOrder === "desc") return "descend";
+    return null;
+  };
+
+  const handleTableChange = (pagination, _tableFilters, sorter) => {
+    const nextPage = pagination?.current || 1;
+    const nextPageSize = pagination?.pageSize || pageState.take;
+    const nextPageState = {
+      skip: (nextPage - 1) * nextPageSize,
+      take: nextPageSize,
+    };
+
+    const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+
+    const sortFieldMap = {
+      customer: "customer_name",
+      finishedGood: "product_name",
+    };
+
+    let nextSortState = sortState;
+    if (activeSorter && (activeSorter.columnKey || activeSorter.field || activeSorter.order !== undefined)) {
+      if (activeSorter.order) {
+        const columnKey = activeSorter.columnKey || activeSorter.field;
+        const apiSortField = sortFieldMap[columnKey];
+        if (apiSortField) {
+          nextSortState = {
+            sort: apiSortField,
+            order: toApiOrder(activeSorter.order),
+            columnKey,
+          };
+        }
+      } else {
+        nextSortState = { sort: null, order: null, columnKey: null };
+      }
+    } else {
+      // when cancel sort, set sort state to null
+      nextSortState = { sort: null, order: null, columnKey: null };
+    }
+
+    setPageState(nextPageState);
+    setSortState(nextSortState);
   };
 
   const handleFilterSearch = () => {
@@ -433,55 +661,73 @@ function WorkOrders() {
       const res = await PrivateAxios.get(`/production/work-order/bom-list/${record.id}`);
       const payload = res?.data?.data || {};
       const workOrder = payload?.workOrder || {};
+      const fgUOM = payload?.fg_uom || null;
+      const fgUomLabel = payload?.fg_uom?.label || record?.fgUomLabel || "kg";
       const plannedQty = Number(workOrder?.planned_qty) || 0;
-      const rows = (Array.isArray(payload?.materialList) ? payload.materialList : []).map((item) => {
+      const materialIssues = Array.isArray(workOrder?.workOrderMaterialIssues)
+        ? workOrder.workOrderMaterialIssues
+        : [];
+      const rows = [];
+      for (const item of (Array.isArray(payload?.materialList) ? payload.materialList : [])) {
         const variant = item?.rawMaterialProductVariant || {};
         const unitLabel = variant?.masterUOM?.label || "";
         const stockEntries = Array.isArray(variant?.productStockEntries)
           ? variant.productStockEntries
           : [];
-        const stockQty = stockEntries.reduce(
-          (sum, entry) => sum + (Number(entry?.quantity) || 0),
-          0
-        );
 
         const requiredQty = plannedQty * (Number(item?.quantity) || 0);
-        const materialIssues = Array.isArray(workOrder?.workOrderMaterialIssues)
-          ? workOrder.workOrderMaterialIssues
-          : [];
-        const issuedQty = materialIssues.reduce((sum, issue) => {
-          if (issue?.rm_product_variant_id !== item?.raw_material_variant_id) {
-            return sum;
-          }
+        // Total issued across all warehouses — used for overall pending calculation
+        const totalIssuedQty = materialIssues.reduce((sum, issue) => {
+          if (issue?.rm_product_variant_id !== item?.raw_material_variant_id) return sum;
           return sum + (Number(issue?.issued_qty) || 0);
         }, 0);
-        const pendingQty = Math.max(requiredQty - issuedQty, 0);
-        
-        return {
-          id: item?.id,
-          woId: workOrder?.id || record?.id,
+        const pendingQty = Math.max(requiredQty - totalIssuedQty, 0);
+        let rawMaterialName = item?.rawMaterialProduct?.product_name || "N/A";
+        rawMaterialName += ` (${variant.weight_per_unit} ${variant?.masterUOM?.label || ""})`;
+        const disabledIssue = parseInt(workOrder?.status) !== 1 && parseInt(workOrder?.status) !== 2;
+        const woId = workOrder?.id || record?.id;
+        const base = {
+          woId,
           rmProductId: item?.raw_material_product_id,
           rmProductVariantId: item?.raw_material_variant_id,
           unitLabel,
+          weightPerUnit: Number(variant?.weight_per_unit) || 0,
           requiredQty,
-          disabledIssue: parseInt(workOrder?.status) === 1 ? true : false,
-          issuedQty,
+          disabledIssue,
           pendingQty,
-          material: item?.rawMaterialProduct?.product_name || "N/A",
+          material: rawMaterialName,
           code: item?.rawMaterialProduct?.product_code || "N/A",
-          required: formatQuantity(requiredQty, unitLabel),
-          issued: formatQuantity(issuedQty, unitLabel),
-          pending: formatQuantity(pendingQty, unitLabel),
-          stock: formatQuantity(stockQty, unitLabel),
           status: parseInt(workOrder?.status),
         };
-      });
+
+        if (stockEntries.length === 0) {
+          rows.push({ ...base, id: String(item?.id), warehouseId: null, warehouseName: "—", stockQty: 0, issuedQty: totalIssuedQty });
+        } else {
+          for (const entry of stockEntries) {
+            const warehouseIssuedQty = materialIssues.reduce((sum, issue) => {
+              if (issue?.rm_product_variant_id !== item?.raw_material_variant_id) return sum;
+              if (issue?.warehouse_id !== entry?.warehouse?.id) return sum;
+              return sum + (Number(issue?.issued_qty) || 0);
+            }, 0);
+            rows.push({
+              ...base,
+              id: `${item?.id}-${entry?.id}`,
+              warehouseId: entry?.warehouse?.id ?? null,
+              warehouseName: entry?.warehouse?.name || "—",
+              stockQty: Number(entry?.quantity) || 0,
+              issuedQty: warehouseIssuedQty,
+            });
+          }
+        }
+      }
 
       setMaterialIssueRows(rows);
       setMaterialIssueWorkOrder((prev) => ({
         ...(prev || record),
         orderId: record?.orderId || prev?.orderId,
         workOrderStatus: parseInt(workOrder?.status),
+        fgUOM,
+        fgUomLabel,
         currentStep:
           Number(workOrder?.production_step_id || workOrder?.productionStep?.id) ||
           Number(record?.currentStep) ||
@@ -524,7 +770,12 @@ function WorkOrders() {
       wo_id: row?.woId,
       rm_product_id: row?.rmProductId,
       rm_product_variant_id: row?.rmProductVariantId,
+      fg_uom: materialIssueWorkOrder?.fgUomLabel || null,
+      rm_weight_per_unit: row?.weightPerUnit,
+      fg_weight_per_unit: materialIssueWorkOrder?.fgUOM?.weight_per_unit,
+      rm_uom: row?.unitLabel || null,
       issued_qty: issuedQty,
+      warehouse_id: row?.warehouseId ?? null,
     };
 
     setMaterialIssueSubmittingId(row?.id);
@@ -534,18 +785,19 @@ function WorkOrders() {
       setMaterialIssueRows((prev) =>
         prev.map((item) => {
           if (String(item.id) !== String(row.id)) return item;
-          // const nextIssuedQty = (Number(item.issuedQty) || 0) + issuedQty;
-          // const nextPendingQty = Math.max((Number(item.requiredQty) || 0) - nextIssuedQty, 0);
           const nextPendingQty = Math.max((Number(item.requiredQty) || 0) - issuedQty, 0);
           return {
             ...item,
             issuedQty: issuedQty,
             pendingQty: nextPendingQty,
-            issued: formatQuantity(issuedQty, item.unitLabel),
-            pending: formatQuantity(nextPendingQty, item.unitLabel),
           };
         })
       );
+      // Update materialProgress so the "complete" button validation stays in sync
+      setMaterialIssueWorkOrder((prev) => ({
+        ...prev,
+        materialProgress: Math.max(Number(prev?.materialProgress) || 0, 1),
+      }));
       cancelMaterialIssueEdit();
     } catch (error) {
       ErrorMessage(error?.response?.data?.message || "Failed to issue material.");
@@ -558,6 +810,12 @@ function WorkOrders() {
     const woId = materialIssueWorkOrder?.id;
     if (!woId) {
       ErrorMessage("Work order id is missing.");
+      return;
+    } else if (materialIssueWorkOrder?.workOrderStatus === 3) {
+      ErrorMessage("Material issue is already completed for this work order.");
+      return;
+    } else if (materialIssueWorkOrder?.materialProgress === 0) {
+      ErrorMessage("Cannot complete material issue with 0% material issued.");
       return;
     }
 
@@ -599,6 +857,7 @@ function WorkOrders() {
         ...(prev?.[draftKey] || {}),
         inputQty: stepRow?.inputQty ?? "",
         outputQty: stepRow?.outputQty ?? "",
+        uomId: stepRow?.uomId ?? prev?.[draftKey]?.uomId ?? null,
         status: Number(stepRow?.status) || 2,
       },
     }));
@@ -618,6 +877,7 @@ function WorkOrders() {
     const latestDraft = productionFlowDrafts?.[draftKey] || {};
     const inputQty = Number(latestDraft?.inputQty ?? stepRow?.inputQty);
     const outputQty = Number(latestDraft?.outputQty ?? stepRow?.outputQty);
+    const uomId = latestDraft?.uomId ?? null;
     const status = Number(latestDraft?.status ?? stepRow?.status);
     if (!Number.isFinite(inputQty) || inputQty < 0) {
       ErrorMessage("Input quantity must be 0 or greater.");
@@ -637,6 +897,7 @@ function WorkOrders() {
       wo_step_id: stepRow.woStepId,
       input_qty: inputQty,
       output_qty: outputQty,
+      uom_id: uomId,
       status,
     };
 
@@ -712,6 +973,72 @@ function WorkOrders() {
     }
   };
 
+  // const handleStartProduction = async (record) => {
+  //   const id = record?.id;
+  //   if (!id) return;
+  //   setStartingProductionId(id);
+  //   try {
+  //     const res = await PrivateAxios.post("/production/work-order/material-issue-complete", { wo_id: id });
+  //     SuccessMessage(res?.data?.message || "Production started successfully.");
+  //     fetchWorkOrders(pageState, filters);
+  //   } catch (error) {
+  //     ErrorMessage(error?.response?.data?.message || "Failed to start production.");
+  //   } finally {
+  //     setStartingProductionId(null);
+  //   }
+  // };
+
+  const [completeProductionModalOpen, setCompleteProductionModalOpen] = useState(false);
+  const [finalQty, setFinalQty] = useState("");
+
+  const openCompleteProductionModal = () => {
+    const woId = materialIssueWorkOrder?.id;
+    if (!woId) {
+      ErrorMessage("Work order id is missing.");
+      return;
+    }
+    setFinalQty("");
+    setCompleteProductionModalOpen(true);
+  };
+
+  const closeCompleteProductionModal = () => {
+    setCompleteProductionModalOpen(false);
+    setFinalQty("");
+  };
+
+  const handleCompleteProduction = async () => {
+    const woId = materialIssueWorkOrder?.id;
+    if (!woId) {
+      ErrorMessage("Work order id is missing.");
+      return;
+    }
+    const qty = Number(finalQty);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      ErrorMessage("Final quantity must be a positive number.");
+      return;
+    }
+    const plannedQty = Number(materialIssueWorkOrder?.plannedQty) || 0;
+    if (plannedQty > 0 && qty > plannedQty) {
+      ErrorMessage(`Final quantity cannot exceed planned quantity (${plannedQty}).`);
+      return;
+    }
+    setCompletingProduction(true);
+    try {
+      const res = await PrivateAxios.post("/production/work-order/complete-production", {
+        wo_id: woId,
+        final_qty: qty,
+      });
+      SuccessMessage(res?.data?.message || "Production completed successfully.");
+      closeCompleteProductionModal();
+      closeMaterialIssueModal();
+      fetchWorkOrders(pageState, filters);
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to complete production.");
+    } finally {
+      setCompletingProduction(false);
+    }
+  };
+
   const openDeleteModal = (record) => {
     setDeleteWorkOrder(record || null);
     setDeleteModalShow(true);
@@ -762,14 +1089,35 @@ function WorkOrders() {
     );
   };
 
+  const getProgressColor = (value) => {
+    const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
+    const hue = Math.round((safeValue / 100) * 120); // 0 => red, 120 => green
+    return `hsl(${hue}, 75%, 42%)`;
+  };
+
   const columns = [
     { title: "Order ID", dataIndex: "orderId", key: "orderId", width: 150 },
-    { title: "Customer", dataIndex: "customer", key: "customer", width: 190 },
+    {
+      title: "Customer",
+      dataIndex: "customer",
+      key: "customer",
+      width: 190,
+      sorter: true,
+      sortDirections: ["descend", "ascend"],
+      // sortOrder: sortState.columnKey === "customer" ? toAntOrder(sortState.order) : null,
+      sortOrder:
+        sortState.columnKey === "customer"
+          ? (sortState.order === "asc" ? "ascend" : sortState.order === "desc" ? "descend" : null)
+          : null,
+    },
     { 
       title: "Finished Good", 
       dataIndex: "finishedGood", 
       key: "finishedGood", 
       width: 250,
+      sorter: true,
+      sortDirections: ["descend", "ascend"],
+      sortOrder: sortState.columnKey === "finishedGood" ? toAntOrder(sortState.order) : null,
       render: (text, record) => (
         <div>
           {text}
@@ -802,12 +1150,22 @@ function WorkOrders() {
       dataIndex: "progress",
       key: "progress",
       width: 150,
-      render: (value) => (
-        <div className="d-flex align-items-center gap-2">
-          <Progress percent={Number(value) || 0} showInfo={false} style={{ width: 80 }} />
-          <span className="small text-muted">{Number(value) || 0}%</span>
-        </div>
-      ),
+      render: (value) => {
+        const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
+        const progressColor = getProgressColor(safeValue);
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <Progress
+              percent={safeValue}
+              showInfo={false}
+              strokeColor={progressColor}
+              trailColor="#e9ecef"
+              style={{ width: 80 }}
+            />
+            <span className="small fw-semibold" style={{ color: progressColor }}>{safeValue}%</span>
+          </div>
+        );
+      },
     },
     {
       title: "Process Flow",
@@ -843,21 +1201,32 @@ function WorkOrders() {
       dataIndex: "materialProgress",
       key: "materialProgress",
       width: 120,
-      render: (value) => (
-        <div className="d-flex align-items-center gap-2">
-          <Progress percent={Number(value) || 0} showInfo={false} style={{ width: 70 }} />
-          <span className="small text-muted">{Number(value) || 0}%</span>
-        </div>
-      ),
+      render: (value) => {
+        const safeValue = Math.min(Math.max(Number(value) || 0, 0), 100);
+        const progressColor = getProgressColor(safeValue);
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <Progress
+              percent={safeValue}
+              showInfo={false}
+              strokeColor={progressColor}
+              trailColor="#e9ecef"
+              style={{ width: 70 }}
+            />
+            <span className="small fw-semibold" style={{ color: progressColor }}>{safeValue}%</span>
+          </div>
+        );
+      },
     },
+    { title: "Store", dataIndex: "warehouse", key: "warehouse", width: 180, render: (v) => v?.name || "—" },
     { title: "Created Date", dataIndex: "createdAt", key: "createdAt", width: 150 },
     { title: "Due Date", dataIndex: "dueDate", key: "dueDate", width: 120 },
     {
       title: "Actions",
       key: "actions",
-      width: 120,
+      width: 160,
       render: (_, record) => (
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 align-items-center">
           <Tooltip title="Material Issue">
             <i
               className="fas fa-box-open text-primary"
@@ -865,8 +1234,25 @@ function WorkOrders() {
               onClick={() => openMaterialIssueModal(record)}
             ></i>
           </Tooltip>
+          {/* {Number(record.status) === 2 && (
+            <Tooltip title="Start Production">
+              {startingProductionId === record.id ? (
+                <i className="fas fa-spinner fa-spin text-warning"></i>
+              ) : (
+                <i
+                  className="fas fa-play text-warning"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => handleStartProduction(record)}
+                ></i>
+              )}
+            </Tooltip>
+          )} */}
           <Tooltip title="Edit">
-            <i className="far fa-edit text-success" style={{ cursor: "pointer" }}></i>
+            <i
+              className="far fa-edit text-success"
+              style={{ cursor: "pointer" }}
+              onClick={() => openEditModal(record)}
+            ></i>
           </Tooltip>
           <Tooltip title="Delete">
             <span
@@ -1020,14 +1406,13 @@ function WorkOrders() {
                 columns={columns}
                 dataSource={rows}
                 loading={listLoading}
+                onChange={handleTableChange}
                 pagination={{
                   current: pageState.skip / pageState.take + 1,
                   pageSize: pageState.take,
                   total: totalCount,
                   showSizeChanger: true,
                   pageSizeOptions: ["10", "15", "25", "50"],
-                  onChange: handlePageChange,
-                  onShowSizeChange: handlePageChange,
                 }}
                 scroll={{ x: 1600 }}
               />
@@ -1132,10 +1517,37 @@ function WorkOrders() {
                                 <i className="far fa-eye" style={{ fontSize: 14 }}></i>
                               </button>
                             </Tooltip>
+                            {/* {Number(record.status) === 2 && (
+                              <Tooltip title="Start Production">
+                                <button
+                                  type="button"
+                                  className="border-0"
+                                  onClick={() => handleStartProduction(record)}
+                                  disabled={startingProductionId === record.id}
+                                  style={{
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: "50%",
+                                    background: "#fffbeb",
+                                    color: "#d97706",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    opacity: startingProductionId === record.id ? 0.6 : 1,
+                                  }}
+                                >
+                                  <i
+                                    className={startingProductionId === record.id ? "fas fa-spinner fa-spin" : "fas fa-play"}
+                                    style={{ fontSize: 12 }}
+                                  ></i>
+                                </button>
+                              </Tooltip>
+                            )} */}
                             <Tooltip title="Edit">
                               <button
                                 type="button"
                                 className="border-0"
+                                onClick={() => openEditModal(record)}
                                 style={{
                                   width: 30,
                                   height: 30,
@@ -1211,19 +1623,31 @@ function WorkOrders() {
       </div>
 
       <Modal
-        title={<span className="fw-semibold">Add Work Order</span>}
+        title={<span className="fw-semibold">{modalMode === "edit" ? "Edit Work Order" : "Add Work Order"}</span>}
         open={isAddModalOpen}
         onCancel={closeAddModal}
         footer={[
-          <Button key="cancel" onClick={closeAddModal}>
+          <Button key="cancel" onClick={closeAddModal} disabled={saving || editWorkOrderLoading}>
             Cancel
           </Button>,
-          <Button key="save" type="primary" loading={saving} onClick={handleSave}>
-            Save
+          <Button
+            key="save"
+            type="primary"
+            loading={saving}
+            disabled={editWorkOrderLoading}
+            onClick={modalMode === "edit" ? handleUpdate : handleSave}
+          >
+            {modalMode === "edit" ? "Update" : "Save"}
           </Button>,
         ]}
         width={980}
       >
+        {editWorkOrderLoading ? (
+          <div className="text-center py-5 text-muted">
+            <i className="fas fa-spinner fa-spin fa-2x mb-2"></i>
+            <p className="mb-0">Loading work order details…</p>
+          </div>
+        ) : (
         <div className="row g-3 pt-2">
           <div className="col-md-6">
             <label className="form-label fw-semibold">Customer <span className="text-danger">*</span></label>
@@ -1231,6 +1655,15 @@ function WorkOrders() {
               value={formData.customer}
               onChange={(option) => setFormData((prev) => ({ ...prev, customer: option || null }))}
               placeholder="Select Customer"
+            />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">Store <span className="text-danger">*</span></label>
+            <StoreSelect
+              value={formData.store}
+              onChange={(option) => setFormData((prev) => ({ ...prev, store: option || null }))}
+              placeholder="Select Store"
+              cwhfg
             />
           </div>
           <div className="col-md-6">
@@ -1346,6 +1779,7 @@ function WorkOrders() {
             )}
           </div>
         </div>
+        )}
       </Modal>
 
       <Modal
@@ -1367,18 +1801,16 @@ function WorkOrders() {
         onCancel={closeMaterialIssueModal}
         footer={[
           <Button
-            key="complete"
+            key="complete-production"
             type="primary"
-            onClick={completeMaterialIssue}
-            loading={materialIssueCompleting}
+            onClick={openCompleteProductionModal}
             disabled={
               !materialIssueWorkOrder?.id ||
               materialIssueLoading ||
-              materialIssueSubmittingId !== null ||
-              String(materialIssueWorkOrder?.status) === "3"
+              completingProduction
             }
           >
-            Complete Material Issue
+            Complete Production
           </Button>,
           <Button key="close" onClick={closeMaterialIssueModal}>
             Close
@@ -1409,44 +1841,109 @@ function WorkOrders() {
               },
               {
                 title: "Required",
-                dataIndex: "required",
+                dataIndex: "requiredQty",
                 key: "required",
-                width: 130,
+                width: 140,
+                render: (value, record) => {
+                  const weight = formatWeightFromUnits(value, record.weightPerUnit, record.unitLabel);
+                  return (
+                    <div>
+                      <div className="fw-semibold">{Number.isFinite(Number(value)) ? Number(value) : 0} Units</div>
+                      {weight && <div className="text-muted" style={{ fontSize: 11 }}>{weight}</div>}
+                    </div>
+                  );
+                },
               },
               {
                 title: "Issued",
-                dataIndex: "issued",
+                dataIndex: "issuedQty",
                 key: "issued",
-                width: 180,
-                render: (value, record) =>
-                  editingMaterialIssueRowId === record.id ? (
-                    <div className="d-flex align-items-center gap-2">
-                      <Input
-                        type="number"
-                        min={0}
-                        value={materialIssueDraftQty}
-                        onChange={(e) => setMaterialIssueDraftQty(e.target.value)}
-                        placeholder="Qty"
-                        style={{ width: 90, height: "34px" }}
-                      />
-                      <span className="text-success fw-semibold">{record.unitLabel || ""}</span>
+                width: 190,
+                render: (value, record) => {
+                  if (editingMaterialIssueRowId === record.id) {
+                    const draftWeight = formatWeightFromUnits(materialIssueDraftQty, record.weightPerUnit, record.unitLabel);
+                    return (
+                      <div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            value={materialIssueDraftQty}
+                            onChange={(e) => setMaterialIssueDraftQty(e.target.value)}
+                            placeholder="Units"
+                            style={{ width: 90, height: "34px" }}
+                          />
+                          <span className="fw-semibold">Units</span>
+                        </div>
+                        {draftWeight && (
+                          <div className="text-muted mt-1" style={{ fontSize: 11 }}>{draftWeight}</div>
+                        )}
+                      </div>
+                    );
+                  }
+                  const weight = formatWeightFromUnits(value, record.weightPerUnit, record.unitLabel);
+                  return (
+                    <div>
+                      <div className="text-success fw-semibold">{Number.isFinite(Number(value)) ? Number(value) : 0} Units</div>
+                      {weight && <div className="text-muted" style={{ fontSize: 11 }}>{weight}</div>}
                     </div>
-                  ) : (
-                    <span className="text-success fw-semibold">{value}</span>
-                  ),
+                  );
+                },
               },
               {
                 title: "Pending",
-                dataIndex: "pending",
+                dataIndex: "pendingQty",
                 key: "pending",
-                width: 130,
-                render: (value) => <span className="text-warning fw-semibold">{value}</span>,
+                width: 140,
+                render: (value, record) => {
+                  const weight = formatWeightFromUnits(value, record.weightPerUnit, record.unitLabel);
+                  return (
+                    <div>
+                      <div className="text-warning fw-semibold">{Number.isFinite(Number(value)) ? Number(value) : 0} Units</div>
+                      {weight && <div className="text-muted" style={{ fontSize: 11 }}>{weight}</div>}
+                    </div>
+                  );
+                },
               },
               {
                 title: "Stock",
-                dataIndex: "stock",
+                dataIndex: "stockQty",
                 key: "stock",
-                width: 130,
+                width: 140,
+                render: (value, record) => {
+                  const weight = formatWeightFromUnits(value, record.weightPerUnit, record.unitLabel);
+                  return (
+                    <div>
+                      <div className="fw-semibold">{Number.isFinite(Number(value)) ? Number(value) : 0} Units</div>
+                      {weight && <div className="text-muted" style={{ fontSize: 11 }}>{weight}</div>}
+                    </div>
+                  );
+                },
+              },
+              {
+                title: "Store",
+                dataIndex: "warehouseName",
+                key: "warehouseName",
+                width: 200,
+                render: (name) =>
+                  !name || name === "—" ? (
+                    <span className="text-muted">—</span>
+                  ) : (
+                    <span
+                      className="badge"
+                      style={{
+                        background: "#f0fdf4",
+                        color: "#166534",
+                        border: "1px solid #bbf7d0",
+                        borderRadius: 6,
+                        fontWeight: 500,
+                        fontSize: 11,
+                        padding: "3px 8px",
+                      }}
+                    >
+                      {name}
+                    </span>
+                  ),
               },
               ...(parseInt(materialIssueWorkOrder?.workOrderStatus) === 3
                 ? []
@@ -1492,6 +1989,21 @@ function WorkOrders() {
                   ]),
             ]}
           />
+        </div>
+        <div className="d-flex justify-content-end mt-2">
+          <Button
+            type="primary"
+            onClick={completeMaterialIssue}
+            loading={materialIssueCompleting}
+            disabled={
+              !materialIssueWorkOrder?.id ||
+              materialIssueLoading ||
+              materialIssueSubmittingId !== null ||
+              String(materialIssueWorkOrder?.workOrderStatus) === "3"
+            }
+          >
+            Complete Material Issue
+          </Button>
         </div>
 
         <div className="mt-4">
@@ -1560,7 +2072,33 @@ function WorkOrders() {
                     ),
                 },
                 {
-                  title: `Input Qty (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  title: "UOM",
+                  dataIndex: "uomId",
+                  key: "uomId",
+                  width: 170,
+                  render: (value, record) => {
+                    const isEditing = record.isCurrentStep || String(editingInProgressStepId) === String(record.id);
+                    if (isEditing) {
+                      return (
+                        <Select
+                          value={value ?? undefined}
+                          onChange={(v) => handleProductionStepDraftChange(record.id, "uomId", v)}
+                          options={uomOptions}
+                          loading={uomLoading}
+                          placeholder="Select UOM"
+                          allowClear
+                          style={{ width: "100%" }}
+                        />
+                      );
+                    }
+                    const uomEntry = uomList.find((u) => u.id === value);
+                    return uomEntry
+                      ? <span className="badge badge-outline-accent">{uomEntry.name} <span className="text-muted">({uomEntry.label})</span></span>
+                      : <span className="text-muted">—</span>;
+                  },
+                },
+                {
+                  title: "Input Qty",
                   dataIndex: "inputQty",
                   key: "inputQty",
                   width: 150,
@@ -1570,10 +2108,8 @@ function WorkOrders() {
                         type="number"
                         min={0}
                         value={value}
-                        onChange={(e) =>
-                          handleProductionStepDraftChange(record.id, "inputQty", e.target.value)
-                        }
-                        placeholder="Enter"
+                        onChange={(e) => handleProductionStepDraftChange(record.id, "inputQty", e.target.value)}
+                        placeholder="Enter qty"
                       />
                     ) : value === null || value === undefined || value === "" ? (
                       "-"
@@ -1582,7 +2118,7 @@ function WorkOrders() {
                     ),
                 },
                 {
-                  title: `Output Qty (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  title: "Output Qty",
                   dataIndex: "outputQty",
                   key: "outputQty",
                   width: 150,
@@ -1592,10 +2128,8 @@ function WorkOrders() {
                         type="number"
                         min={0}
                         value={value}
-                        onChange={(e) =>
-                          handleProductionStepDraftChange(record.id, "outputQty", e.target.value)
-                        }
-                        placeholder="Enter"
+                        onChange={(e) => handleProductionStepDraftChange(record.id, "outputQty", e.target.value)}
+                        placeholder="Enter qty"
                       />
                     ) : value === null || value === undefined || value === "" ? (
                       "-"
@@ -1604,10 +2138,10 @@ function WorkOrders() {
                     ),
                 },
                 {
-                  title: `Waste (${materialIssueWorkOrder?.fgUomLabel || "kg"})`,
+                  title: "Waste",
                   dataIndex: "wasteQty",
                   key: "wasteQty",
-                  width: 130,
+                  width: 100,
                   render: (value) => (value === null || value === undefined ? "-" : value),
                 },
                 {
@@ -1637,7 +2171,7 @@ function WorkOrders() {
                       >
                         {productionFlowSavingId === record.id ? "Saving..." : "Save"}
                       </button>
-                    ) : Number(record?.status) === 2 && String(editingInProgressStepId) === String(record.id) ? (
+                    ) : [2, 3].includes(Number(record?.status)) && String(editingInProgressStepId) === String(record.id) ? (
                       <div className="d-flex gap-2">
                         <button
                           type="button"
@@ -1657,7 +2191,7 @@ function WorkOrders() {
                           Cancel
                         </button>
                       </div>
-                    ) : Number(record?.status) === 2 ? (
+                    ) : [2, 3].includes(Number(record?.status)) ? (
                       <button
                         type="button"
                         className="btn btn-outline-warning btn-sm"
@@ -1682,6 +2216,40 @@ function WorkOrders() {
         title="Delete Work Order"
         message={`Are you sure you want to delete work order ${deleteWorkOrder?.orderId || ""}? Once deleted, it cannot be recovered.`}
       />
+
+      {/* ── Complete Production Modal ── */}
+      <Modal
+        title={<span className="fw-semibold">Complete Production</span>}
+        open={completeProductionModalOpen}
+        onCancel={closeCompleteProductionModal}
+        footer={[
+          <Button key="cancel" onClick={closeCompleteProductionModal} disabled={completingProduction}>
+            Cancel
+          </Button>,
+          <Button key="confirm" type="primary" loading={completingProduction} onClick={handleCompleteProduction}>
+            Confirm
+          </Button>,
+        ]}
+        width={420}
+      >
+        <div className="pt-2">
+          <p className="text-muted mb-2" style={{ fontSize: 13 }}>
+            Planned Quantity: <strong>{new Intl.NumberFormat("en-IN").format(Number(materialIssueWorkOrder?.plannedQty) || 0)}</strong>
+          </p>
+          <label className="form-label fw-semibold">
+            Final Quantity <span className="text-danger">*</span>
+          </label>
+          <Input
+            type="number"
+            min={1}
+            max={Number(materialIssueWorkOrder?.plannedQty) || undefined}
+            value={finalQty}
+            onChange={(e) => setFinalQty(e.target.value)}
+            placeholder="Enter final quantity"
+            style={{ height: 42 }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
