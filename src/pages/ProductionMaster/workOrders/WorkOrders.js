@@ -288,7 +288,7 @@ function WorkOrders() {
         progress: Number(item?.progress_percent) || 0,
         currentStep: Number(item?.production_step_id || item?.productionStep?.id) || 0,
         processFlow: Array.isArray(item?.workOrderSteps)
-          ? item.workOrderSteps.map((p) => p?.step?.name || p).filter(Boolean)
+          ? item.workOrderSteps.map((p) => ({ name: p?.step?.name, colour: p?.step?.colour_code })).filter((s) => s.name)
           : [],
         workOrderSteps: normalizeWorkOrderSteps(item?.workOrderSteps),
         materialProgress: Number(item?.material_issue_percent) || 0,
@@ -1174,25 +1174,29 @@ function WorkOrders() {
       width: 320,
       render: (flow = []) => (
         <div className="d-flex align-items-center flex-wrap gap-1">
-          {flow.map((name, idx) => (
-            <React.Fragment key={`${name}-${idx}`}>
-              <span
-                className="badge"
-                style={{
-                  background: "#dbeafe",
-                  color: "#0f3d91",
-                  fontWeight: 600,
-                  borderRadius: 14,
-                  padding: "5px 10px",
-                }}
-              >
-                {name}
-              </span>
-              {idx < flow.length - 1 && (
-                <i className="fas fa-arrow-right text-muted mx-1" aria-hidden="true"></i>
-              )}
-            </React.Fragment>
-          ))}
+          {flow.map((step, idx) => {
+            const bg = step.colour || "#2f76e9";
+            return (
+              <React.Fragment key={`${step.name}-${idx}`}>
+                <span
+                  className="badge"
+                  style={{
+                    background: `${bg}18`,
+                    color: bg,
+                    border: `1px solid ${bg}40`,
+                    fontWeight: 600,
+                    borderRadius: 14,
+                    padding: "5px 10px",
+                  }}
+                >
+                  {step.name}
+                </span>
+                {idx < flow.length - 1 && (
+                  <i className="fas fa-arrow-right text-muted mx-1" aria-hidden="true"></i>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       ),
     },
@@ -1734,6 +1738,7 @@ function WorkOrders() {
               {flowSteps.map((flowItem) => {
                 const stepId = flowItem.step_id;
                 const stepName = flowItem?.step?.name || `Step ${stepId}`;
+                const sc = flowItem?.step?.colour_code || "#2f76e9";
                 const selectedIndex = (formData.workOrderStepIds || []).findIndex(
                   (id) => String(id) === String(stepId)
                 );
@@ -1745,8 +1750,8 @@ function WorkOrders() {
                       className="w-100 text-start"
                       onClick={() => handleStepToggle(stepId)}
                       style={{
-                        border: isSelected ? "2px solid #2577ff" : "1px solid #d9dee7",
-                        background: isSelected ? "#eef4ff" : "#f8f9fb",
+                        border: isSelected ? `2px solid ${sc}` : "1px solid #d9dee7",
+                        background: isSelected ? `${sc}12` : "#f8f9fb",
                         borderRadius: 10,
                         padding: "10px 12px",
                       }}
@@ -1757,7 +1762,7 @@ function WorkOrders() {
                           width: 24,
                           height: 24,
                           borderRadius: "999px",
-                          background: isSelected ? "#2f76e9" : "#eceff4",
+                          background: isSelected ? sc : "#eceff4",
                           color: isSelected ? "#fff" : "#7f8a9a",
                           fontWeight: 700,
                           fontSize: 12,
@@ -1765,7 +1770,7 @@ function WorkOrders() {
                       >
                         {isSelected ? selectedIndex + 1 : "—"}
                       </span>
-                      <span className="fw-semibold">{stepName}</span>
+                      <span className="fw-semibold" style={{ color: isSelected ? sc : undefined }}>{stepName}</span>
                     </button>
                   </div>
                 );
