@@ -190,6 +190,7 @@ function ManageProductionFlow() {
       const res = await PrivateAxios.post("/company/production-steps", {
         company_id: companyId,
         step_id: modalStepId,
+        colour_code: newStepColour,
       });
       SuccessMessage(res?.data?.message || "Step added to the company and sequence.");
       await fetchCompanyStepsOnly();

@@ -176,7 +176,7 @@ function ProductionDashboard() {
 
   // ── dispatch stats ─────────────────────────────────────────────
   const [dispatchStats, setDispatchStats] = useState({
-    total: 0, pending: 0, in_transit: 0, completed: 0,
+    total: 0, pending: 0, partially_dispatched: 0, completed: 0,
     qty_out: 0, qty_delivered: 0, work_orders: 0, customers: 0,
   });
   const [dispatchStatsLoading, setDispatchStatsLoading] = useState(false);
@@ -220,13 +220,13 @@ function ProductionDashboard() {
       const res = await PrivateAxios.get(`/production/work-order/stats${qs()}`);
       const d = res.data?.data || {};
       setWoStats({
-        total:                  Number(d.total)                  || 0,
-        pending_material_issue: Number(d.pending_material_issue) || 0,
-        in_progress:            Number(d.in_progress)            || 0,
-        material_issued:        Number(d.material_issued)        || 0,
-        completed:              Number(d.completed)              || 0,
-        cancelled:              Number(d.cancelled)              || 0,
-        avg_progress:           Number(d.avg_progress)           || 0,
+        total:                  Number(d.total)                       || 0,
+        pending_material_issue: Number(d.pending_material_issue)      || 0,
+        in_progress:            Number(d.production_in_progress)      || 0,
+        material_issued:        Number(d.material_issued)             || 0,
+        completed:              Number(d.production_completed)        || 0,
+        cancelled:              Number(d.cancelled)                   || 0,
+        avg_progress:           Number(d.avg_production_progress)     || 0,
       });
     } catch { /* silent — backend API may not exist yet */ }
     finally { setWoStatsLoading(false); }
@@ -240,7 +240,7 @@ function ProductionDashboard() {
       setDispatchStats({
         total:         Number(d.total)         || 0,
         pending:       Number(d.pending)       || 0,
-        in_transit:    Number(d.in_transit)    || 0,
+        partially_dispatched: Number(d.in_transit) || 0,
         completed:     Number(d.completed)     || 0,
         qty_out:       Number(d.qty_out)       || 0,
         qty_delivered: Number(d.qty_delivered) || 0,
@@ -337,7 +337,7 @@ function ProductionDashboard() {
 
   const dispatchPieData = useMemo(() => [
     { name: "Pending",              value: dispatchStats.pending,    color: "#3b82f6" },
-    { name: "Partially Completed",  value: dispatchStats.in_transit, color: "#f59e0b" },
+    { name: "Partially Dispatched",  value: dispatchStats.partially_dispatched, color: "#f59e0b" },
     { name: "Fully Completed",      value: dispatchStats.completed,  color: "#10b981" },
   ].filter((d) => d.value > 0), [dispatchStats]);
 
@@ -535,8 +535,8 @@ function ProductionDashboard() {
           {[
             { label: "Total Dispatches",  value: dispatchStats.total,         color: "#0891b2", icon: "fas fa-boxes" },
             { label: "Pending Dispatch",  value: dispatchStats.pending,       color: "#f97316", icon: "fas fa-hourglass-half" },
-            { label: "In Transit",        value: dispatchStats.in_transit,    color: "#3b82f6", icon: "fas fa-shipping-fast" },
-            { label: "Delivered",         value: dispatchStats.completed,     color: "#10b981", icon: "fas fa-check-double" },
+            { label: "Partially Dispatched", value: dispatchStats.partially_dispatched, color: "#3b82f6", icon: "fas fa-truck-loading" },
+            { label: "Fully Dispatched",  value: dispatchStats.completed,     color: "#10b981", icon: "fas fa-check-double" },
             { label: "Total Qty Out",     value: dispatchStats.qty_out,       color: "#8b5cf6", icon: "fas fa-dolly-flatbed" },
             { label: "Qty Delivered",     value: dispatchStats.qty_delivered, color: "#16a34a", icon: "fas fa-thumbs-up" },
             { label: "WOs Dispatched",    value: dispatchStats.work_orders,   color: "#d97706", icon: "fas fa-clipboard" },
@@ -654,8 +654,8 @@ function ProductionDashboard() {
                   unit=" units"
                 />
                 <RateBar
-                  label="In-Transit Rate"
-                  num={dispatchStats.in_transit} den={dispatchStats.total}
+                  label="Partial Dispatch Rate"
+                  num={dispatchStats.partially_dispatched} den={dispatchStats.total}
                   color="#3b82f6"
                   unit=" dispatches"
                 />
