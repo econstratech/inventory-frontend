@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DeleteOutlined } from "@ant-design/icons";
-import { Button, Card, Input, Modal, Select } from "antd";
+import { Button, Card, ColorPicker, Input, Modal, Select } from "antd";
 import { UserAuth } from "../auth/Auth";
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
@@ -23,6 +23,7 @@ function ManageProductionFlow() {
   const [modalStepId, setModalStepId] = useState(null);
   const [newStepName, setNewStepName] = useState("");
   const [newStepDescription, setNewStepDescription] = useState("");
+  const [newStepColour, setNewStepColour] = useState("");
   const [creatingStep, setCreatingStep] = useState(false);
   const [addingCompanyStep, setAddingCompanyStep] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -150,6 +151,7 @@ function ManageProductionFlow() {
     setModalStepId(null);
     setNewStepName("");
     setNewStepDescription("");
+    setNewStepColour("");
     setAddStepModalOpen(true);
     void fetchMasterStepsOnly().catch(() => {});
   };
@@ -160,6 +162,7 @@ function ManageProductionFlow() {
     setModalStepId(null);
     setNewStepName("");
     setNewStepDescription("");
+    setNewStepColour("");
   };
 
   const appendStepToFlow = (stepId) => {
@@ -178,6 +181,9 @@ function ManageProductionFlow() {
     if (modalStepId == null) {
       ErrorMessage("Please select a production step.");
       return;
+    } else if (newStepColour === "") {
+      ErrorMessage("Please select a colour code for the production step.");
+      return;
     }
     setAddingCompanyStep(true);
     try {
@@ -192,6 +198,7 @@ function ManageProductionFlow() {
       setModalStepId(null);
       setNewStepName("");
       setNewStepDescription("");
+      setNewStepColour("");
     } catch (error) {
       ErrorMessage(
         error?.response?.data?.message || "Failed to add production step to company."
@@ -211,11 +218,16 @@ function ManageProductionFlow() {
       ErrorMessage("Please enter a step name.");
       return;
     }
+    if (!newStepColour) {
+      ErrorMessage("Please select a colour code.");
+      return;
+    }
     setCreatingStep(true);
     try {
       const res = await PrivateAxios.post("/master/production-steps", {
         name,
-        description: newStepDescription.trim() || undefined,
+        description: newStepDescription.trim() || null,
+        colour_code: newStepColour || null,
         company_id: companyId,
       });
       SuccessMessage(res?.data?.message || "Production step added.");
@@ -232,6 +244,8 @@ function ManageProductionFlow() {
       }
       setNewStepName("");
       setNewStepDescription("");
+      setNewStepColour("");
+      setAddingCompanyStep(false);
     } catch (error) {
       ErrorMessage(error?.response?.data?.message || "Failed to add production step.");
     } finally {
@@ -304,6 +318,7 @@ function ManageProductionFlow() {
               (id) => String(id) === String(step.id)
             );
             const isSelected = selectedIndex >= 0;
+            const sc = step.colour_code || "#2f76e9";
 
             return (
               <div className="col-12 col-md-6" key={step.id}>
@@ -313,8 +328,8 @@ function ManageProductionFlow() {
                     onClick={() => handleStepToggle(step.id)}
                     className="flex-grow-1 text-start"
                     style={{
-                      border: isSelected ? "2px solid #2577ff" : "2px solid #d9dee7",
-                      background: isSelected ? "#eef4ff" : "#f8f9fb",
+                      border: isSelected ? `2px solid ${sc}` : "2px solid #d9dee7",
+                      background: isSelected ? `${sc}12` : "#f8f9fb",
                       borderRadius: "16px",
                       padding: "14px 16px",
                       transition: "all 0.2s ease",
@@ -331,7 +346,7 @@ function ManageProductionFlow() {
                           justifyContent: "center",
                           fontWeight: 700,
                           color: isSelected ? "#fff" : "#7f8a9a",
-                          background: isSelected ? "#2f76e9" : "#eceff4",
+                          background: isSelected ? sc : "#eceff4",
                         }}
                       >
                         {isSelected ? selectedIndex + 1 : "—"}
@@ -340,7 +355,7 @@ function ManageProductionFlow() {
                         style={{
                           fontSize: 18,
                           fontWeight: 600,
-                          color: isSelected ? "#1d4fd8" : "#4a5568",
+                          color: isSelected ? sc : "#4a5568",
                         }}
                       >
                         {step.name}
@@ -383,7 +398,7 @@ function ManageProductionFlow() {
                     style={{
                       padding: "6px 12px",
                       borderRadius: "999px",
-                      background: "#2f76e9",
+                      background: step.colour_code || "#2f76e9",
                       color: "#fff",
                       fontWeight: 600,
                       fontSize: 16,
@@ -392,7 +407,7 @@ function ManageProductionFlow() {
                     {index + 1}. {step.name}
                   </span>
                   {index !== selectedSteps.length - 1 && (
-                    <span style={{ color: "#2f76e9", fontWeight: 700, fontSize: 20 }}>
+                    <span style={{ color: "#64748b", fontWeight: 700, fontSize: 20 }}>
                       →
                     </span>
                   )}
@@ -472,6 +487,21 @@ function ManageProductionFlow() {
                 value={newStepDescription}
                 onChange={(e) => setNewStepDescription(e.target.value)}
               />
+              <div>
+                <label className="form-label mb-1 small text-muted">Colour Code <span style={{ color: "#ff4d4f" }}>*</span></label>
+                <div className="d-flex align-items-center gap-2">
+                  <ColorPicker
+                    value={newStepColour || undefined}
+                    onChange={(color) => setNewStepColour(color.toHexString())}
+                    showText
+                    allowClear
+                    onClear={() => setNewStepColour("")}
+                  />
+                  {newStepColour && (
+                    <span className="text-muted small">{newStepColour}</span>
+                  )}
+                </div>
+              </div>
               <Button
                 type="default"
                 loading={creatingStep}
