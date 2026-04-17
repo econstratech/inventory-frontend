@@ -283,6 +283,7 @@ function WorkOrders() {
         finishedGoodVariant: item?.finalProductVariant?.weight_per_unit ? `${item?.finalProductVariant?.weight_per_unit} ${item?.finalProductVariant?.masterUOM.label}` : "",
         qty: Number(item?.planned_qty) || 0,
         plannedQty: Number(item?.planned_qty) || 0,
+        finalQty: Number(item?.final_qty) || 0,
         status: Number(item?.status) || 0,
         statusLabel: item?.status < 3 ? "Not Started Yet" : item?.productionStep?.name || "Pending",
         workOrderStatus: item?.status === 1 ? "Pending Material Issue" : item?.status === 2 ? "In-progress" : item?.status === 3 ? "Material Issued" : item?.status === 4 ? "Completed" : "Cancelled",
@@ -1166,9 +1167,16 @@ function WorkOrders() {
       ),
     },
     {
-      title: "Qty",
-      dataIndex: "qty",
-      key: "qty",
+      title: "Planned Qty",
+      dataIndex: "plannedQty",
+      key: "plannedQty",
+      width: 110,
+      render: (v) => new Intl.NumberFormat("en-IN").format(Number(v) || 0),
+    },
+    {
+      title: "Final Qty",
+      dataIndex: "finalQty",
+      key: "finalQty",
       width: 110,
       render: (v) => new Intl.NumberFormat("en-IN").format(Number(v) || 0),
     },
@@ -1532,162 +1540,121 @@ function WorkOrders() {
               ) : (
                 <>
                   <div className="row g-3">
-                    {rows.map((record) => (
-                      <div key={record.id} className="col-12 col-sm-6 col-lg-4 col-xl-3">
-                        <div
-                          className="card h-100 border"
-                          style={{ borderRadius: 12, transition: "box-shadow .15s" }}
-                          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,.10)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
-                        >
-                          <div className="card-body p-3">
-                            {/* header row */}
-                            <div className="d-flex align-items-start justify-content-between mb-2">
-                              <div>
-                                <span className="fw-bold text-dark" style={{ fontSize: 14 }}>
-                                  {record.orderId}
-                                </span>
-                                <div className="text-muted mt-1" style={{ fontSize: 11 }}>
-                                  {record.createdAt}
+                    {rows.map((record) => {
+                      const pct = Number(record.progress) || 0;
+                      const progressColor = getProgressColor(pct);
+                      const WO_STATUS_CONFIG = {
+                        1: { label: "Pending",         bg: "#fff7ed", color: "#f59e0b", border: "#f59e0b30" },
+                        2: { label: "Material Issue",  bg: "#eff6ff", color: "#3b82f6", border: "#3b82f630" },
+                        3: { label: "In Production",   bg: "#f5f3ff", color: "#8b5cf6", border: "#8b5cf630" },
+                        4: { label: "Completed",       bg: "#f0fdf4", color: "#10b981", border: "#10b98130" },
+                        5: { label: "Cancelled",       bg: "#fef2f2", color: "#ef4444", border: "#ef444430" },
+                      };
+                      const st = WO_STATUS_CONFIG[record.status] || WO_STATUS_CONFIG[1];
+
+                      return (
+                        <div key={record.id} className="col-12 col-sm-6 col-lg-4 col-xl-3">
+                          <div
+                            className="card h-100 border-0 shadow-sm"
+                            style={{ borderRadius: 14, transition: "box-shadow .2s, transform .2s", overflow: "hidden" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,.12)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,.06)"; e.currentTarget.style.transform = "none"; }}
+                          >
+                            {/* top colour accent */}
+                            <div style={{ height: 4, background: st.color }} />
+
+                            <div className="card-body p-3">
+                              {/* header */}
+                              <div className="d-flex align-items-start justify-content-between mb-2">
+                                <div>
+                                  <span className="fw-bold" style={{ fontSize: 14, color: "#1e293b" }}>{record.orderId}</span>
+                                  <div className="text-muted" style={{ fontSize: 11 }}>{record.createdAt}</div>
                                 </div>
-                              </div>
-                              {renderStatus(record.statusLabel)}
-                            </div>
-
-                            {/* product */}
-                            <div
-                              className="fw-semibold text-truncate mb-1"
-                              style={{ fontSize: 13 }}
-                              title={record.finishedGood}
-                            >
-                              {record.finishedGood}
-                            </div>
-                            {record.finishedGoodVariant && (
-                              <div className="text-muted mb-1" style={{ fontSize: 12 }}>
-                                {record.finishedGoodVariant}
-                              </div>
-                            )}
-
-                            {/* customer */}
-                            <div className="text-muted mb-2" style={{ fontSize: 12 }}>
-                              <i className="far fa-user me-1"></i>{record.customer}
-                            </div>
-
-                            {/* progress */}
-                            <div className="mb-2">
-                              <div className="d-flex justify-content-between mb-1" style={{ fontSize: 12 }}>
-                                <span className="text-muted">Progress</span>
-                                <span className="fw-semibold">{Number(record.progress) || 0}%</span>
-                              </div>
-                              <Progress
-                                percent={Number(record.progress) || 0}
-                                showInfo={false}
-                                strokeColor="#2577ff"
-                                trailColor="#e8edf5"
-                                size="small"
-                              />
-                            </div>
-
-                            {/* meta row */}
-                            <div className="d-flex justify-content-between align-items-center" style={{ fontSize: 12 }}>
-                              <span className="text-muted">
-                                <i className="far fa-calendar-alt me-1"></i>Due: {record.dueDate}
-                              </span>
-                              <span className="text-muted">
-                                Qty: <strong>{new Intl.NumberFormat("en-IN").format(Number(record.qty) || 0)}</strong>
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* card footer – actions */}
-                          <div className="px-3 pb-3 pt-1 d-flex justify-content-end gap-2">
-                            <Tooltip title="View">
-                              <button
-                                type="button"
-                                className="border-0"
-                                onClick={() => openMaterialIssueModal(record)}
-                                style={{
-                                  width: 30,
-                                  height: 30,
-                                  borderRadius: "50%",
-                                  background: "#eef4ff",
-                                  color: "#2577ff",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <i className="far fa-eye" style={{ fontSize: 14 }}></i>
-                              </button>
-                            </Tooltip>
-                            {/* {Number(record.status) === 2 && (
-                              <Tooltip title="Start Production">
-                                <button
-                                  type="button"
-                                  className="border-0"
-                                  onClick={() => handleStartProduction(record)}
-                                  disabled={startingProductionId === record.id}
+                                <span
                                   style={{
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: "50%",
-                                    background: "#fffbeb",
-                                    color: "#d97706",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    opacity: startingProductionId === record.id ? 0.6 : 1,
+                                    background: st.bg,
+                                    color: st.color,
+                                    border: `1px solid ${st.border}`,
+                                    borderRadius: 20,
+                                    padding: "3px 10px",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    whiteSpace: "nowrap",
                                   }}
                                 >
-                                  <i
-                                    className={startingProductionId === record.id ? "fas fa-spinner fa-spin" : "fas fa-play"}
-                                    style={{ fontSize: 12 }}
-                                  ></i>
+                                  {st.label}
+                                </span>
+                              </div>
+
+                              {/* product + variant */}
+                              <div className="fw-semibold text-truncate" style={{ fontSize: 13, color: "#334155" }} title={record.finishedGood}>
+                                {record.finishedGood}
+                              </div>
+                              {record.finishedGoodVariant && (
+                                <div className="text-muted" style={{ fontSize: 12 }}>{record.finishedGoodVariant}</div>
+                              )}
+
+                              {/* customer */}
+                              <div className="text-muted mt-1 mb-3" style={{ fontSize: 12 }}>
+                                <i className="far fa-user me-1" />{record.customer}
+                              </div>
+
+                              {/* progress */}
+                              <div className="mb-3">
+                                <div className="d-flex justify-content-between mb-1" style={{ fontSize: 12 }}>
+                                  <span className="text-muted">Progress</span>
+                                  <span className="fw-bold" style={{ color: progressColor }}>{pct}%</span>
+                                </div>
+                                <Progress
+                                  percent={pct}
+                                  showInfo={false}
+                                  strokeColor={progressColor}
+                                  trailColor="#e8edf5"
+                                  size="small"
+                                />
+                              </div>
+
+                              {/* meta */}
+                              <div className="d-flex flex-wrap gap-2" style={{ fontSize: 11 }}>
+                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ background: "#f1f5f9", color: "#475569" }}>
+                                  <i className="far fa-calendar-alt" /> Due: {record.dueDate}
+                                </span>
+                                <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ background: "#f1f5f9", color: "#475569" }}>
+                                  Planned: <strong>{new Intl.NumberFormat("en-IN").format(Number(record.plannedQty) || 0)}</strong>
+                                </span>
+                                {record.finalQty > 0 && (
+                                  <span className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+                                    Final: <strong>{new Intl.NumberFormat("en-IN").format(Number(record.finalQty))}</strong>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* footer actions */}
+                            <div className="px-3 pb-3 pt-0 d-flex justify-content-end gap-2" style={{ borderTop: "1px solid #f1f5f9" }}>
+                              <Tooltip title="View">
+                                <button type="button" className="border-0" onClick={() => openMaterialIssueModal(record)}
+                                  style={{ width: 32, height: 32, borderRadius: "50%", background: "#eef4ff", color: "#2577ff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                  <i className="far fa-eye" style={{ fontSize: 13 }} />
                                 </button>
                               </Tooltip>
-                            )} */}
-                            <Tooltip title="Edit">
-                              <button
-                                type="button"
-                                className="border-0"
-                                onClick={() => openEditModal(record)}
-                                style={{
-                                  width: 30,
-                                  height: 30,
-                                  borderRadius: "50%",
-                                  background: "#edf9f1",
-                                  color: "#16a34a",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <i className="far fa-edit" style={{ fontSize: 14 }}></i>
-                              </button>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <button
-                                type="button"
-                                className="border-0"
-                                onClick={() => openDeleteModal(record)}
-                                style={{
-                                  width: 30,
-                                  height: 30,
-                                  borderRadius: "50%",
-                                  background: "#fff1f2",
-                                  color: "#ef4444",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <i className="far fa-trash-alt" style={{ fontSize: 14 }}></i>
-                              </button>
-                            </Tooltip>
+                              <Tooltip title="Edit">
+                                <button type="button" className="border-0" onClick={() => openEditModal(record)}
+                                  style={{ width: 32, height: 32, borderRadius: "50%", background: "#edf9f1", color: "#16a34a", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                  <i className="far fa-edit" style={{ fontSize: 13 }} />
+                                </button>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <button type="button" className="border-0" onClick={() => openDeleteModal(record)}
+                                  style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff1f2", color: "#ef4444", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                  <i className="far fa-trash-alt" style={{ fontSize: 13 }} />
+                                </button>
+                              </Tooltip>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* grid pagination */}
