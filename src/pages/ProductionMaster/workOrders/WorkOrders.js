@@ -8,7 +8,6 @@ import DeleteModal from "../../CommonComponent/DeleteModal";
 import { UserAuth } from "../../auth/Auth";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
-import { render } from "react-dom";
 
 function WorkOrders() {
   const { user, isVariantBased } = UserAuth();
@@ -23,6 +22,7 @@ function WorkOrders() {
     order: null,
     columnKey: null,
   });
+  const [statusTab, setStatusTab] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     orderId: "",
@@ -53,6 +53,7 @@ function WorkOrders() {
   const [editingInProgressStepId, setEditingInProgressStepId] = useState(null);
   const [saving, setSaving] = useState(false);
   // const [startingProductionId, setStartingProductionId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
   const [modalMode, setModalMode] = useState("add"); // "add" | "edit"
   const [editWorkOrderId, setEditWorkOrderId] = useState(null);
@@ -301,10 +302,11 @@ function WorkOrders() {
       };
     });
 
-  const fetchWorkOrders = async (customPageState = null, customFilters = null, customSortState = null) => {
+  const fetchWorkOrders = async (customPageState = null, customFilters = null, customSortState = null, customStatusTab) => {
     const currentPageState = customPageState || pageState;
     const currentFilters = customFilters || filters;
     const currentSortState = customSortState || sortState;
+    const currentStatusTab = customStatusTab !== undefined ? customStatusTab : statusTab;
 
     setListLoading(true);
     try {
@@ -312,7 +314,7 @@ function WorkOrders() {
       const query = new URLSearchParams({
         page: String(page),
         limit: String(currentPageState.take),
-        status: 'active',
+        ...(currentStatusTab != null ? { status: String(currentStatusTab) } : {}),
         ...(currentSortState?.sort && currentSortState?.order
           ? { sort: String(currentSortState.sort), order: String(currentSortState.order) }
           : {}),
@@ -632,9 +634,47 @@ function WorkOrders() {
     };
     const nextPageState = { skip: 0, take: 15 };
     setFilters(resetFilters);
+    setStatusTab(null);
     setPageState(nextPageState);
     if (pageState.skip === 0 && pageState.take === 15) {
-      fetchWorkOrders(nextPageState, resetFilters);
+      fetchWorkOrders(nextPageState, resetFilters, null, null);
+    }
+  };
+
+  const handleExportWorkOrders = async () => {
+    setExporting(true);
+    try {
+      const params = {
+        ...(statusTab != null ? { status: String(statusTab) } : {}),
+        ...(String(filters.orderId || "").trim() && { wo_number: String(filters.orderId).trim() }),
+        ...(filters.customer?.id || filters.customer?.value
+          ? { customer_id: String(filters.customer?.id ?? filters.customer?.value) }
+          : {}),
+        ...(filters.finishedGoodId ? { product_id: String(filters.finishedGoodId) } : {}),
+        ...(filters.productionStepId ? { production_step_id: String(filters.productionStepId) } : {}),
+      };
+      const response = await PrivateAxios.get("/production/work-order/export", {
+        params,
+        responseType: "blob",
+      });
+      const disposition = response.headers["content-disposition"];
+      let filename = "work-orders.csv";
+      if (disposition) {
+        const match = disposition.match(/filename="?([^";\n]+)"?/i);
+        if (match?.[1]) filename = match[1].trim();
+      }
+      const url = window.URL.createObjectURL(response.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to export work orders.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -1300,6 +1340,24 @@ function WorkOrders() {
               <button
                 type="button"
                 className="btn btn-outline-secondary btn-sm"
+                onClick={handleExportWorkOrders}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-download me-1"></i>
+                    Export
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
                 onClick={() => setShowFilters((prev) => !prev)}
               >
                 <i className="fas fa-filter me-1"></i>
@@ -1325,6 +1383,47 @@ function WorkOrders() {
               </div>
             </div>
           </div>
+          <div className="px-3 py-2 border-bottom" style={{ background: "#f8fafc", overflowX: "auto" }}>
+            <div className="d-flex gap-2">
+              {[
+                { value: null, label: "All",            color: "#475569" },
+                { value: 1,    label: "Pending",        color: "#f59e0b" },
+                { value: 2,    label: "Material Issue", color: "#3b82f6" },
+                { value: 3,    label: "In Production",  color: "#8b5cf6" },
+                { value: 4,    label: "Completed",      color: "#10b981" },
+                { value: 5,    label: "Cancelled",      color: "#ef4444" },
+              ].map((tab) => {
+                const isActive = statusTab === tab.value;
+                return (
+                  <button
+                    key={String(tab.value)}
+                    type="button"
+                    onClick={() => {
+                      setStatusTab(tab.value);
+                      const resetPage = { skip: 0, take: pageState.take };
+                      setPageState(resetPage);
+                      fetchWorkOrders(resetPage, null, null, tab.value);
+                    }}
+                    style={{
+                      padding: "6px 14px",
+                      border: isActive ? `1.5px solid ${tab.color}` : "1.5px solid #e2e8f0",
+                      borderRadius: 20,
+                      background: isActive ? `${tab.color}14` : "#fff",
+                      color: isActive ? tab.color : "#64748b",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {showFilters && (
             <div className="p-3 border-bottom">
               <div className="row g-3 align-items-end">
@@ -1811,6 +1910,7 @@ function WorkOrders() {
             onClick={openCompleteProductionModal}
             disabled={
               !materialIssueWorkOrder?.id ||
+              materialIssueWorkOrder?.status === 4 ||
               materialIssueLoading ||
               completingProduction
             }
@@ -2004,7 +2104,8 @@ function WorkOrders() {
               !materialIssueWorkOrder?.id ||
               materialIssueLoading ||
               materialIssueSubmittingId !== null ||
-              String(materialIssueWorkOrder?.workOrderStatus) === "3"
+              materialIssueWorkOrder?.status === 3 ||
+              materialIssueWorkOrder?.status === 4
             }
           >
             Complete Material Issue

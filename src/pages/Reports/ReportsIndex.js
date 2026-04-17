@@ -224,6 +224,16 @@ function ReportsIndex() {
                                 </div>
                             </div>
                             : ""}
+                            <div className='col-lg-6'>
+                                <div className='card h-100 mb-0'>
+                                    <div className='card-body'>
+                                        <h6 className='text-start fw-bold'>PRODUCTION REPORTS</h6>
+                                        <ul className='mb-0 f-s-15 fw-medium'>
+                                            <li><Link to="/report/production/material-issue-report">Material Issue Report</Link></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
