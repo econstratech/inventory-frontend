@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Input, Modal, Table, Tag, Tooltip } from "antd";
+import { Button, Input, Modal, Select, Table, Tooltip } from "antd";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -25,6 +25,13 @@ function ProductionPlanningList() {
   const [entriesTarget, setEntriesTarget] = useState(null);
   const [entries, setEntries] = useState([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
+  const [entryForm, setEntryForm] = useState({
+    completed_qty: null,
+    work_shift: undefined,
+    responsible_staff: "",
+  });
+  const [entryErrors, setEntryErrors] = useState({});
+  const [savingEntry, setSavingEntry] = useState(false);
 
   const fetchPlannings = async (customPageState = null, customSearch = null) => {
     const currentPageState = customPageState || pageState;
@@ -74,12 +81,11 @@ function ProductionPlanningList() {
     fetchPlannings(next, trimmed);
   };
 
-  const openEntriesModal = async (record) => {
-    setEntriesTarget(record);
-    setEntries([]);
+  const fetchEntries = async (planningId) => {
+    if (!planningId) return;
     setEntriesLoading(true);
     try {
-      const res = await PrivateAxios.get(`/production/planning/${record.id}/entry-records`);
+      const res = await PrivateAxios.get(`/production/planning/${planningId}/entry-records`);
       const list = Array.isArray(res.data?.data) ? res.data.data : [];
       setEntries(list);
     } catch (error) {
@@ -90,9 +96,68 @@ function ProductionPlanningList() {
     }
   };
 
+  const openEntriesModal = (record) => {
+    setEntriesTarget(record);
+    setEntries([]);
+    setEntryForm({
+      completed_qty: null,
+      work_shift: undefined,
+      responsible_staff: record?.responsible_staff || "",
+    });
+    setEntryErrors({});
+    fetchEntries(record.id);
+  };
+
   const closeEntriesModal = () => {
+    if (savingEntry) return;
     setEntriesTarget(null);
     setEntries([]);
+    setEntryForm({ completed_qty: null, work_shift: undefined, responsible_staff: "" });
+    setEntryErrors({});
+  };
+
+  const updateEntryField = (key, value) => {
+    setEntryForm((prev) => ({ ...prev, [key]: value }));
+    setEntryErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  };
+
+  const submitEntry = async () => {
+    if (!entriesTarget?.id) return;
+    const nextErrors = {};
+    if (entryForm.completed_qty == null || Number(entryForm.completed_qty) <= 0) {
+      nextErrors.completed_qty = "Enter a quantity greater than 0";
+    }
+    if (!entryForm.work_shift) nextErrors.work_shift = "Select a shift";
+    if (!entryForm.responsible_staff?.trim()) {
+      nextErrors.responsible_staff = "Responsible person is required";
+    }
+    setEntryErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    setSavingEntry(true);
+    try {
+      const payload = {
+        completed_qty: Number(entryForm.completed_qty),
+        work_shift: entryForm.work_shift,
+        responsible_staff: entryForm.responsible_staff.trim(),
+      };
+      const res = await PrivateAxios.post(
+        `/production/planning/${entriesTarget.id}/entry-record`,
+        payload
+      );
+      SuccessMessage(res?.data?.message || "Production entry added successfully");
+      setEntryForm({
+        completed_qty: null,
+        work_shift: undefined,
+        responsible_staff: entriesTarget?.responsible_staff || "",
+      });
+      setEntryErrors({});
+      fetchEntries(entriesTarget.id);
+    } catch (error) {
+      ErrorMessage(error?.response?.data?.message || "Failed to add production entry.");
+    } finally {
+      setSavingEntry(false);
+    }
   };
 
   const parseShiftLabel = (value) => {
@@ -151,7 +216,7 @@ function ProductionPlanningList() {
       dataIndex: "created_at",
       key: "created_at",
       width: 180,
-      render: (value) => (value ? dayjs(value).format("DD/MM/YYYY HH:mm") : "—"),
+      render: (value) => (value ? dayjs(value).format("DD/MM/YYYY hh:mm A") : "—"),
     },
   ];
 
@@ -315,6 +380,26 @@ function ProductionPlanningList() {
 
   return (
     <div className="p-4">
+      <style>{`
+        .entry-form-select.ant-select .ant-select-selector {
+          height: 38px !important;
+          min-height: 38px !important;
+          padding: 0 11px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .entry-form-select.ant-select .ant-select-selection-item,
+        .entry-form-select.ant-select .ant-select-selection-placeholder {
+          line-height: 30px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .entry-form-select.ant-select .ant-select-selection-search,
+        .entry-form-select.ant-select .ant-select-selection-search-input {
+          height: 30px !important;
+          line-height: 30px !important;
+        }
+      `}</style>
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
           <h3 className="mb-0">Production Planning</h3>
@@ -389,13 +474,93 @@ function ProductionPlanningList() {
             : "Production Entries"
         }
         footer={[
-          <Button key="close" onClick={closeEntriesModal}>
+          <Button key="close" onClick={closeEntriesModal} disabled={savingEntry}>
             Close
           </Button>,
         ]}
         width={900}
         destroyOnHidden
       >
+        <div
+          className="p-3 mb-3"
+          style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}
+        >
+          <div className="fw-semibold mb-2">Add New Entry</div>
+          <div className="row g-2">
+            <div className="col-md-3">
+              <label className="form-label mb-1" style={{ fontSize: 12 }}>
+                Completed Qty <span className="text-danger">*</span>
+              </label>
+              <Input
+                size="middle"
+                type="number"
+                min={0}
+                value={entryForm.completed_qty ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  updateEntryField("completed_qty", raw === "" ? null : Number(raw));
+                }}
+                placeholder="0"
+              />
+              {entryErrors.completed_qty && (
+                <div className="text-danger" style={{ fontSize: 12, marginTop: 2 }}>
+                  {entryErrors.completed_qty}
+                </div>
+              )}
+            </div>
+            <div className="col-md-3">
+              <label className="form-label mb-1" style={{ fontSize: 12 }}>
+                Shift <span className="text-danger">*</span>
+              </label>
+              <Select
+                size="middle"
+                value={entryForm.work_shift}
+                onChange={(value) => updateEntryField("work_shift", value)}
+                options={[
+                  { value: "day", label: "Day" },
+                  { value: "evening", label: "Evening" },
+                  { value: "night", label: "Night" },
+                ]}
+                placeholder="Select shift"
+                className="entry-form-select"
+                style={{ width: "100%" }}
+                allowClear
+              />
+              {entryErrors.work_shift && (
+                <div className="text-danger" style={{ fontSize: 12, marginTop: 2 }}>
+                  {entryErrors.work_shift}
+                </div>
+              )}
+            </div>
+            <div className="col-md-4">
+              <label className="form-label mb-1" style={{ fontSize: 12 }}>
+                Responsible Person <span className="text-danger">*</span>
+              </label>
+              <Input
+                size="middle"
+                value={entryForm.responsible_staff}
+                onChange={(e) => updateEntryField("responsible_staff", e.target.value)}
+                placeholder="e.g. Sri Prasant Roy"
+              />
+              {entryErrors.responsible_staff && (
+                <div className="text-danger" style={{ fontSize: 12, marginTop: 2 }}>
+                  {entryErrors.responsible_staff}
+                </div>
+              )}
+            </div>
+            <div className="col-md-2 d-flex align-items-end">
+              <Button
+                type="primary"
+                loading={savingEntry}
+                onClick={submitEntry}
+                style={{ width: "100%" }}
+              >
+                Add Entry
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <Table
           rowKey="id"
           size="small"
