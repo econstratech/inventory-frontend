@@ -763,7 +763,8 @@ function Sidebar() {
                       className={`accordion-button ${location.pathname === "/production/work-orders" ||
                         location.pathname === "/settings/manage-production-flow" ||
                         location.pathname === "/production/dispatch" ||
-                        location.pathname === "/production/dashboard"
+                        location.pathname === "/production/dashboard" ||
+                        location.pathname === "/production/planning-list"
                         ? ""
                         : "collapsed"
                         } sidebar-nav-link`}
@@ -782,7 +783,8 @@ function Sidebar() {
                     className={`accordion-collapse collapse ${location.pathname === "/production/work-orders" ||
                       location.pathname === "/settings/manage-production-flow" ||
                       location.pathname === "/production/dispatch" ||
-                      location.pathname === "/production/dashboard"
+                      location.pathname === "/production/dashboard" ||
+                      location.pathname === "/production/planning-list"
                       ? "show"
                       : ""
                       }`}
@@ -809,6 +811,17 @@ function Sidebar() {
                             }`}
                         >
                           <p>Work Orders</p>
+                        </Link>
+                      </div>
+                      <div className="sidebar-item">
+                        <Link
+                          to="/production/planning-list"
+                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/planning-list"
+                            ? "active"
+                            : ""
+                            }`}
+                        >
+                          <p>Production Planning</p>
                         </Link>
                       </div>
                       <div className="sidebar-item">
