@@ -173,6 +173,8 @@ const WorkOrdersWip = React.lazy(() => import("../pages/ProductionMaster/workOrd
 const WorkOrdersCompleted = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersCompleted.js"));
 const ProductionDispatch   = React.lazy(() => import("../pages/ProductionMaster/dispatch/ProductionDispatch.js"));
 const ProductionDashboard  = React.lazy(() => import("../pages/ProductionMaster/dashboard/ProductionDashboard.js"));
+const ProductionPlanningList = React.lazy(() => import("../pages/ProductionMaster/productionPlanning/ProductionPlanningList.js"));
+const CreateProductionPlanning = React.lazy(() => import("../pages/ProductionMaster/productionPlanning/CreateProductionPlanning.js"));
 
 const SubContract = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContract.js"));
 const SubContractApprovePending = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractApprovePending.js"));
@@ -408,6 +410,9 @@ function PrivateRoutes() {
           <Route path="/production/work-orders-completed" element={<WorkOrdersCompleted />} />
           <Route path="/production/dispatch"   element={<ProductionDispatch />} />
           <Route path="/production/dashboard" element={<ProductionDashboard />} />
+          <Route path="/production/planning-list" element={<ProductionPlanningList />} />
+          <Route path="/production/planning-create" element={<CreateProductionPlanning />} />
+          <Route path="/production/planning-edit/:id" element={<CreateProductionPlanning />} />
           <Route path="/production/sub-contract" element={<SubContract />} />
           <Route path="/production/sub-contract-approve-pending" element={<SubContractApprovePending />} />
           <Route path="/production/sub-contract-approve" element={<SubContractApprove />} />
