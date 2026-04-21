@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Input, Modal, Select, Table, Tooltip } from "antd";
+import { Button, DatePicker, Input, Modal, Select, Table, Tooltip } from "antd";
 import {
   DeleteOutlined,
   EditOutlined,
@@ -28,6 +28,7 @@ function ProductionPlanningList() {
   const [entryForm, setEntryForm] = useState({
     completed_qty: null,
     work_shift: undefined,
+    entry_date: null,
     responsible_staff: "",
   });
   const [entryErrors, setEntryErrors] = useState({});
@@ -102,6 +103,7 @@ function ProductionPlanningList() {
     setEntryForm({
       completed_qty: null,
       work_shift: undefined,
+      entry_date: null,
       responsible_staff: record?.responsible_staff || "",
     });
     setEntryErrors({});
@@ -112,7 +114,12 @@ function ProductionPlanningList() {
     if (savingEntry) return;
     setEntriesTarget(null);
     setEntries([]);
-    setEntryForm({ completed_qty: null, work_shift: undefined, responsible_staff: "" });
+    setEntryForm({
+      completed_qty: null,
+      work_shift: undefined,
+      entry_date: null,
+      responsible_staff: "",
+    });
     setEntryErrors({});
   };
 
@@ -128,6 +135,7 @@ function ProductionPlanningList() {
       nextErrors.completed_qty = "Enter a quantity greater than 0";
     }
     if (!entryForm.work_shift) nextErrors.work_shift = "Select a shift";
+    if (!entryForm.entry_date) nextErrors.entry_date = "Select a date of work";
     if (!entryForm.responsible_staff?.trim()) {
       nextErrors.responsible_staff = "Responsible person is required";
     }
@@ -139,6 +147,7 @@ function ProductionPlanningList() {
       const payload = {
         completed_qty: Number(entryForm.completed_qty),
         work_shift: entryForm.work_shift,
+        entry_date: dayjs(entryForm.entry_date).format("YYYY-MM-DD"),
         responsible_staff: entryForm.responsible_staff.trim(),
       };
       const res = await PrivateAxios.post(
@@ -149,6 +158,7 @@ function ProductionPlanningList() {
       setEntryForm({
         completed_qty: null,
         work_shift: undefined,
+        entry_date: null,
         responsible_staff: entriesTarget?.responsible_staff || "",
       });
       setEntryErrors({});
@@ -178,6 +188,13 @@ function ProductionPlanningList() {
       key: "sl",
       width: 80,
       render: (_, __, index) => index + 1,
+    },
+    {
+      title: "Worked On",
+      dataIndex: "entry_date",
+      key: "entry_date",
+      width: 180,
+      render: (value) => (value ? dayjs(value).format("DD/MM/YYYY") : "—"),
     },
     {
       title: "Completed Qty",
@@ -210,14 +227,7 @@ function ProductionPlanningList() {
       width: 160,
       ellipsis: true,
       render: (_, record) => record?.user?.name || "—",
-    },
-    {
-      title: "Logged At",
-      dataIndex: "created_at",
-      key: "created_at",
-      width: 180,
-      render: (value) => (value ? dayjs(value).format("DD/MM/YYYY hh:mm A") : "—"),
-    },
+    }
   ];
 
   const confirmDelete = async () => {
@@ -274,13 +284,13 @@ function ProductionPlanningList() {
       render: (value) => <span className="fw-semibold">{value || "N/A"}</span>,
     },
     {
-      title: "Product",
+      title: "FG Product",
       key: "product",
       width: 240,
       render: renderProduct,
     },
     {
-      title: "Required Quantity",
+      title: "Required Qty",
       dataIndex: "required_qty",
       key: "required_qty",
       width: 160,
@@ -288,12 +298,20 @@ function ProductionPlanningList() {
       render: (value) => (Number(value) || 0).toLocaleString("en-IN"),
     },
     {
-      title: "Planned Quantity",
+      title: "Planned Qty",
       dataIndex: "planned_qty",
       key: "planned_qty",
       width: 160,
       // align: "right",
       render: (value) => (Number(value) || 0).toLocaleString("en-IN"),
+    },
+    {
+      title: "Completed Qty",
+      dataIndex: "total_completed_qty",
+      key: "total_completed_qty",
+      width: 160,
+      // align: "right",
+      render: (value) => (Number(value) || 0).toLocaleString("en-IN"),  
     },
     {
       title: "Process Step",
@@ -399,6 +417,9 @@ function ProductionPlanningList() {
           height: 30px !important;
           line-height: 30px !important;
         }
+        .ant-picker {
+          padding: 7px 8px;
+        }
       `}</style>
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
@@ -487,7 +508,7 @@ function ProductionPlanningList() {
         >
           <div className="fw-semibold mb-2">Add New Entry</div>
           <div className="row g-2">
-            <div className="col-md-3">
+            <div className="col-md-2">
               <label className="form-label mb-1" style={{ fontSize: 12 }}>
                 Completed Qty <span className="text-danger">*</span>
               </label>
@@ -508,7 +529,7 @@ function ProductionPlanningList() {
                 </div>
               )}
             </div>
-            <div className="col-md-3">
+            <div className="col-md-2">
               <label className="form-label mb-1" style={{ fontSize: 12 }}>
                 Shift <span className="text-danger">*</span>
               </label>
@@ -532,7 +553,25 @@ function ProductionPlanningList() {
                 </div>
               )}
             </div>
-            <div className="col-md-4">
+            <div className="col-md-2">
+              <label className="form-label mb-1" style={{ fontSize: 12 }}>
+                Date of Work <span className="text-danger">*</span>
+              </label>
+              <DatePicker
+                size="middle"
+                value={entryForm.entry_date}
+                onChange={(value) => updateEntryField("entry_date", value)}
+                format="DD-MM-YYYY"
+                placeholder="Select date"
+                style={{ width: "100%" }}
+              />
+              {entryErrors.entry_date && (
+                <div className="text-danger" style={{ fontSize: 12, marginTop: 2 }}>
+                  {entryErrors.entry_date}
+                </div>
+              )}
+            </div>
+            <div className="col-md-3">
               <label className="form-label mb-1" style={{ fontSize: 12 }}>
                 Responsible Person <span className="text-danger">*</span>
               </label>
@@ -548,7 +587,7 @@ function ProductionPlanningList() {
                 </div>
               )}
             </div>
-            <div className="col-md-2 d-flex align-items-end">
+            <div className="col-md-3 d-flex align-items-end">
               <Button
                 type="primary"
                 loading={savingEntry}

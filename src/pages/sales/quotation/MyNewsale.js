@@ -22,6 +22,7 @@ import ProductSelect from "../../filterComponents/ProductSelect";
 import CustomerSelect from "../../filterComponents/CustomerSelect";
 import ProductDetailsContent from "../../CommonComponent/ProductDetailsContent";
 import ProductVariantSelectionModal from "../../CommonComponent/ProductVariantSelectionModal";
+import AdvancedProductSelector from "../../rfq/AdvancedProductSelector";
 
 function MyNewpurchase() {
   // Set reminder
@@ -64,6 +65,24 @@ function MyNewpurchase() {
   const [currentProductId, setCurrentProductId] = useState(null);
   const [sendToManagement, setSendToManagement] = useState(false);
   const [sendToFloorManager, setSendToFloorManager] = useState(false);
+  const [showProductSelector, setShowProductSelector] = useState(false);
+
+  const handleProductSelectFromAdvanced = (selectedProduct) => {
+    if (selectedProduct && selectedProduct.productData) {
+      const selectedProductData = selectedProduct.productData;
+      const productIndex =
+        products.length === 1 && products[0].product_id === ""
+          ? 0
+          : products.length;
+
+      if (isVariantBased) {
+        fetchProductVariants(selectedProduct.value, productIndex, selectedProductData);
+      } else {
+        updateProductWithData(productIndex, selectedProduct.value, selectedProductData, null, null);
+      }
+      setShowProductSelector(false);
+    }
+  };
 
   useEffect(() => {
     setProductData([]);
@@ -763,14 +782,25 @@ function MyNewpurchase() {
                             </tbody>
                           </table>
                         </div>
-                        <button
-                          onClick={addProduct}
-                          className="btn btn-outline-primary mt-0 btn-sm"
-                          type="button"
-                        >
-                          <i class="fas fa-plus"></i>
-                          <span class="ms-2"> Add Product</span>
-                        </button>
+                        <div className="d-flex gap-2 mt-0">
+                          <button
+                            onClick={addProduct}
+                            className="btn btn-outline-primary btn-sm"
+                            type="button"
+                          >
+                            <i class="fas fa-plus"></i>
+                            <span class="ms-2"> Add Product</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-info btn-sm"
+                            onClick={() => setShowProductSelector(true)}
+                            title="Try new multi-select product selector"
+                          >
+                            <i class="fas fa-filter"></i>
+                            <span class="ms-2"> Advanced Product Selector</span>
+                          </button>
+                        </div>
                         <div className="col-12 text-right">
                           <p className="mb-1">
                             <span className="f-s-16 fw-medium text-primary-grey-2">
@@ -908,6 +938,12 @@ function MyNewpurchase() {
           </button>
         </Modal.Footer>
       </Modal>
+
+      <AdvancedProductSelector
+        show={showProductSelector}
+        onHide={() => setShowProductSelector(false)}
+        onProductSelect={handleProductSelectFromAdvanced}
+      />
 
       <ProductVariantSelectionModal
         show={showVariantModal}

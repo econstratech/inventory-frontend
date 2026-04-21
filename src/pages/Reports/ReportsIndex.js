@@ -1,9 +1,29 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { UserAuth } from '../auth/Auth';
+import { GeneralSettings} from '../../environment/GlobalApi';
 
 function ReportsIndex() {
-      const { MatchPermission } = UserAuth();
+    const { MatchPermission } = UserAuth();
+    const [companysettings, setCompanysettings] = React.useState([]);
+
+    const fetchGeneralSettings = async () => {
+        try {
+            const result = await GeneralSettings();
+
+            //check if data is not null
+            if (result.data) {
+                setCompanysettings(result.data);
+            }
+
+        } catch (error) {
+            console.error("Error fetching general settings:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchGeneralSettings();
+    }, []);
     
     return (
         <>
@@ -230,6 +250,9 @@ function ReportsIndex() {
                                         <h6 className='text-start fw-bold'>PRODUCTION REPORTS</h6>
                                         <ul className='mb-0 f-s-15 fw-medium'>
                                             <li><Link to="/report/production/material-issue-report">Material Issue Report</Link></li>
+                                            {companysettings?.is_production_planning === 1 && (
+                                                <li><Link to="/report/production/production-planning-vs-actual-report">Production Planning vs Actual Report</Link></li>
+                                            )}
                                         </ul>
                                     </div>
                                 </div>

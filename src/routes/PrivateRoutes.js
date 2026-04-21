@@ -217,6 +217,7 @@ const PurchaseRegister  = React.lazy(() => import( "../pages/Reports/PurchaseRep
 const PendingPOReport  = React.lazy(() => import( "../pages/Reports/PurchaseReport/PendingPOReport/PendingPOReport.js"));
 const StockTransferReport = React.lazy(() => import("../pages/Reports/StockTransferReport/StockTransferReport.js"));
 const MaterialIssueReport = React.lazy(() => import("../pages/Reports/ProductionReport/MaterialIssueReport.js"));
+const ProductionPlanningVsActualReport = React.lazy(() => import("../pages/Reports/ProductionReport/ProductionPlanningVsActualReport.js"));
 const VendorPerformanceReport  = React.lazy(() => import( "../pages/Reports/PurchaseReport/VendorPerformanceReport/VendorPerformanceReport.js"));
 const PurchaseRateComparison  = React.lazy(() => import( "../pages/Reports/PurchaseReport/PurchaseRateComparison/PurchaseRateComparison.js"));
 const PrToPoConversionReport  = React.lazy(() => import( "../pages/Reports/PurchaseReport/PrToPoConversionReport/PrToPoConversionReport.js"));
@@ -491,6 +492,7 @@ function PrivateRoutes() {
           <Route path="/report/indent-requirement-report" element={<IndentRequirementReport />} />
           <Route path="/report/batch-expiry-report" element={<BatchExpiryReport />} />
           <Route path="/report/production/material-issue-report" element={<MaterialIssueReport />} />
+          <Route path="/report/production/production-planning-vs-actual-report" element={<ProductionPlanningVsActualReport />} />
          
           {/* welcome screen */}
           <Route path="/welcome" element={<WelcomeScreenIndex />} />
