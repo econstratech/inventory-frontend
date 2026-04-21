@@ -1356,7 +1356,7 @@ function InventoryMaster() {
                           <th>#</th>
                           <th>Unit of Measurement</th>
                           <th>Weight per Unit</th>
-                          {selectedProductData.has_master_pack && (
+                          {selectedProductData.has_master_pack === 1 && (
                             <th>Master Pack</th>
                           )}
                         </tr>
@@ -1381,13 +1381,10 @@ function InventoryMaster() {
                                 <span className="text-muted">-</span>
                               )}
                             </td>
-                            <td>
-                              {selectedProductData.has_master_pack && variant.weight_per_pack ? (
-                                <span className="fw-medium">{variant.weight_per_pack}</span>
-                              ) : (
-                                <span className="text-muted">-</span>
-                              )}
-                            </td>
+                            
+                            {selectedProductData.has_master_pack === 1 && variant.weight_per_pack && (
+                              <td><span className="fw-medium">{variant.weight_per_pack}</span></td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
