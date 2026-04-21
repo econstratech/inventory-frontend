@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  // Alert,
-  Modal,
-  OverlayTrigger,
-  // Popover,
-  Tooltip,
-  Dropdown
-} from "react-bootstrap";
+import { Modal, OverlayTrigger, Tooltip, Dropdown } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { Table, Input } from "antd";
 import Select from "react-select";
@@ -15,236 +8,33 @@ import moment from "moment";
 import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import "../global.css";
-import {
-  PrivateAxios,
-  // PrivateAxiosFile,
-} from "../../environment/AxiosInstance";
-// import ItemMasterStatusBar from "./itemMaster/ItemMasterStatusBar";
+import { PrivateAxios } from "../../environment/AxiosInstance";
 import InventoryMasterPageTopBar from "./itemMaster/InventoryMasterPageTopBar";
 import AddMultipleItemsModal from "../CommonComponent/AddMultipleItemsModal";
 import StockMasterBulkActions from "../CommonComponent/StockMasterBulkActions";
 import ProductCategorySelect from "../filterComponents/ProductCategorySelect";
 import DeleteModal from "../CommonComponent/DeleteModal";
-// import DeleteMultipleItemsModal from "../CommonComponent/DeleteMultipleItemsModal";
-import TallyIntegrationModal from "../CommonComponent/TallyIntegrationModal";
-import ExploreAllFeaturesModal from "../CommonComponent/ExploreAllFeaturesModal";
-// const { Option } = Select;
+
 function InventoryMaster() {
-  //modal transfer qty only
-  // const [showqty, setShowqty] = useState(false);
-  // const handleCloseqty = () => setShowqty(false);
-
-  // const [getitemId, setitemId] = useState(null);
-  const [stores, setStores] = useState([]);
-
-  // const [productData, setProductData] = useState(null);
   const [productsCount, setProductsCount] = useState(0);
   const [productController, setProductController] = useState({
     page: 1,
     rowsPerPage: 6,
-    searchKey: ""
-  }); 
-  // const [selectedStore, setSelectedStore] = useState("");
-  // const [currentStock, setCurrentStock] = useState(0);
-  // const [changeQuantity, setChangeQuantity] = useState(0);
-  // const [finalQuantity, setFinalQuantity] = useState(0);
-  // const [getActualQuantity, setActualQuantity] = useState(0);
-  // const [finalUoM, setFinalUoM] = useState(0);
-
-  // const [getButtonClassNamePlus, setButtonClassNamePlus] = useState('');
-  // const [getButtonClassNameNeg, setButtonClassNameNeg] = useState('');
-  const [file, setFile] = useState(null);
+    searchKey: "",
+  });
   const [errorMessage, setErrorMessage] = useState({});
   const [deleteModalShow, setDeleteModalShow] = useState(false);
   const [deleteProductId, setDeleteProductId] = useState(null);
   const [deleteMode, setDeleteMode] = useState("single");
   const [selectedProductIds, setSelectedProductIds] = useState([]);
 
-  const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
-  };
-
-  // Fetch stores
-
-  useEffect(() => {
-    // Fetch stores
-    const fetchStores = async () => {
-      const result = await PrivateAxios.get("/warehouse");
-      setStores(result.data.data);
-    };
-    fetchStores();
-  }, []);
-
-  // Handle store change
-  // const handleStoreChange = (selectedOption) => {
-  //   if (selectedOption) {
-  //     const selectedStoreId = selectedOption.id;
-  //     setSelectedStore(selectedStoreId);
-
-  //     // Find the corresponding store's stock
-  //     const selectedStoreStock = productData.TrackProductStock.find(
-  //       (stock) => stock.store_id === selectedStoreId
-  //     );
-
-  //     // Calculate total stock in (status_in_out === "1") and stock out (status_in_out === "0")
-  //     const totalStoreStockIn = productData.TrackProductStock.filter(
-  //       (stock) =>
-  //         stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 1
-  //     ).reduce((total, stock) => total + stock.quantity_changed, 0);
-
-  //     const totalStoreStockOut = productData.TrackProductStock.filter(
-  //       (stock) =>
-  //         stock.store_id === selectedStoreId && parseInt(stock.status_in_out) === 0
-  //     ).reduce((total, stock) => total + stock.quantity_changed, 0);
-
-  //     // Final total stock is stock in minus stock out
-  //     const finalTotalStock = totalStoreStockIn - totalStoreStockOut;
-
-  //     // Update the changeQuantity field with the calculated final stock
-  //     setChangeQuantity(0);
-  //     setCurrentStock(finalTotalStock);
-  //     setFinalQuantity(finalTotalStock);
-  //   } else {
-  //     setCurrentStock(0);
-  //     setFinalQuantity(0);
-  //     setChangeQuantity(0);
-  //   }
-  // };
-
-  // // Handle change quantity input
-  // const handleChangeQuantity = (e) => {
-  //   const value = parseInt(e.target.value, 10) || 0;
-  //   setChangeQuantity(value);
-
-  //   let updatedFinalQuantity;
-
-  //   if (getButtonClassNamePlus === 'active') {
-  //     updatedFinalQuantity = parseInt(currentStock) + value;
-  //   } else if (getButtonClassNameNeg === 'active') {
-  //     updatedFinalQuantity = parseInt(currentStock) - value;
-  //   }
-
-  //   // Prevent negative final quantity
-  //   if (updatedFinalQuantity < 0) {
-  //     ErrorMessage("Final quantity cannot be negative.");
-  //     setFinalQuantity(0);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   } else {
-  //     setFinalQuantity(updatedFinalQuantity);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   }
-  // };
-
-  // const incrementQuantity = () => {
-  //   setButtonClassNamePlus('active');
-  //   setButtonClassNameNeg('');
-
-  //   const updatedFinalQuantity = parseInt(currentStock) + parseInt(changeQuantity || 0);
-
-  //   if (updatedFinalQuantity < 0) {
-  //     ErrorMessage("Final quantity cannot be negative.");
-  //     setFinalQuantity(0);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   } else {
-  //     setFinalQuantity(updatedFinalQuantity);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   }
-  // };
-
-  // const decrementQuantity = () => {
-  //   setButtonClassNamePlus('');
-  //   setButtonClassNameNeg('active');
-
-  //   const updatedFinalQuantity = parseInt(currentStock) - parseInt(changeQuantity || 0);
-
-  //   if (updatedFinalQuantity < 0) {
-  //     ErrorMessage("Final quantity cannot be negative.");
-  //     setFinalQuantity(0);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   } else {
-  //     setFinalQuantity(updatedFinalQuantity);
-  //     setActualQuantity(updatedFinalQuantity);
-  //   }
-  // };
-
-  // // stock update
-  // const handleSubmitStore = async (e) => {
-  //   e.preventDefault();
-
-  //   const data = {
-  //     from_store: selectedStore, // Make sure this contains the store information
-  //     transferItems: [
-  //       {
-  //         itemID: productData.id, // Product ID
-  //         itemName: productData.product_name, // Product name
-  //         changeQuantity, // Quantity change from the form
-  //         finalQuantity, // Final quantity in the store
-  //         defaultPrice: productData.product_price, // Default price
-  //         comment, // Any comment from the user (if available)
-  //         itemUnit: finalUoM, // Unit of Measurement
-  //         AdjustmentType: getButtonClassNameNeg === 'active' ? "Out" : "adjustment", // Corrected AdjustmentType logic
-
-  //       },
-  //     ],
-  //     use_fifo_price: useFIFOPrice, // FIFO price flag if needed
-  //     comment, // Add any additional comments
-  //   };
-  //   try {
-  //     const response = await PrivateAxios.post(
-  //       "/product/update-stockonly",
-  //       data
-  //     );
-  //     if (response.status === 200) {
-  //       SuccessMessage("Store updated successfully.");
-  //       setChangeQuantity(0);
-  //       handleCloseqty();
-  //       fetchData();
-  //     } else {
-  //       // console.log(response.status);
-  //       ErrorMessage("Error !! Please check again.");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error:", error);
-  //   }
-  // };
-  // end stock update
-
-  // const [useFIFOPrice, setUseFIFOPrice] = useState(false);
-  // const [comment, setComment] = useState("");
-
-  // const [products, setProducts] = useState([]);
-  // const [transferItems, setTransferItems] = useState([
-  //   {
-  //     key: 1,
-  //     itemId: null,
-  //     itemName: "",
-  //     defaultPrice: 0,
-  //     currentQuantity: "",
-  //     finalQuantity: "",
-  //     changeQuantity: 1,
-  //     comment: "",
-  //     itemID: "",
-  //     product: null,
-  //     availableQuantity: "",
-  //     transferQuantity: "",
-  //     itemUnit: "",
-  //     disableTransferQuantity: true,
-  //     batchesLoading: false,
-  //     availableBatches: [],
-  //     batchQuantities: {},
-  //   },
-  // ]);
-
-  // const { user } = UserAuth();
   const [uomData, setUomData] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [dynamicProductAttributes, setDynamicProductAttributes] = useState([]);
   const [masterBrands, setMasterBrands] = useState([]);
 
-  // const [user] = useState(JSON.parse(localStorage.getItem("auth_user")) || null);
   const { user, isVariantBased } = UserAuth();
 
-  const [isLoading, setIsLoading] = useState(false);
   const [addItemFormData, setAddItemFormData] = useState({
     product_code: "",
     product_name: "",
@@ -256,14 +46,11 @@ function InventoryMaster() {
     dynamic_attributes: [], // dynamic attributes
     product_variants: [] // product variants
   });
-  
+
   // Product variants state
   const [productVariants, setProductVariants] = useState([]);
 
-
   const [filteredData, setFilteredData] = useState([]);
-
-  // const [filterCategory, setFilterCategory] = useState(null);
 
   // Get add item input type fields
   const handleAddItemFormChange = (e) => {
@@ -320,12 +107,65 @@ function InventoryMaster() {
     });
   };
 
+  // Unit conversion helpers (used for Master Pack quantity calculation)
+  const unitFactorMap = {
+    mg: { group: "weight", factor: 0.001 },
+    g: { group: "weight", factor: 1 },
+    kg: { group: "weight", factor: 1000 },
+    ton: { group: "weight", factor: 1000000 },
+    tonne: { group: "weight", factor: 1000000 },
+    ml: { group: "volume", factor: 1 },
+    l: { group: "volume", factor: 1000 },
+  };
+  const normalizeUnit = (unit) => String(unit || "").trim().toLowerCase();
+  const convertUnitValue = (value, fromUnit, toUnit) => {
+    const from = unitFactorMap[normalizeUnit(fromUnit)];
+    const to = unitFactorMap[normalizeUnit(toUnit)];
+    if (!from || !to || from.group !== to.group) return null;
+    const baseValue = Number(value) * from.factor;
+    return baseValue / to.factor;
+  };
+
+  // Compute quantity_per_pack = (pack weight in variant's UoM) / (variant weight)
+  const computeQuantityPerPack = (variant) => {
+    if (
+      !variant?.uom_id ||
+      !variant?.weight ||
+      !variant?.pack_uom_id ||
+      !variant?.weight_per_pack
+    ) {
+      return "";
+    }
+    const variantUom = uomData.find((u) => u.id === variant.uom_id);
+    const packUom = uomData.find((u) => u.id === variant.pack_uom_id);
+    if (!variantUom?.symbol || !packUom?.symbol) return "";
+    const packWeightInVariantUnit = convertUnitValue(
+      variant.weight_per_pack,
+      packUom.symbol,
+      variantUom.symbol
+    );
+    const variantWeight = parseFloat(variant.weight);
+    if (
+      packWeightInVariantUnit === null ||
+      !Number.isFinite(packWeightInVariantUnit) ||
+      !Number.isFinite(variantWeight) ||
+      variantWeight <= 0
+    ) {
+      return "";
+    }
+    const qty = packWeightInVariantUnit / variantWeight;
+    return Number.isFinite(qty) ? Number(qty.toFixed(2)) : "";
+  };
+
   // Handle adding a new variant
   const handleAddVariant = () => {
     const newVariant = {
       id: Date.now(), // temporary unique ID
       uom_id: null,
-      weight: ""
+      weight: "",
+      has_master_pack: false,
+      pack_uom_id: null,
+      weight_per_pack: "",
     };
     setProductVariants([...productVariants, newVariant]);
   };
@@ -351,6 +191,40 @@ function InventoryMaster() {
     setProductVariants(productVariants.map(variant =>
       variant.id === variantId
         ? { ...variant, weight: numericValue }
+        : variant
+    ));
+  };
+
+  // Toggle "Has Master Pack?" for a variant
+  const handleVariantHasMasterPackChange = (variantId, checked) => {
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? {
+            ...variant,
+            has_master_pack: checked,
+            ...(checked
+              ? {}
+              : { pack_uom_id: null, weight_per_pack: "" }),
+          }
+        : variant
+    ));
+  };
+
+  // Handle pack UoM change
+  const handleVariantPackUomChange = (variantId, selectedOption) => {
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? { ...variant, pack_uom_id: selectedOption ? selectedOption.id : null }
+        : variant
+    ));
+  };
+
+  // Handle weight per pack change
+  const handleVariantWeightPerPackChange = (variantId, value) => {
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? { ...variant, weight_per_pack: numericValue }
         : variant
     ));
   };
@@ -394,7 +268,14 @@ function InventoryMaster() {
         productVariants.forEach(variant => {
           if (variant.weight?.trim() === "" || variant.uom_id === null) {
             newErrors.product_variants = "Both Unit of Measurement and Weight is required";
-            // newErrors[`variant_${variant.id}`] = `both Unit of Measurement and Weight is required`;
+          }
+          if (variant.has_master_pack) {
+            if (!variant.pack_uom_id) {
+              newErrors.product_variants = "Pack UOM is required when Master Pack is enabled";
+            }
+            if (!variant.weight_per_pack || String(variant.weight_per_pack).trim() === "") {
+              newErrors.product_variants = "Weight per pack is required when Master Pack is enabled";
+            }
           }
         });
       } else if (!addItemFormData.uom_id) {
@@ -417,6 +298,7 @@ function InventoryMaster() {
           return {
             id: item.id,
             label: `${item.name} (${item.label})`,
+            symbol: item.label,
           }
         })
         setUomData(mappedData);
@@ -445,7 +327,6 @@ function InventoryMaster() {
       );
   
       setDynamicProductAttributes(res.data?.data || []);
-      // console.log("dynamicProductAttributes", res.data?.data);
     } catch (error) {
       console.error(error);
     }
@@ -475,7 +356,6 @@ function InventoryMaster() {
   }, []);
 
   const handleShowAddSingleItemModal = () => {
-    // generateRandomSKU();
     setShowAddSingleItemModal(true);
   };
 
@@ -485,7 +365,7 @@ function InventoryMaster() {
     // Reset variants when modal closes
     setProductVariants([]);
   };
-  // add item==================================
+
   const SubmitData = (event) => {
     event.preventDefault();
 
@@ -495,10 +375,28 @@ function InventoryMaster() {
     // Prepare variants data for submission
     const variantsData = isVariantBased ? productVariants
       .filter(variant => variant.uom_id && variant.weight)
-      .map(variant => ({
-        uom_id: variant.uom_id,
-        weight: parseFloat(variant.weight) || 0
-      })) : [];
+      .map(variant => {
+        const base = {
+          uom_id: variant.uom_id,
+          weight: parseFloat(variant.weight) || 0,
+        };
+        if (variant.has_master_pack && variant.pack_uom_id && variant.weight_per_pack) {
+          const packUom = uomData.find(u => u.id === variant.pack_uom_id);
+          const quantityPerPack = computeQuantityPerPack(variant);
+          return {
+            ...base,
+            pack_uom_id: variant.pack_uom_id,
+            quantity_per_pack: quantityPerPack === "" ? 0 : Number(quantityPerPack),
+            weight_per_pack: `${variant.weight_per_pack} ${packUom?.symbol || ""}`.trim(),
+          };
+        }
+        return {
+          ...base,
+          pack_uom_id: null,
+          quantity_per_pack: null,
+          weight_per_pack: null,
+        };
+      }) : [];
 
     // Combine form data with variants
     const submitData = {
@@ -506,9 +404,6 @@ function InventoryMaster() {
       product_variants: variantsData
     };
 
-    // console.log("submitData", submitData);
-
-    //submit data
     PrivateAxios.post("product/add", submitData)
       .then((res) => {
         if (res.status === 200) {
@@ -537,7 +432,6 @@ function InventoryMaster() {
 
   // Fetch products data
   const fetchData = async () => {
-    setIsLoading(true);
     try {
       const { page, rowsPerPage, searchKey } = productController;
       // Set query params
@@ -550,28 +444,8 @@ function InventoryMaster() {
 
       const res = await PrivateAxios.get(`product/list?${queryParams}`);
       const productFetchResponse = res.data.data;
-      // console.log(res);
       setProductsCount(productFetchResponse.pagination.total_records);
       const mappedData = productFetchResponse.rows.map((item, index) => {
-
-        const filteredStock = Array.isArray(item.TrackProductStock)
-          ? item.TrackProductStock.filter((stock) => stock.status_in_out == "1" || (stock.status_in_out == "0")) // Keep status_in_out 1 or status_in_out 0 with adjustmentType 'Out'
-          : [];
-        // Calculate total stock
-        const totalStock = filteredStock.reduce((acc, stock) => {
-          if (stock.adjustmentType === "StockTransfer") {
-            return acc; // Don't add to total if adjustmentType is StockTransfer
-          }
-
-          // Subtract quantity_changed if status_in_out is 0 and adjustmentType is 'Out'
-          if (stock.status_in_out == "0") {
-            return acc - (stock.quantity_changed || 0);
-          }
-
-          // Otherwise, add the quantity_changed to totalStock
-          return acc + (stock.quantity_changed || 0);
-        }, 0);
-
         return {
           key: index + 1,
           id: item.id || "",
@@ -581,6 +455,7 @@ function InventoryMaster() {
           sku_product: item.sku_product || "",
           masterProductType: item.masterProductType,
           is_batch_applicable: item.is_batch_applicable,
+          has_master_pack: item.has_master_pack,
           markup_percentage: item.markup_percentage || "0",
           masterBrand: item.masterBrand,
           uom: item?.masterUOM?.name || "",
@@ -595,8 +470,6 @@ function InventoryMaster() {
       if (err.response?.status === 401) {
         console.log("Unauthorized");
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -730,31 +603,19 @@ function InventoryMaster() {
       dataIndex: "itemName",
       key: "itemName",
       width: 240,
-      // render: (text, record) => (
-      //   {record.itemName}
-      //   // <Link
-      //   //   to={`/inventory/inventory-master-edit/${record.id}/item-details`}
-      //   //   state={{ data: record }}
-      //   //   className="bg-light px-2 py-1 rounded d-inline-block"
-      //   // >
-      //   //   {record.itemName}
-      //   //   <i className="fas fa-external-link-alt ms-3"></i>
-
-      //   // </Link>
-      // ),
       sorter: (a, b) => a.itemName.localeCompare(b.itemName),
     },
     {
       title: "Category",
       dataIndex: "product_category",
       key: "product_category",
-      width: 200,
+      width: 180,
       render: (_, record) => record.product_category || "-",
     },
     {
       title: "Product Type",
       key: "masterProductType",
-      width: 240,
+      width: 200,
       render: (_, record) => record.masterProductType?.name || "-",
     },
     {
@@ -781,13 +642,12 @@ function InventoryMaster() {
       width: 150,
       render: (_, record) => record.is_batch_applicable && record.is_batch_applicable === 1 ? "Yes" : "No",
     },
-    // {
-    //   title: "Stock Status",
-    //   dataIndex: "stockStatus",
-    //   key: "stockStatus",
-    //   width: 140,
-    //   sorter: (a, b) => a.stockStatus.localeCompare(b.stockStatus),
-    // },
+    {
+      title: "Master Pack",
+      key: "has_master_pack",
+      width: 120,
+      render: (_, record) => record.has_master_pack && record.has_master_pack === 1 ? "Yes" : "No",
+    },
     {
       title: "Markup %",
       dataIndex: "markup_percentage",
@@ -798,6 +658,7 @@ function InventoryMaster() {
     {
       title: `${isVariantBased ? "Variants & Attributes" : "Attributes"}`,
       key: "variants_attributes",
+      fixed: "right",
       width: 180,
       render: (_, record) => {
         const hasVariants = record.productVariants && record.productVariants.length > 0;
@@ -825,6 +686,7 @@ function InventoryMaster() {
       title: "Actions",
       key: "actions",
       width: 120,
+      fixed: "right",
       render: (_, record) => (
         <div className="d-flex align-items-center gap-2">
         <OverlayTrigger
@@ -856,126 +718,11 @@ function InventoryMaster() {
         </div>
       ),
     },
-    // {
-    //   title: "Type",
-    //   dataIndex: "type",
-    //   key: "type",
-    //   width: 140,
-    //   sorter: (a, b) => a.type.localeCompare(b.type),
-    // },
-    // {
-    //   title: "HSN Code",
-    //   dataIndex: "hsnCode",
-    //   key: "hsnCode",
-    //   width: 140,
-    //   sorter: (a, b) => a.hsnCode.localeCompare(b.hsnCode),
-    // },
-    // {
-    //   title: "Tax",
-    //   dataIndex: "tax",
-    //   key: "tax",
-    //   width: 80,
-    //   sorter: (a, b) => a.tax.localeCompare(b.tax),
-    //   render: (text) => `${text}%`,
-    // },
-    // {
-    //   title: "Minimum Stock Level",
-    //   dataIndex: "minimumStockLevel",
-    //   key: "minimumStockLevel",
-    //   width: 180,
-    //   sorter: (a, b) => a.minimumStockLevel - b.minimumStockLevel,
-    // },
-    // {
-    //   title: "Maximum Stock Level",
-    //   dataIndex: "maximumStockLevel",
-    //   key: "maximumStockLevel",
-    //   width: 180,
-    //   sorter: (a, b) => a.maximumStockLevel - b.maximumStockLevel,
-    // },
   ];
 
-  // Update KPI-Driven Priorities Modal start
-
-  const [alternate, setAlternate] = useState(false);
-  const alternateModalClose = () => setAlternate(false);
-  const alternateModalShow = () => setAlternate(true);
-
-  // remove item
-  const [removeItem, setRemoveItem] = useState(false);
-  const removeItemModalClose = () => setRemoveItem(false);
-  const removeItemModalShow = () => setRemoveItem(true);
-
-  // edit item
-  const [editItem, setEditItem] = useState(false);
-  const editItemModalClose = () => setEditItem(false);
-  const editItemItemModalShow = () => setEditItem(true);
-  // edit item
   const [multipleItems, setMultipleItems] = useState(false);
   const multipleItemsModalClose = () => setMultipleItems(false);
   const multipleItemsModalShow = () => setMultipleItems(true);
-
-
-  const [isVisible, setIsVisible] = useState(false);
-
-  const handleToggle = () => {
-    setIsVisible(!isVisible);
-  }
-
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-  };
-  const [orderDeadline, setOrderDeadline] = useState(getCurrentDateTime());
-
-
-  const ItemType = [
-    { value: 'All', label: 'All' },
-    { value: ' Buy', label: ' Buy' },
-    { value: ' Sell', label: 'Sell' },
-    { value: ' Both', label: 'Both' },
-
-  ]
-  const CategoryItem = [
-    { value: 'Finished Goods', label: 'Finished Goods' },
-    { value: ' Raw Materials', label: ' Raw Materials' },
-    { value: ' Semi-finished Goods', label: 'Semi-finished Goods' },
-    { value: ' Consumables', label: 'Consumables' },
-    { value: ' Bought-out Parts', label: 'Bought-out Parts' },
-    { value: ' Trading Goods', label: 'Trading Goods' },
-    { value: ' Service', label: 'Service' },
-  ]
-
-  // Tally Integration Extension Modal start
-  const [showTallyIntegrationExtensionModal, setShowTallyIntegrationExtensionModal] = useState(false);
-  const handleCloseTallyIntegrationExtensionModal = () => setShowTallyIntegrationExtensionModal(false);
-  const handleShowTallyIntegrationExtensionModal = () => setShowTallyIntegrationExtensionModal(true);
-
-  const faqItems = [
-    {
-      question: "Will my data be safe?",
-      answer: "Absolutely. This chrome extension is created and owned by automybizz. automybizz maintains best-in-industry standards for data protection and privacy."
-    },
-    {
-      question: "What all will I be able to download from Tally?",
-      answer: "You'll be able to download your item and counter-party master data from Tally in an excel file. You can then directly upload the excel file on automybizz."
-    },
-    {
-      question: "I'm not an expert on Tally, can I still download the master data?",
-      answer: "Yes, absolutely! You just need to ensure Tally is opened in your system. If you still face issues, you can reach out to our chat support and we'd love to help you out!"
-    }
-  ];
-  // Tally Integration Extension Modal end
-
-  // Explore All Features Modal start
-  const [showExploreAllFeaturesModal, setShowExploreAllFeaturesModal] = useState(false);
-  const handleCloseExploreAllFeaturesModal = () => setShowExploreAllFeaturesModal(false);
-  const handleShowExploreAllFeaturesModal = () => setShowExploreAllFeaturesModal(true);
 
   // Product Variants & Attributes Modal
   const [showVariantsModal, setShowVariantsModal] = useState(false);
@@ -989,16 +736,11 @@ function InventoryMaster() {
     setShowVariantsModal(true);
   };
 
-  // Disable background scroll when any modal is open (must be after all modal state declarations)
+  // Disable background scroll when any modal is open
   useEffect(() => {
     const modalOpen =
       showAddSingleItemModal ||
-      alternate ||
-      removeItem ||
-      editItem ||
       multipleItems ||
-      showTallyIntegrationExtensionModal ||
-      showExploreAllFeaturesModal ||
       showVariantsModal;
     if (modalOpen) {
       const prev = document.body.style.overflow;
@@ -1011,20 +753,13 @@ function InventoryMaster() {
     }
   }, [
     showAddSingleItemModal,
-    alternate,
-    removeItem,
-    editItem,
     multipleItems,
-    showTallyIntegrationExtensionModal,
-    showExploreAllFeaturesModal,
     showVariantsModal,
   ]);
 
   return (
     <>
       <InventoryMasterPageTopBar />
-      {/* <ItemMasterStatusBar /> */}
-
       <div className="p-4">
         <div className="row">
 
@@ -1047,9 +782,6 @@ function InventoryMaster() {
                         >
                           <i className="fas fa-file-csv me-2 text-primary"></i>
                           Bulk export
-                          {/* <span className="text-muted ms-1">
-                            {selectedProductIds.length ? "(selected)" : "(all)"}
-                          </span> */}
                         </button>
                         <button
                           type="button"
@@ -1082,7 +814,6 @@ function InventoryMaster() {
                       </Dropdown.Menu>
                     </Dropdown>
                     <StockMasterBulkActions
-                      // onAddMultipleItems={multipleItemsModalShow}
                       onSuccess={fetchData}
                       onAddSingleItem={handleShowAddSingleItemModal}
                       isBulkActions={false}
@@ -1092,83 +823,7 @@ function InventoryMaster() {
 
 
                 <div className="inventory-body pt-2">
-
                   <div className="inventory-body-wrap-body">
-                    {/* <div className="inventory-master-filter pt-3 pb-1 ">
-                      <div className="row">
-                        <div className="col-xl-3 col-sm-6 item" onClick={handleClearFilter}>
-                          <div className="card shadow-md cursor-pointer item_card">
-                            <div className="card-body d-flex justify-content-between align-items-center">
-                              <div>
-                                <h6 className="my-1 text-white">Stock Value</h6>
-                                <span className="ms-auto fs-5 fw-bold text-white">
-                                  {getGeneralSettingssymbol}
-                                  {totalDefaultPrice}
-                                </span>
-                              </div>
-                              <div className="stockImg">
-                                <img src={process.env.PUBLIC_URL + '/assets/images/item-white1.png'} alt="item" className="img" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className="col-xl-3 col-sm-6 item"
-                          onClick={() => handleCategoryFilter("lowStock")}
-                        >
-                          <div className="card shadow-md cursor-pointer item_card">
-                            <div className="card-body d-flex justify-content-between align-items-center">
-                              <div>
-                                <h6 className="my-1 text-white">Low Stock</h6>
-                                <span className="ms-auto fs-5 fw-bold text-white">
-                                  {" "}
-                                  {lowStockCount}
-                                </span>
-                              </div>
-                              <div className="stockImg">
-                                <img src={process.env.PUBLIC_URL + '/assets/images/low-stock.png'} alt="item" className="img" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          className="col-xl-3 col-sm-6 item"
-                          onClick={() => handleCategoryFilter("excessStock")}
-                        >
-                          <div className="card shadow-md cursor-pointer item_card">
-                            <div className="card-body d-flex justify-content-between align-items-center">
-                              <div>
-                                <h6 className="my-1 text-white">Excess Stock</h6>
-                                <span className="ms-auto fs-5 fw-bold text-white">
-                                  {excessStockCount}
-                                </span>
-                              </div>
-                              <div className="stockImg">
-                                <img src={process.env.PUBLIC_URL + '/assets/images/excess.png'} alt="item" className="img" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="col-xl-3 col-sm-6 item">
-                          <Link to="/inventory/dashboard" className="text-decoration-none">
-                            <div className="card shadow-md cursor-pointer item_card gth-bg-success">
-                              <div className="card-body d-flex justify-content-between align-items-center">
-                                <div>
-                                  <h6 className="my-1 text-white">Inventory Dashboard</h6>
-                                  <span className="ms-auto fs-5 fw-bold text-white d-flex align-items-center">
-                                    View <i className="fi fi-rr-arrow-small-right ms-2 d-flex"></i>
-                                  </span>
-                                </div>
-                                <div className="stockImg">
-                                  <img src={process.env.PUBLIC_URL + '/assets/images/dashboard.png'} alt="item" className="img" />
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
-                        </div>
-
-                      </div>
-                    </div> */}
                     <div className="table-wrap">
                       <div className="border rounded-10 bg-white">
                         <div className="d-flex justify-content-end p-3">
@@ -1191,6 +846,7 @@ function InventoryMaster() {
                         <div className="p-0">
                           <div className="table-responsive mb-0">
                             <Table
+                              className="fixed-col-overlap-fix"
                               columns={columns}
                               dataSource={filteredData}
                               rowKey="id"
@@ -1506,6 +1162,78 @@ function InventoryMaster() {
                                       />
                                     </div>
                                   </div>
+                                  <div className="col-12 mt-2">
+                                    <div className="form-check">
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        id={`has_master_pack_${variant.id}`}
+                                        checked={!!variant.has_master_pack}
+                                        onChange={(e) => handleVariantHasMasterPackChange(variant.id, e.target.checked)}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor={`has_master_pack_${variant.id}`}
+                                      >
+                                        Has Master Pack?
+                                      </label>
+                                    </div>
+                                  </div>
+                                  {variant.has_master_pack && (
+                                    <>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">
+                                            Pack UOM <span className="text-danger">*</span>
+                                          </label>
+                                          <Select
+                                            name={`pack_uom_${variant.id}`}
+                                            options={uomData}
+                                            getOptionLabel={(option) => option.label}
+                                            getOptionValue={(option) => option.id}
+                                            value={uomData.find(uom => uom.id === variant.pack_uom_id) || null}
+                                            onChange={(selectedOption) => handleVariantPackUomChange(variant.id, selectedOption)}
+                                            theme={(theme) => ({
+                                              ...theme,
+                                              colors: {
+                                                ...theme.colors,
+                                                primary25: "#ddddff",
+                                                primary: "#6161ff",
+                                              },
+                                            })}
+                                            placeholder="Select Pack UOM"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">
+                                            Weight per pack <span className="text-danger">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Enter Weight per pack"
+                                            value={variant.weight_per_pack}
+                                            onChange={(e) => handleVariantWeightPerPackChange(variant.id, e.target.value)}
+                                            pattern="[0-9.]*"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">Quantity per pack</label>
+                                          <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Auto-calculated"
+                                            value={computeQuantityPerPack(variant)}
+                                            readOnly
+                                          />
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1575,469 +1303,12 @@ function InventoryMaster() {
       </Modal>
       {/* Add Single Item Modal end*/}
 
-
-      {/* Update Product Stock qyt only Modal */}
-      {/* <Modal
-        show={showqty}
-        onHide={handleCloseqty}
-        backdrop="static"
-        keyboard={false}
-        size="lg"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Update Product Stock - {getitemId}</Modal.Title>
-        </Modal.Header>
-        <form action="" onSubmit={handleSubmitStore} method="post">
-          <Modal.Body className="pb-1 moday-body-overflow-none">
-            <div className="row">
-              <div className="col-md-12">
-                <div className="form-group">
-                  <label className="form-label">
-                    Item Name <span className="text-danger">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="product_name"
-                    placeholder="Enter Item Name"
-                    className="form-control"
-                    value={productData ? productData.product_name : ""}
-                    disabled
-                  />
-                </div>
-              </div>
-
-              <div className="col-md-12">
-                <div className="form-group">
-                  <label className="form-label">
-                    Select Store <span className="text-danger">*</span>
-                  </label>
-                  <div className="custom-select-wrap">
-                    <Select
-                      options={stores}
-                      getOptionLabel={(option) => option.name}
-                      getOptionValue={(option) => option.id}
-                      value={stores.find((data) => data.id === selectedStore)}
-                      onChange={handleStoreChange}
-                      placeholder="Select Store"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">
-                    Quantity changed in Store
-                  </label>
-                  <input
-                    type="number"
-                    name="current_stock"
-                    className="form-control"
-                    value={currentStock}
-                    disabled
-                  />
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">
-                    Final Quantity in Store
-                  </label>
-                  <input
-                    type="number"
-                    name="final_quantity"
-                    className="form-control"
-                    value={finalQuantity}
-                    disabled
-                  />
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">Change Quantity</label>
-                  <div className="d-flex">
-                    <input
-                      type="text"
-                      name="change_quantity"
-                      className="form-control w-100"
-                      value={changeQuantity}
-                      onChange={handleChangeQuantity}
-                    />
-                    <div className="d-flex align-items-center ms-2 gap-2 w-25">
-                      <button type="button" className={` btn-outline-success ${getButtonClassNamePlus} modalAdd_btn`} onClick={incrementQuantity}>
-                        <i className="fas fa-plus"></i>
-                      </button>
-
-                      <button type="button" className={` btn-outline-danger border-dashed ${getButtonClassNameNeg} modalAdd_btn`} onClick={decrementQuantity}>
-                        <i className="fas fa-minus"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <div className="form-group">
-                  <label className="form-label">UoM</label>
-                  <Select
-                    name="product_uom"
-                    options={uomData}
-                    getOptionLabel={(option) => option.label}
-                    getOptionValue={(option) => option.id}
-                    value={uomData.find((data) => data.id === finalUoM)}
-                    isDisabled
-                  />
-                </div>
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <button type="submit" className="btn btn-success" disabled={getActualQuantity < 0}>
-              Save
-            </button>
-          </Modal.Footer>
-        </form>
-      </Modal> */}
-      {/* Update Product Stock qyt only Modal */}
-
-
-      {/* Update Product Stock Modal */}
-      <Modal
-        show={alternate}
-        onHide={alternateModalClose}
-        backdrop="static"
-        // keyboard={false}
-        centered
-        size="md"
-      // className="model_80"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Bulk Upload Alternate UOM</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className='form-group '>
-            <label className='form-label'>Upload UOM</label>
-            <div className='custom-select-wrap'>
-              <input type="file" required className='form-control' accept=".xlsx, .csv"
-                onChange={handleFileChange}
-              />
-            </div>
-          </div>
-          <div className="d-flex align-items-center gap-3 uploadView ">
-            <div className="file"><i className="far fa-file-excel e_file"></i></div>
-            <div className="d-flex align-items-center gap-3 w-100 ">
-              <p className="mb-0 f-s-16 fw-bold ">Export (22).xlsx</p>
-              <button type='button' className="btn ms-auto fit-btn p-1"><i className="fas fa-times  f-s-16"></i></button>
-            </div>
-          </div>
-
-
-          <div className="border-top mt-5 d-flex justify-content-end gap-2 pt-3">
-            <button type='button' className="btn btn-success"   >Submit</button>
-            <button type='button' className="btn btn btn-warning" >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                id="Layer_1"
-                data-name="Layer 1"
-                viewBox="0 0 24 24"
-                width={14}
-                height={14}
-                fill="currentColor"
-                className='me-1'
-              >
-                <path d="m14,7.015V.474c.913.346,1.753.879,2.465,1.59l3.484,3.486c.712.711,1.245,1.551,1.591,2.464h-6.54c-.552,0-1-.449-1-1Zm7.976,3h-6.976c-1.654,0-3-1.346-3-3V.038c-.161-.011-.322-.024-.485-.024h-4.515C4.243.015,2,2.258,2,5.015v14c0,2.757,2.243,5,5,5h10c2.757,0,5-2.243,5-5v-8.515c0-.163-.013-.324-.024-.485Zm-6.269,8.506l-1.613,1.614c-.577.577-1.336.866-2.094.866s-1.517-.289-2.094-.866l-1.613-1.614c-.391-.391-.391-1.024,0-1.414.391-.391,1.023-.391,1.414,0l1.293,1.293v-4.398c0-.552.447-1,1-1s1,.448,1,1v4.398l1.293-1.293c.391-.391,1.023-.391,1.414,0,.391.39.391,1.023,0,1.414Z" />
-              </svg>
-              Download Template</button>
-          </div>
-        </Modal.Body>
-      </Modal>
-      {/* Bulk Upload Alternate UOM */}
-
-
-      {/* edit Item Multiple Modal*/}
-      <Modal
-        show={editItem}
-        onHide={editItemModalClose}
-        backdrop="static"
-        keyboard={false}
-        centered
-        size="xxxl"
-        id="editItemMultipleModal"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            Edit Items (Multiple)
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="moday-body-overflow-none">
-          <p>You can bulk delete multiple items using an <strong>Excel(.xlsx)</strong> file. [Note: 1. a maximum of 500 items is allowed at a time; 2. Unit of Measurement can NOT be changed]</p>
-          <h6>Required Data Format</h6>
-          <div className="w-100 mt-3 position-relative">
-            <div className="sample_data_badge">
-              Sample Data
-            </div>
-            <div className="table-responsive">
-              <table className="table-bordered primary-table-head">
-                <thead>
-                  <tr>
-                    <th>
-                      Item ID *
-                    </th>
-                    <th>
-                      Item Name
-                    </th>
-                    <th>
-                      Product/Service
-                    </th>
-                    <th>
-                      Item Type (Buy/Sell/Both)
-                    </th>
-                    <th >
-                      Unit of Measurement
-                    </th>
-                    <th >
-                      HSN Code
-                    </th>
-                    <th>
-                      Item Category
-                    </th>
-                    <th>
-                      Default Price
-                    </th>
-                    <th >
-                      Regular Buying Price
-                    </th>
-                    <th>
-                      Wholesale Buying Price
-                    </th>
-                    <th >
-                      Regular Selling Price
-                    </th>
-                    <th>
-                      MRP
-                    </th>
-                    <th >
-                      Dealer Price
-                    </th>
-                    <th >
-                      Distributor Price
-                    </th>
-                    <th >
-                      Min Stock Level
-                    </th>
-                    <th >
-                      Max Stock Level
-                    </th>
-                    <th >
-                      Tax
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>
-                      <div style={{ width: '120px' }}>RM001</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>Raw Material 1</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>Product</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '180px' }}>Buy</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>Kg</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>4040</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '120px' }}></div>
-                    </td>
-                    <td>
-                      <div style={{ width: '120px' }}>100</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '170px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>150</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>1000</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>3000</div>
-                    </td>
-                    <td>
-                      <div style={{ width: '150px' }}>12</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="pt-2 mb-3">
-              <div className="dropdown">
-                <button type='button' className="btn btn-warning dropdown-toggle" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    id="Layer_1"
-                    data-name="Layer 1"
-                    viewBox="0 0 24 24"
-                    width={14}
-                    height={14}
-                    fill="currentColor"
-                    className='me-1'
-                  >
-                    <path d="m14,7.015V.474c.913.346,1.753.879,2.465,1.59l3.484,3.486c.712.711,1.245,1.551,1.591,2.464h-6.54c-.552,0-1-.449-1-1Zm7.976,3h-6.976c-1.654,0-3-1.346-3-3V.038c-.161-.011-.322-.024-.485-.024h-4.515C4.243.015,2,2.258,2,5.015v14c0,2.757,2.243,5,5,5h10c2.757,0,5-2.243,5-5v-8.515c0-.163-.013-.324-.024-.485Zm-6.269,8.506l-1.613,1.614c-.577.577-1.336.866-2.094.866s-1.517-.289-2.094-.866l-1.613-1.614c-.391-.391-.391-1.024,0-1.414.391-.391,1.023-.391,1.414,0l1.293,1.293v-4.398c0-.552.447-1,1-1s1,.448,1,1v4.398l1.293-1.293c.391-.391,1.023-.391,1.414,0,.391.39.391,1.023,0,1.414Z" />
-                  </svg>
-                  Download Template
-                </button>
-                <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                  <li><button type='button' className="dropdown-item">Download Blank Template</button></li>
-                  <li><button type='button' className="dropdown-item" onClick={handleToggle}>Download Template With Items</button></li>
-                </ul>
-              </div>
-              {isVisible && (
-                <div className="p-3 border rounded-4 my-3 pb-0" >
-                  <div className="row">
-                    <div className="col-lg-6 col-md-6 col-sm-6 col-12">
-                      <div className="form-group">
-                        <label className="form-label">Creation Date (From)</label>
-                        <input
-                          type="datetime-local"
-                          value={orderDeadline}
-                          onChange={(e) => setOrderDeadline(e.target.value)}
-                          required
-                          className="form-control"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6 col-md-6 col-sm-6 col-12">
-                      <div className="form-group">
-                        <label className="form-label">Creation Date (To)</label>
-                        <input
-                          type="datetime-local"
-                          value={orderDeadline}
-                          onChange={(e) => setOrderDeadline(e.target.value)}
-                          required
-                          className="form-control"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-lg-6 col-md-6 col-sm-6 col-12">
-                      <div className="form-group">
-                        <label className="form-label">Item Type</label>
-                        <div className="custom-select-wrap">
-                          <Select
-                            name="vendor_name"
-                            options={ItemType}
-                            theme={(theme) => ({
-                              ...theme,
-                              colors: {
-                                ...theme.colors,
-                                primary25: "#ddddff",
-                                primary: "#6161ff",
-                              },
-                            })}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-6 col-md-6 col-sm-6 col-12">
-                      <div className="form-group">
-                        <label className="form-label">Item Category</label>
-                        <div className="custom-select-wrap">
-                          <Select
-                            name="vendor_name"
-                            options={CategoryItem}
-                            theme={(theme) => ({
-                              ...theme,
-                              colors: {
-                                ...theme.colors,
-                                primary25: "#ddddff",
-                                primary: "#6161ff",
-                              },
-                            })}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-12">
-                      <div className="form-group d-flex justify-content-end ">
-                        <button className="btn btn-exp-green" type='button'>
-                          Download Template With Items
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="row">
-              <div className="col-md-6">
-                <div className='form-group mb-0'>
-                  <label className='form-label'>Upload File</label>
-                  <div className='custom-select-wrap'>
-                    <input type="file" required className='form-control' accept=".xlsx, .csv"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <button type='button' className="btn btn-secondary">Cancel</button>
-          <button type='submit' className="btn btn-success">Submit</button>
-        </Modal.Footer>
-      </Modal>
-      {/* edit Item Multiple Modal */}
-      {/* Delete multiple item*/}
-      {/* <DeleteMultipleItemsModal
-        show={removeItem}
-        onClose={removeItemModalClose}
-      /> */}
-      {/* Delete multiple item */}
-
-      {/* Add Multiple Items Modal */}
       <AddMultipleItemsModal
         show={multipleItems}
         onClose={multipleItemsModalClose}
         FetchProduct={fetchData}
       />
-      {/* Add Multiple Items Modal End*/}
-      {/* Tally Integration Extension Modal Start*/}
-      <TallyIntegrationModal
-        show={showTallyIntegrationExtensionModal}
-        handleClose={handleCloseTallyIntegrationExtensionModal}
-        faqItems={faqItems}
-      />
-      {/* Tally Integration Extension Modal end*/}
-      {/* Explore All Features Modal Start*/}
-      <ExploreAllFeaturesModal
-        show={showExploreAllFeaturesModal}
-        handleClose={handleCloseExploreAllFeaturesModal}
-      />
-      {/* Explore All Features Modal end*/}
+
       <DeleteModal
         show={deleteModalShow}
         handleClose={closeDeleteItemModal}
@@ -2085,7 +1356,9 @@ function InventoryMaster() {
                           <th>#</th>
                           <th>Unit of Measurement</th>
                           <th>Weight per Unit</th>
-                          {/* <th>Price per Unit</th> */}
+                          {selectedProductData.has_master_pack && (
+                            <th>Master Pack</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -2108,13 +1381,13 @@ function InventoryMaster() {
                                 <span className="text-muted">-</span>
                               )}
                             </td>
-                            {/* <td>
-                              {variant.price_per_unit ? (
-                                <span className="fw-medium">{variant.price_per_unit}</span>
+                            <td>
+                              {selectedProductData.has_master_pack && variant.weight_per_pack ? (
+                                <span className="fw-medium">{variant.weight_per_pack}</span>
                               ) : (
                                 <span className="text-muted">-</span>
                               )}
-                            </td> */}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2147,7 +1420,6 @@ function InventoryMaster() {
                           <th>#</th>
                           <th>Attribute Name</th>
                           <th>Value</th>
-                          {/* <th>Required</th> */}
                         </tr>
                       </thead>
                       <tbody>
@@ -2166,13 +1438,6 @@ function InventoryMaster() {
                                 <span className="text-muted">-</span>
                               )}
                             </td>
-                            {/* <td>
-                              {attr.productAttribute?.is_required === 1 ? (
-                                <span className="badge bg-danger">Required</span>
-                              ) : (
-                                <span className="badge bg-secondary">Optional</span>
-                              )}
-                            </td> */}
                           </tr>
                         ))}
                       </tbody>

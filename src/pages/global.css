@@ -8,3 +8,15 @@ span.field-invalid {
     margin-top: 2px;
     font-weight: 500;
   }
+
+/* Prevent scrolling row content from showing under fixed (sticky) columns. */
+.fixed-col-overlap-fix .ant-table-cell-fix-left,
+.fixed-col-overlap-fix .ant-table-cell-fix-right {
+  background: #fff;
+}
+.fixed-col-overlap-fix .ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-left,
+.fixed-col-overlap-fix .ant-table-tbody > tr.ant-table-row:hover > td.ant-table-cell-fix-right,
+.fixed-col-overlap-fix .ant-table-tbody > tr > td.ant-table-cell-row-hover.ant-table-cell-fix-left,
+.fixed-col-overlap-fix .ant-table-tbody > tr > td.ant-table-cell-row-hover.ant-table-cell-fix-right {
+  background: #fafafa;
+}

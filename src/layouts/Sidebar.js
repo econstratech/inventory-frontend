@@ -1556,27 +1556,15 @@ function Sidebar() {
                         location.pathname === "/report/customer-wise-sales-report" ||
                         location.pathname === "/report/item-wise-sales-report" ||
                         location.pathname === "/report/indent-requirement-report" ||
-                        location.pathname === "/report/batch-expiry-report"
+                        location.pathname === "/report/batch-expiry-report" || 
+                        location.pathname === "/report/production/material-issue-report" ||
+                        location.pathname === "/report/production-planning-vs-actual-report"
                          ? "active" : ""
                         }`}
                     >
                       <i className="sidebar-nav-icon fas fa-chart-area" />
                       <p>Reports</p>
                     </Link>
-                    {/* <button
-                      className={`accordion-button ${location.pathname === "/reports"
-                        ? ""
-                        : "collapsed"
-                        } sidebar-nav-link`}
-                      type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#reports"
-                      aria-expanded="false"
-                      aria-controls="reports"
-                    >
-                      <i className="sidebar-nav-icon fas fa-chart-area" />
-                      <p>Reports</p>
-                    </button> */}
                   </div>
                   {/* <div
                     id="reports"

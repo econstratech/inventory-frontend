@@ -103,6 +103,7 @@ function InventoryMasterEditItemDetails() {
           return {
             id: item.id,
             label: `${item.name} (${item.label})`,
+            symbol: item.label,
           }
         })
         setUomData(mappedData);
@@ -201,11 +202,22 @@ function InventoryMasterEditItemDetails() {
 
       // Load product variants
       if (productData?.productVariants && Array.isArray(productData.productVariants)) {
-        const variants = productData.productVariants.map((variant, index) => ({
-          id: variant.id || Date.now() + index,
-          uom_id: variant.uom_id || null,
-          weight: variant.weight_per_unit?.toString() || ""
-        }));
+        const variants = productData.productVariants.map((variant, index) => {
+          // weight_per_pack comes as a string like "30 kg" — extract the numeric part
+          const packWeightStr = variant.weight_per_pack;
+          const packWeightNumeric = packWeightStr
+            ? String(packWeightStr).match(/[\d.]+/)?.[0] || ""
+            : "";
+          const hasMasterPack = Boolean(variant.pack_uom_id || packWeightStr);
+          return {
+            id: variant.id || Date.now() + index,
+            uom_id: variant.uom_id || null,
+            weight: variant.weight_per_unit?.toString() || "",
+            has_master_pack: hasMasterPack,
+            pack_uom_id: variant.pack_uom_id || null,
+            weight_per_pack: packWeightNumeric,
+          };
+        });
         setProductVariants(variants);
       }
     } catch (err) {
@@ -217,12 +229,65 @@ function InventoryMasterEditItemDetails() {
     fetchData();
   }, [productAttributes]);
 
+  // Unit conversion helpers (used for Master Pack quantity calculation)
+  const unitFactorMap = {
+    mg: { group: "weight", factor: 0.001 },
+    g: { group: "weight", factor: 1 },
+    kg: { group: "weight", factor: 1000 },
+    ton: { group: "weight", factor: 1000000 },
+    tonne: { group: "weight", factor: 1000000 },
+    ml: { group: "volume", factor: 1 },
+    l: { group: "volume", factor: 1000 },
+  };
+  const normalizeUnit = (unit) => String(unit || "").trim().toLowerCase();
+  const convertUnitValue = (value, fromUnit, toUnit) => {
+    const from = unitFactorMap[normalizeUnit(fromUnit)];
+    const to = unitFactorMap[normalizeUnit(toUnit)];
+    if (!from || !to || from.group !== to.group) return null;
+    const baseValue = Number(value) * from.factor;
+    return baseValue / to.factor;
+  };
+
+  // Compute quantity_per_pack = (pack weight in variant's UoM) / (variant weight)
+  const computeQuantityPerPack = (variant) => {
+    if (
+      !variant?.uom_id ||
+      !variant?.weight ||
+      !variant?.pack_uom_id ||
+      !variant?.weight_per_pack
+    ) {
+      return "";
+    }
+    const variantUom = uomData.find((u) => u.id === variant.uom_id);
+    const packUom = uomData.find((u) => u.id === variant.pack_uom_id);
+    if (!variantUom?.symbol || !packUom?.symbol) return "";
+    const packWeightInVariantUnit = convertUnitValue(
+      variant.weight_per_pack,
+      packUom.symbol,
+      variantUom.symbol
+    );
+    const variantWeight = parseFloat(variant.weight);
+    if (
+      packWeightInVariantUnit === null ||
+      !Number.isFinite(packWeightInVariantUnit) ||
+      !Number.isFinite(variantWeight) ||
+      variantWeight <= 0
+    ) {
+      return "";
+    }
+    const qty = packWeightInVariantUnit / variantWeight;
+    return Number.isFinite(qty) ? Number(qty.toFixed(2)) : "";
+  };
+
   // Handle adding a new variant
   const handleAddVariant = () => {
     const newVariant = {
       id: Date.now(), // temporary unique ID
       uom_id: null,
-      weight: ""
+      weight: "",
+      has_master_pack: false,
+      pack_uom_id: null,
+      weight_per_pack: "",
     };
     setProductVariants([...productVariants, newVariant]);
   };
@@ -248,6 +313,40 @@ function InventoryMasterEditItemDetails() {
     setProductVariants(productVariants.map(variant =>
       variant.id === variantId
         ? { ...variant, weight: numericValue }
+        : variant
+    ));
+  };
+
+  // Toggle "Has Master Pack?" for a variant
+  const handleVariantHasMasterPackChange = (variantId, checked) => {
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? {
+            ...variant,
+            has_master_pack: checked,
+            ...(checked
+              ? {}
+              : { pack_uom_id: null, weight_per_pack: "" }),
+          }
+        : variant
+    ));
+  };
+
+  // Handle pack UoM change
+  const handleVariantPackUomChange = (variantId, selectedOption) => {
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? { ...variant, pack_uom_id: selectedOption ? selectedOption.id : null }
+        : variant
+    ));
+  };
+
+  // Handle weight per pack change
+  const handleVariantWeightPerPackChange = (variantId, value) => {
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    setProductVariants(productVariants.map(variant =>
+      variant.id === variantId
+        ? { ...variant, weight_per_pack: numericValue }
         : variant
     ));
   };
@@ -470,18 +569,50 @@ function InventoryMasterEditItemDetails() {
     const validVariants = productVariants.filter(
       variant => variant.uom_id && variant.weight && variant.weight.trim() !== ""
     );
-    
+
     if (validVariants.length === 0) {
       setErrorMessage({ product_variants: "At least one product variant with Unit of Measurement and Weight is required" });
       return;
     }
 
+    // Validate master pack fields when enabled
+    for (const variant of validVariants) {
+      if (variant.has_master_pack) {
+        if (!variant.pack_uom_id) {
+          setErrorMessage({ product_variants: "Pack UOM is required when Master Pack is enabled" });
+          return;
+        }
+        if (!variant.weight_per_pack || String(variant.weight_per_pack).trim() === "") {
+          setErrorMessage({ product_variants: "Weight per pack is required when Master Pack is enabled" });
+          return;
+        }
+      }
+    }
+
     // Prepare variants data for submission
-    const variantsData = validVariants.map(variant => ({
-      id: variant.id ? variant.id : null,
-      uom_id: variant.uom_id,
-      weight: parseFloat(variant.weight) || 0
-    }));
+    const variantsData = validVariants.map(variant => {
+      const base = {
+        id: variant.id ? variant.id : null,
+        uom_id: variant.uom_id,
+        weight: parseFloat(variant.weight) || 0,
+      };
+      if (variant.has_master_pack && variant.pack_uom_id && variant.weight_per_pack) {
+        const packUom = uomData.find(u => u.id === variant.pack_uom_id);
+        const quantityPerPack = computeQuantityPerPack(variant);
+        return {
+          ...base,
+          pack_uom_id: variant.pack_uom_id,
+          quantity_per_pack: quantityPerPack === "" ? 0 : Number(quantityPerPack),
+          weight_per_pack: `${variant.weight_per_pack} ${packUom?.symbol || ""}`.trim(),
+        };
+      }
+      return {
+        ...base,
+        pack_uom_id: null,
+        quantity_per_pack: null,
+        weight_per_pack: null,
+      };
+    });
 
     const productData = {
       product_variants: variantsData
@@ -1054,6 +1185,81 @@ function InventoryMasterEditItemDetails() {
                                       />
                                     </div>
                                   </div>
+                                  <div className="col-12 mt-2">
+                                    <div className="form-check">
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input"
+                                        id={`has_master_pack_${variant.id}`}
+                                        checked={!!variant.has_master_pack}
+                                        onChange={(e) => handleVariantHasMasterPackChange(variant.id, e.target.checked)}
+                                        disabled={!isEditingVariants}
+                                      />
+                                      <label
+                                        className="form-check-label"
+                                        htmlFor={`has_master_pack_${variant.id}`}
+                                      >
+                                        Has Master Pack?
+                                      </label>
+                                    </div>
+                                  </div>
+                                  {variant.has_master_pack && (
+                                    <>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">
+                                            Pack UOM <span className="text-danger">*</span>
+                                          </label>
+                                          <Select
+                                            name={`pack_uom_${variant.id}`}
+                                            options={uomData}
+                                            getOptionLabel={(option) => option.label}
+                                            getOptionValue={(option) => option.id}
+                                            value={uomData.find(uom => uom.id === variant.pack_uom_id) || null}
+                                            onChange={(selectedOption) => handleVariantPackUomChange(variant.id, selectedOption)}
+                                            isDisabled={!isEditingVariants}
+                                            theme={(theme) => ({
+                                              ...theme,
+                                              colors: {
+                                                ...theme.colors,
+                                                primary25: "#ddddff",
+                                                primary: "#6161ff",
+                                              },
+                                            })}
+                                            placeholder="Select Pack UOM"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">
+                                            Weight per pack <span className="text-danger">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            className="form-control css-olqui2-singleValue"
+                                            placeholder="Enter Weight per pack"
+                                            value={variant.weight_per_pack}
+                                            onChange={(e) => handleVariantWeightPerPackChange(variant.id, e.target.value)}
+                                            disabled={!isEditingVariants}
+                                            pattern="[0-9.]*"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="col-md-4 mt-2">
+                                        <div className="form-group">
+                                          <label className="form-label">Quantity per pack</label>
+                                          <input
+                                            type="text"
+                                            className="form-control css-olqui2-singleValue"
+                                            placeholder="Auto-calculated"
+                                            value={computeQuantityPerPack(variant)}
+                                            readOnly
+                                          />
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
