@@ -80,11 +80,33 @@ function ProductVariantSelectionModal({
       const url = `product/variants/${productId}${queryString ? `?${queryString}` : ""}`;
       
       const response = await PrivateAxios.get(url);
-      
+
       if (response.data && response.data.status && response.data.data) {
         const variants = response.data.data.variants || [];
+        const product = response.data.data.product;
+
+        // If the product has exactly one variant and the user hasn't applied
+        // any filter or pre-selected a variant, skip the picker UI entirely:
+        // select that variant and close the modal.
+        const shouldAutoSelect =
+          variants.length === 1 &&
+          !filterUomId &&
+          !filterWeight &&
+          currentVariantId == null;
+
+        if (shouldAutoSelect) {
+          setLoadingVariants(false);
+          if (onVariantSelect) {
+            onVariantSelect(variants[0], productIndex);
+          }
+          if (onHide) {
+            onHide();
+          }
+          return;
+        }
+
         setProductVariants(variants);
-        setSelectedProductInfo(response.data.data.product);
+        setSelectedProductInfo(product);
       } else {
         setProductVariants([]);
         setSelectedProductInfo(null);
