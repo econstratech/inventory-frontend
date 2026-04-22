@@ -114,6 +114,7 @@ function PurchaseOrderRecv() {
             batches: [],
             variant_id: p.variant_id || p.productVariant?.id || null,
             variantData: p.productVariant || null,
+            master_pack: "", // Master Pack units for received_now
           };
         }));
         
@@ -185,6 +186,7 @@ function PurchaseOrderRecv() {
       const received = parseFloat(targetProduct.received) || 0;
       targetProduct.received_now = batchQtySum;
       targetProduct.available_qty = qty - received - batchQtySum;
+      targetProduct.master_pack = computeMasterPackString(targetProduct);
     }
 
     setProducts(newProducts);
@@ -206,6 +208,7 @@ function PurchaseOrderRecv() {
       const received = parseFloat(targetProduct.received) || 0;
       targetProduct.received_now = batchQtySum;
       targetProduct.available_qty = qty - received - batchQtySum;
+      targetProduct.master_pack = computeMasterPackString(targetProduct);
     }
 
     setProducts(newProducts);
@@ -245,9 +248,21 @@ function PurchaseOrderRecv() {
       const received = parseFloat(targetProduct.received) || 0;
       targetProduct.received_now = batchQtySum;
       targetProduct.available_qty = qty - received - batchQtySum;
+      targetProduct.master_pack = computeMasterPackString(targetProduct);
     }
 
     setProducts(newProducts);
+  };
+
+  // Recompute a row's master_pack string from its current received_now + the
+  // active variant's quantity_per_pack. Shared by every path that writes
+  // received_now (qty field edit, batch aggregate sync, variant selection).
+  const computeMasterPackString = (row) => {
+    const variantData = row?.variantData || row?.productVariant || null;
+    const qpp = parseFloat(variantData?.quantity_per_pack);
+    const receivedNow = parseFloat(row?.received_now);
+    if (!Number.isFinite(qpp) || qpp <= 0 || !Number.isFinite(receivedNow)) return "";
+    return String(Number((receivedNow / qpp).toFixed(3)));
   };
 
   const handleProductQuantityChange = (productIndex, field, value) => {
@@ -256,21 +271,49 @@ function PurchaseOrderRecv() {
     if (field === "received_now" && isProductBatchApplicable(product)) {
       return;
     }
-    
+
     // Parse the received_now value (handle empty string as 0)
     const receivedNow = value === "" || value === null || value === undefined ? 0 : parseFloat(value) || 0;
-    
+
     // Update the field
     newProducts[productIndex][field] = value === "" ? "" : value;
     newProducts[productIndex].received_now = receivedNow;
-    
+
     // Calculate available_qty from base values: qty - received (already received) - received_now (being received now)
     // This ensures available_qty always recovers correctly when received_now changes
     const qty = parseFloat(product.qty) || 0;
     const received = parseFloat(product.received) || 0;
     newProducts[productIndex].available_qty = qty - received - receivedNow;
-    
+
+    if (field === "received_now") {
+      newProducts[productIndex].master_pack = computeMasterPackString(newProducts[productIndex]);
+    }
+
     setProducts(newProducts);
+  };
+
+  const handleMasterPackChange = (productIndex, rawValue) => {
+    const numericValue = String(rawValue).replace(/[^0-9.]/g, "");
+    setProducts((prev) => {
+      const next = [...prev];
+      const current = { ...next[productIndex], master_pack: numericValue };
+      if (isProductBatchApplicable(current)) return prev;
+
+      const variantData = current?.variantData || current?.productVariant || null;
+      const qpp = parseFloat(variantData?.quantity_per_pack);
+      const mp = parseFloat(numericValue);
+
+      if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+        const newReceived = Number((mp * qpp).toFixed(3));
+        current.received_now = newReceived;
+        const qty = parseFloat(current.qty) || 0;
+        const received = parseFloat(current.received) || 0;
+        current.available_qty = qty - received - newReceived;
+      }
+
+      next[productIndex] = current;
+      return next;
+    });
   };
 
   const navigate = useNavigate();
@@ -474,11 +517,13 @@ function PurchaseOrderRecv() {
     // Update products state to reflect variant change
     setProducts((prev) => {
       const updated = [...prev];
-      updated[selectedProductIndex] = {
+      const next = {
         ...updated[selectedProductIndex],
         variant_id: variant.id,
         variantData: variant,
       };
+      next.master_pack = computeMasterPackString(next);
+      updated[selectedProductIndex] = next;
       return updated;
     });
     
@@ -527,10 +572,11 @@ function PurchaseOrderRecv() {
         ProductsItem: selectedProduct, // Update ProductsItem for display
         variant_id: null,
         variantData: null,
+        master_pack: "", // Reset since the variant (and its qpp) is reset
       };
       return updated;
     });
-    
+
     // Fetch variants for the new product
     if (selectedOption.value) {
       fetchProductVariants(selectedOption.value, productIndex);
@@ -794,6 +840,11 @@ function PurchaseOrderRecv() {
                                 <th>Total Weight</th>
                                 </>
                               )}
+                              {products.some((p) => {
+                                const ep = editedProducts[p.id];
+                                const pd = ep?.productData || p?.ProductsItem;
+                                return Number(pd?.has_master_pack) === 1;
+                              }) && <th>Master Pack</th>}
                               <th>Unit Price</th>
                               <th>Tax (%)</th>
                               <th>Total</th>
@@ -805,6 +856,7 @@ function PurchaseOrderRecv() {
                               const editedProduct = editedProducts[product.id];
                               const productDataToShow = editedProduct?.productData || product.ProductsItem;
                               const isProductReceived = (product.received || 0) > 0;
+                              const masterPackValue = product?.productVariant.quantity_per_pack ? parseFloat(product.qty / product.productVariant.quantity_per_pack).toFixed(2) : null;
                               
                               return (
                               <React.Fragment key={index}>
@@ -827,6 +879,26 @@ function PurchaseOrderRecv() {
                                           }),
                                         }}
                                       />
+                                      {(() => {
+                                        const currentVariant = getCurrentVariant(product);
+                                        if (!currentVariant) return null;
+                                        return (
+                                          <div className="mt-1">
+                                            <small className="text-muted">
+                                              <i className="fas fa-tag me-1"></i>
+                                              Variant: {currentVariant.masterUOM?.name || "N/A"}
+                                              {currentVariant.masterUOM?.label && (
+                                                <span className="ms-1">({currentVariant.masterUOM.label})</span>
+                                              )}
+                                              {currentVariant.weight_per_unit && (
+                                                <span className="ms-2">
+                                                  • Weight: {currentVariant.weight_per_unit}
+                                                </span>
+                                              )}
+                                            </small>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                     {productDataToShow && (
                                       <Tooltip title="View Product Details">
@@ -834,7 +906,7 @@ function PurchaseOrderRecv() {
                                           role="button"
                                           tabIndex={0}
                                           className="text-primary"
-                                          style={{ cursor: "pointer", flexShrink: 0 }}
+                                          style={{ cursor: "pointer", flexShrink: 0, marginBottom: "20px" }}
                                           title="View product details"
                                           onClick={() => showProductDetails(product, index)}
                                           onKeyDown={(e) => e.key === "Enter" && showProductDetails(product, index)}
@@ -940,7 +1012,38 @@ function PurchaseOrderRecv() {
 
                                   </>
                                 )}
-                             
+                                {products.some((p) => {
+                                  const ep = editedProducts[p.id];
+                                  const pd = ep?.productData || p?.ProductsItem;
+                                  return Number(pd?.has_master_pack) === 1;
+                                }) && (
+                                  <td>
+                                    <div style={{ minWidth: "150px" }} className="d-flex">
+                                      {Number(productDataToShow?.has_master_pack) === 1 &&
+                                      Number(getCurrentVariant(product)?.quantity_per_pack) > 0 ? (
+                                        <div className="input-group">
+                                          <input
+                                            type="number"
+                                            className="form-control form-control-sm"
+                                            min="0"
+                                            step="0.001"
+                                            placeholder="0"
+                                            style={{ marginRight: "10px", marginTop: "4px" }}
+                                            disabled={isProductReceived || isProductBatchApplicable(product)}
+                                            value={masterPackValue || product.master_pack}
+                                            onChange={(e) =>
+                                              handleMasterPackChange(index, e.target.value)
+                                            }
+                                          />
+                                          <span className="input-group-text">unit</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted">—</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
+
                                 <td>{product.unit_price || 0}</td>
                                 <td>{product.tax || 0}%</td>
                                 <td>{product.taxIncl || 0}</td>

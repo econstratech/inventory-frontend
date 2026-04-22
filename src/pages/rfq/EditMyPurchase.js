@@ -344,6 +344,7 @@ function EditMyPurchase() {
         const variant_id = product.variant_id || product.productVariant?.id || null;
         const existingBatches = Array.isArray(product.batches) ? product.batches : [];
 
+        const rowForPack = { qty: product.qty, variantData };
         return {
           ...product,
           taxExcl,
@@ -352,6 +353,7 @@ function EditMyPurchase() {
           variant_id,
           variantData,
           existingBatches,
+          master_pack: computeMasterPackString(rowForPack),
         };
       });
       setProducts(recalculatedProducts);
@@ -396,6 +398,43 @@ function EditMyPurchase() {
     };
   };
 
+  // Recompute the row's master_pack string from its current qty + variant's
+  // quantity_per_pack. Keeps the Master Pack input in sync whenever qty changes
+  // from a non-master-pack path (direct qty edit, variant selection, hydration).
+  const computeMasterPackString = (row) => {
+    const qpp = parseFloat(row?.variantData?.quantity_per_pack);
+    const qty = parseFloat(row?.qty);
+    if (!Number.isFinite(qpp) || qpp <= 0 || !Number.isFinite(qty)) return "";
+    return String(Number((qty / qpp).toFixed(3)));
+  };
+
+  const handleMasterPackChange = (index, rawValue) => {
+    const numericValue = String(rawValue).replace(/[^0-9.]/g, "");
+    setProducts((prev) => {
+      const next = [...prev];
+      const current = { ...next[index], master_pack: numericValue };
+      const mp = parseFloat(numericValue);
+      const qpp = parseFloat(current?.variantData?.quantity_per_pack);
+
+      if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+        current.qty = Number((mp * qpp).toFixed(3));
+      }
+
+      const qty = parseFloat(current.qty) || 0;
+      const unit_price = parseFloat(current.unit_price) || 0;
+      const tax = parseFloat(current.tax) || 0;
+      const taxExcl = qty * unit_price;
+      const taxAmount = (taxExcl * tax) / 100;
+      current.taxExcl = taxExcl;
+      current.taxAmount = taxAmount;
+      current.taxIncl = taxExcl + taxAmount;
+      current.vendor_id = vendorId.vendor_id || vendorId;
+
+      next[index] = current;
+      return next;
+    });
+  };
+
   const handleProductChange = (index, field, value) => {
     const newProducts = [...products];
 
@@ -415,6 +454,10 @@ function EditMyPurchase() {
       }
     } else {
       newProducts[index][field] = value;
+    }
+
+    if (field === "qty") {
+      newProducts[index].master_pack = computeMasterPackString(newProducts[index]);
     }
 
     // Parse updated values
@@ -450,6 +493,7 @@ function EditMyPurchase() {
         variantData: null,
         existingBatches: [],
         taxExcl: 0, // Initialize taxExcl as a number
+        master_pack: "",
       },
     ]);
   };
@@ -530,9 +574,12 @@ function EditMyPurchase() {
     newProducts[selectedProductIndex].taxExcl = taxExcl;
     newProducts[selectedProductIndex].taxAmount = taxAmount;
     newProducts[selectedProductIndex].taxIncl = taxIncl;
-    
+    newProducts[selectedProductIndex].master_pack = computeMasterPackString(
+      newProducts[selectedProductIndex]
+    );
+
     setProducts(newProducts);
-    
+
     // Close modal
     setShowVariantModal(false);
     setProductVariants([]);
@@ -1033,6 +1080,11 @@ function EditMyPurchase() {
                                   <th style={{ width: "150px" }}>Total Weight</th>
                                 </>
                               )}
+                              {products.some(
+                                (p) => Number(p?.ProductsItem?.has_master_pack) === 1
+                              ) && (
+                                <th style={{ width: "150px" }}>Master Pack</th>
+                              )}
                               <th style={{ width: "130px" }}>Unit Price</th>
                               <th style={{ width: "120px" }}>Taxes (%)</th>
                               <th style={{ width: "140px" }}>Tax Excl.</th>
@@ -1091,6 +1143,7 @@ function EditMyPurchase() {
                                                 variant_id: null,
                                                 variantData: null,
                                               existingBatches: [],
+                                              master_pack: "",
                                               };
                                               
                                               const qty = parseFloat(newProducts[index].qty) || 0;
@@ -1132,6 +1185,7 @@ function EditMyPurchase() {
                                               variant_id: null,
                                               variantData: null,
                                               existingBatches: [],
+                                              master_pack: "",
                                             };
                                             setProducts(newProducts);
                                           }
@@ -1286,6 +1340,34 @@ function EditMyPurchase() {
                                       </div>
                                     </td>
                                   </>
+                                )}
+                                {products.some(
+                                  (p) => Number(p?.ProductsItem?.has_master_pack) === 1
+                                ) && (
+                                  <td>
+                                    <div style={{ minWidth: "140px" }}>
+                                      {Number(product?.ProductsItem?.has_master_pack) === 1 &&
+                                      Number(product?.variantData?.quantity_per_pack) > 0 ? (
+                                        <div className="input-group">
+                                          <input
+                                            type="number"
+                                            className="form-control"
+                                            min="0"
+                                            step="0.001"
+                                            placeholder="0"
+                                            disabled={isPOCompleted}
+                                            value={product.master_pack ?? ""}
+                                            onChange={(e) =>
+                                              handleMasterPackChange(index, e.target.value)
+                                            }
+                                          />
+                                          <span className="input-group-text">unit</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted">—</span>
+                                      )}
+                                    </div>
+                                  </td>
                                 )}
                                 <td>
                                   <div style={{ minWidth: "120px" }}>
