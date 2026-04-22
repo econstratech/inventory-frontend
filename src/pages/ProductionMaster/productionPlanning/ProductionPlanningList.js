@@ -4,6 +4,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
+  ReloadOutlined,
   SearchOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
@@ -12,6 +13,14 @@ import dayjs from "dayjs";
 import DeleteModal from "../../CommonComponent/DeleteModal";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
+import ProductSelect from "../../filterComponents/ProductSelect";
+
+const EMPTY_FILTERS = {
+  wo_number: "",
+  product_id: null,
+  selectedProductData: null,
+  responsible_staff: "",
+};
 
 function ProductionPlanningList() {
   const navigate = useNavigate();
@@ -19,7 +28,7 @@ function ProductionPlanningList() {
   const [listLoading, setListLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [pageState, setPageState] = useState({ skip: 0, take: 10 });
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [entriesTarget, setEntriesTarget] = useState(null);
@@ -34,9 +43,9 @@ function ProductionPlanningList() {
   const [entryErrors, setEntryErrors] = useState({});
   const [savingEntry, setSavingEntry] = useState(false);
 
-  const fetchPlannings = async (customPageState = null, customSearch = null) => {
+  const fetchPlannings = async (customPageState = null, customFilters = null) => {
     const currentPageState = customPageState || pageState;
-    const currentSearch = customSearch !== null ? customSearch : search;
+    const currentFilters = customFilters || filters;
 
     setListLoading(true);
     try {
@@ -44,8 +53,12 @@ function ProductionPlanningList() {
       const query = new URLSearchParams({
         page: String(page),
         limit: String(currentPageState.take),
-        ...(currentSearch ? { wo_number: currentSearch } : {}),
       });
+      const wo = (currentFilters.wo_number || "").trim();
+      const staff = (currentFilters.responsible_staff || "").trim();
+      if (wo) query.append("wo_number", wo);
+      if (currentFilters.product_id) query.append("product_id", currentFilters.product_id);
+      if (staff) query.append("responsible_staff", staff);
 
       const res = await PrivateAxios.get(`/production/planning/list?${query.toString()}`);
       const data = res.data?.data || {};
@@ -74,12 +87,17 @@ function ProductionPlanningList() {
     fetchPlannings(next);
   };
 
-  const handleSearch = (value) => {
-    const trimmed = (value || "").trim();
+  const handleApplyFilters = () => {
     const next = { skip: 0, take: pageState.take };
     setPageState(next);
-    setSearch(trimmed);
-    fetchPlannings(next, trimmed);
+    fetchPlannings(next, filters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    const next = { skip: 0, take: pageState.take };
+    setPageState(next);
+    fetchPlannings(next, EMPTY_FILTERS);
   };
 
   const fetchEntries = async (planningId) => {
@@ -420,6 +438,17 @@ function ProductionPlanningList() {
         .ant-picker {
           padding: 7px 8px;
         }
+        .filter-pill-input.ant-input-affix-wrapper,
+        .filter-pill-input.ant-input {
+          border-radius: 22px !important;
+          padding: 6px 14px !important;
+          min-height: 38px !important;
+        }
+        .filter-pill-input.ant-input-affix-wrapper > .ant-input {
+          border-radius: 0 !important;
+          padding: 0 !important;
+          min-height: unset !important;
+        }
       `}</style>
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div>
@@ -427,22 +456,6 @@ function ProductionPlanningList() {
           <p className="text-muted mb-0">{totalCount} total records</p>
         </div>
         <div className="d-flex align-items-center gap-2">
-          <Input
-            placeholder="Search by Work Order No."
-            prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
-            allowClear
-            value={search}
-            onChange={(e) => {
-              const next = e.target.value;
-              setSearch(next);
-              if (next === "" && search !== "") {
-                handleSearch("");
-              }
-            }}
-            onPressEnter={(e) => handleSearch(e.target.value)}
-            onBlur={(e) => handleSearch(e.target.value)}
-            style={{ width: 280 }}
-          />
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -450,6 +463,76 @@ function ProductionPlanningList() {
           >
             Create Planning
           </Button>
+        </div>
+      </div>
+
+      <div className="card mb-3">
+        <div className="card-body">
+          <div className="row g-3 align-items-end">
+            <div className="col-md-3">
+              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 500 }}>
+                Work Order No.
+              </label>
+              <Input
+                className="filter-pill-input"
+                placeholder="e.g. WO1713600000000"
+                prefix={<SearchOutlined style={{ color: "#94a3b8" }} />}
+                allowClear
+                value={filters.wo_number}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, wo_number: e.target.value }))
+                }
+                onPressEnter={handleApplyFilters}
+              />
+            </div>
+            <div className="col-md-4">
+              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 500 }}>
+                FG Product
+              </label>
+              <ProductSelect
+                value={filters.product_id}
+                selectedProductData={filters.selectedProductData}
+                onChange={(option) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    product_id: option?.value || null,
+                    selectedProductData: option?.productData || null,
+                  }))
+                }
+                placeholder="Search and select product..."
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label mb-1" style={{ fontSize: 12, fontWeight: 500 }}>
+                Responsible Person
+              </label>
+              <Input
+                className="filter-pill-input"
+                placeholder="e.g. John Doe"
+                allowClear
+                value={filters.responsible_staff}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, responsible_staff: e.target.value }))
+                }
+                onPressEnter={handleApplyFilters}
+              />
+            </div>
+            <div className="col-md-2 d-flex gap-2">
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={handleApplyFilters}
+                style={{ flex: 1 }}
+              >
+                Apply
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleResetFilters}
+                title="Reset filters"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

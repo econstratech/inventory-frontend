@@ -20,6 +20,24 @@ const toTitleCase = (value) => {
     .join(" ");
 };
 
+const formatDateDMY = (value) => {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${d.getFullYear()}`;
+};
+
+const INITIAL_WO_PAGINATION = {
+  current_page: 1,
+  total_pages: 1,
+  total_records: 0,
+  per_page: 10,
+  has_next_page: false,
+  has_prev_page: false,
+};
+
 function ProductionPlanningVsActualReport() {
   const [type, setType] = useState("employee");
   const [selectedRange, setSelectedRange] = useState("3m");
@@ -32,6 +50,10 @@ function ProductionPlanningVsActualReport() {
     from_date: null,
     to_date: null,
   });
+  const [woModalStaff, setWoModalStaff] = useState(null);
+  const [woRows, setWoRows] = useState([]);
+  const [woLoading, setWoLoading] = useState(false);
+  const [woPagination, setWoPagination] = useState(INITIAL_WO_PAGINATION);
 
   const getDateParams = useCallback(
     (rangeOverride, fmsOverride) => {
@@ -151,6 +173,77 @@ function ProductionPlanningVsActualReport() {
     const c = Number(completed) || 0;
     if (p <= 0) return "—";
     return `${((c / p) * 100).toFixed(1)}%`;
+  };
+
+  const wastagePct = (planned, completed) => {
+    const p = Number(planned) || 0;
+    const c = Number(completed) || 0;
+    if (p <= 0) return "—";
+    const w = Math.max(0, p - c);
+    return `${((w / p) * 100).toFixed(1)}%`;
+  };
+
+  const fetchStaffWorkOrders = async (staffName, page = 1) => {
+    if (!staffName) return;
+    setWoLoading(true);
+    try {
+      const params = { page, limit: 10, responsible_staff: staffName };
+      if (appliedFilters.from_date) params.from_date = appliedFilters.from_date;
+      if (appliedFilters.to_date) params.to_date = appliedFilters.to_date;
+      const response = await PrivateAxios.get("/production/planning/list", { params });
+      const data = response.data?.data || {};
+      setWoRows(Array.isArray(data.rows) ? data.rows : []);
+      setWoPagination({ ...INITIAL_WO_PAGINATION, ...(data.pagination || {}) });
+    } catch (error) {
+      console.error("Failed to fetch staff work orders:", error);
+      setWoRows([]);
+      setWoPagination(INITIAL_WO_PAGINATION);
+    } finally {
+      setWoLoading(false);
+    }
+  };
+
+  const openWorkOrdersModal = (staffName) => {
+    if (!staffName) return;
+    setWoModalStaff(staffName);
+    setWoRows([]);
+    setWoPagination(INITIAL_WO_PAGINATION);
+    fetchStaffWorkOrders(staffName, 1);
+  };
+
+  const closeWorkOrdersModal = () => {
+    setWoModalStaff(null);
+    setWoRows([]);
+    setWoPagination(INITIAL_WO_PAGINATION);
+  };
+
+  const renderPlanDuration = (row) => {
+    const start = formatDateDMY(row?.planned_start_date);
+    const end = formatDateDMY(row?.planned_end_date);
+    if (!start && !end) return "—";
+    return `${start || "—"} → ${end || "—"}`;
+  };
+
+  const renderFgProduct = (row) => {
+    const name = row?.product?.product_name || "N/A";
+    const code = row?.product?.product_code;
+    const variant = row?.finalProductVariant;
+    const variantLabel = variant?.weight_per_unit
+      ? `${variant.weight_per_unit} ${variant?.masterUOM?.label || ""}`.trim()
+      : "";
+    return (
+      <>
+        <div className="fw-semibold">
+          {name}
+          {code ? ` (${code})` : ""}
+        </div>
+        {variantLabel && (
+          <div className="text-muted" style={{ fontSize: 12 }}>
+            Variant: {variantLabel}
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -335,12 +428,14 @@ function ProductionPlanningVsActualReport() {
                   <th>Planned Qty</th>
                   <th>Completed Qty</th>
                   <th>Completion %</th>
+                  <th>Wastage %</th>
+                  <th className="text-center" style={{ width: 90 }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center text-muted py-4">
+                    <td colSpan={8} className="text-center text-muted py-4">
                       No records found
                     </td>
                   </tr>
@@ -356,7 +451,26 @@ function ProductionPlanningVsActualReport() {
                       <td>{row.assigned_work_orders ?? 0}</td>
                       <td>{row.planned_qty ?? 0}</td>
                       <td>{row.completed_qty ?? 0}</td>
-                      <td>{completionPct(row.planned_qty, row.completed_qty)}</td>
+                      <td style={{ color: "green" }}>
+                        {completionPct(row.planned_qty, row.completed_qty)}
+                      </td>
+                      <td style={{ color: "red" }}>
+                        {wastagePct(row.planned_qty, row.completed_qty)}
+                      </td>
+                      <td className="text-center">
+                        {appliedFilters.type === "employee" && row.responsible_staff ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-link p-0"
+                            title={`View work orders for ${row.responsible_staff}`}
+                            onClick={() => openWorkOrdersModal(row.responsible_staff)}
+                          >
+                            <i className="fas fa-eye" />
+                          </button>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -370,7 +484,13 @@ function ProductionPlanningVsActualReport() {
                     <td>{totals.assigned_work_orders}</td>
                     <td>{totals.planned_qty}</td>
                     <td>{totals.completed_qty}</td>
-                    <td>{completionPct(totals.planned_qty, totals.completed_qty)}</td>
+                    <td style={{ color: "green" }}>
+                      {completionPct(totals.planned_qty, totals.completed_qty)}
+                    </td>
+                    <td style={{ color: "red" }}>
+                      {wastagePct(totals.planned_qty, totals.completed_qty)}
+                    </td>
+                    <td />
                   </tr>
                 </tfoot>
               )}
@@ -378,6 +498,160 @@ function ProductionPlanningVsActualReport() {
           )}
         </div>
       </div>
+
+      {/* ── Work Orders Modal ── */}
+      {woModalStaff && (
+        <div
+          className="modal-backdrop-custom"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 1050,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "40px 16px",
+            overflowY: "auto",
+          }}
+          onClick={closeWorkOrdersModal}
+        >
+          <div
+            className="card shadow"
+            style={{ width: "100%", maxWidth: 1100 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="card-header bg-primary"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "nowrap",
+                gap: 12,
+              }}
+            >
+              <h4
+                className="card-title mb-0 text-white"
+                style={{ flex: "1 1 auto", minWidth: 0 }}
+              >
+                Assigned Work Orders — {woModalStaff}
+              </h4>
+              <button
+                type="button"
+                onClick={closeWorkOrdersModal}
+                aria-label="Close"
+                style={{
+                  flex: "0 0 auto",
+                  width: 32,
+                  height: 32,
+                  padding: 0,
+                  border: "none",
+                  background: "transparent",
+                  color: "#fff",
+                  fontSize: 20,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                }}
+              >
+                <i className="fas fa-times" />
+              </button>
+            </div>
+            <div className="card-body p-0 table-responsive">
+              {woLoading ? (
+                <div className="p-4 text-center">Loading work orders...</div>
+              ) : (
+                <table className="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 70 }}>SL No.</th>
+                      <th>Work Order No.</th>
+                      <th>FG Product</th>
+                      <th>Required Qty</th>
+                      <th>Planned Qty</th>
+                      <th>Completed Qty</th>
+                      <th>Plan Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {woRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center text-muted py-4">
+                          No work orders found
+                        </td>
+                      </tr>
+                    ) : (
+                      woRows.map((row, index) => (
+                        <tr key={row.id ?? index}>
+                          <td>
+                            {(woPagination.current_page - 1) * woPagination.per_page +
+                              index +
+                              1}
+                          </td>
+                          <td className="fw-semibold">{row.wo_number || "—"}</td>
+                          <td>{renderFgProduct(row)}</td>
+                          <td>{Number(row.required_qty) || 0}</td>
+                          <td>{Number(row.planned_qty) || 0}</td>
+                          <td>{Number(row.total_completed_qty) || 0}</td>
+                          <td>{renderPlanDuration(row)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {woRows.length > 0 && (
+              <div
+                className="card-footer"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div className="small text-muted" style={{ flex: "1 1 auto" }}>
+                  Page {woPagination.current_page} of {woPagination.total_pages} ·{" "}
+                  {woPagination.total_records} record
+                  {woPagination.total_records === 1 ? "" : "s"}
+                </div>
+                <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-exp-light"
+                    disabled={!woPagination.has_prev_page || woLoading}
+                    onClick={() =>
+                      fetchStaffWorkOrders(
+                        woModalStaff,
+                        woPagination.prev_page || woPagination.current_page - 1
+                      )
+                    }
+                  >
+                    <i className="fas fa-chevron-left me-1" />
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-exp-light"
+                    disabled={!woPagination.has_next_page || woLoading}
+                    onClick={() =>
+                      fetchStaffWorkOrders(
+                        woModalStaff,
+                        woPagination.next_page || woPagination.current_page + 1
+                      )
+                    }
+                  >
+                    Next
+                    <i className="fas fa-chevron-right ms-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
