@@ -1558,7 +1558,7 @@ function Sidebar() {
                         location.pathname === "/report/indent-requirement-report" ||
                         location.pathname === "/report/batch-expiry-report" || 
                         location.pathname === "/report/production/material-issue-report" ||
-                        location.pathname === "/report/production-planning-vs-actual-report"
+                        location.pathname === "/report/production/production-planning-vs-actual-report"
                          ? "active" : ""
                         }`}
                     >

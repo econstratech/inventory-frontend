@@ -152,11 +152,6 @@ function ProductionDispatch() {
     }
   };
 
-  
-  useEffect(() => {
-    console.log("completed WOs for dispatch:", rows);
-  }, [rows]);
-
   // ── fetch stats ────────────────────────────────────────────────
   const fetchStats = async () => {
     try {
@@ -319,34 +314,35 @@ function ProductionDispatch() {
 
   const closeAddModal = () => setAddModalOpen(false);
 
-  const handleAddDispatch = async () => {
-    if (!addForm.woId) { ErrorMessage("Please select a work order."); return; }
-    const qty = Number(addForm.dispatchQty);
-    if (!Number.isFinite(qty) || qty <= 0) { ErrorMessage("Dispatch quantity must be a positive number."); return; }
-    if (!addForm.dispatchDate) { ErrorMessage("Dispatch date is required."); return; }
+  // const handleAddDispatch = async () => {
+  //   if (!addForm.woId) { ErrorMessage("Please select a work order."); return; }
+  //   const qty = Number(addForm.dispatchQty);
+  //   if (!Number.isFinite(qty) || qty <= 0) { ErrorMessage("Dispatch quantity must be a positive number."); return; }
+  //   if (!addForm.dispatchDate) { ErrorMessage("Dispatch date is required."); return; }
 
-    setAddSaving(true);
-    try {
-      const res = await PrivateAxios.post("/production/dispatch/create", {
-        wo_id: addForm.woId,
-        dispatch_qty: qty,
-        dispatch_date: dayjs(addForm.dispatchDate).format("YYYY-MM-DD"),
-        notes: addForm.notes || null,
-      });
-      SuccessMessage(res?.data?.message || "Dispatch created successfully.");
-      closeAddModal();
-      const next = { skip: 0, take: pageState.take };
-      setPageState(next);
-      fetchDispatches(next);
-      fetchStats();
-    } catch (error) {
-      ErrorMessage(error?.response?.data?.message || "Failed to create dispatch.");
-    } finally {
-      setAddSaving(false);
-    }
-  };
+  //   setAddSaving(true);
+  //   try {
+  //     const res = await PrivateAxios.post("/production/dispatch/create", {
+  //       wo_id: addForm.woId,
+  //       dispatch_qty: qty,
+  //       dispatch_date: dayjs(addForm.dispatchDate).format("YYYY-MM-DD"),
+  //       notes: addForm.notes || null,
+  //     });
+  //     SuccessMessage(res?.data?.message || "Dispatch created successfully.");
+  //     closeAddModal();
+  //     const next = { skip: 0, take: pageState.take };
+  //     setPageState(next);
+  //     fetchDispatches(next);
+  //     fetchStats();
+  //   } catch (error) {
+  //     ErrorMessage(error?.response?.data?.message || "Failed to create dispatch.");
+  //   } finally {
+  //     setAddSaving(false);
+  //   }
+  // };
 
   // ── render helpers ─────────────────────────────────────────────
+
   const renderStatusBadge = (status) => {
     const s = STATUS_BADGE[status] || STATUS_BADGE[0];
     const label = DISPATCH_STATUSES.find((x) => x.value === status)?.label || status;
@@ -502,9 +498,9 @@ function ProductionDispatch() {
             {totalCount} total records — partial dispatch supported
           </p>
         </div>
-        <Button type="primary" icon={<i className="fas fa-plus me-1" />} onClick={openAddModal}>
+        {/* <Button type="primary" icon={<i className="fas fa-plus me-1" />} onClick={openAddModal}>
           Add Work Order
-        </Button>
+        </Button> */}
       </div>
 
       {/* ── date preset tabs ── */}
@@ -573,7 +569,7 @@ function ProductionDispatch() {
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <i className="fas fa-filter text-muted" style={{ fontSize: 13 }}></i>
               {[
-                { value: "all",       label: "All" },
+                { value: "all", label: "All" },
                 { value: 0, label: "Pending" },
                 { value: 1, label: "Partially Completed" },
                 { value: 2, label: "Fully Completed" },
@@ -672,7 +668,7 @@ function ProductionDispatch() {
       </div>
 
       {/* ── add dispatch modal ── */}
-      <Modal
+      {/* <Modal
         title={<span className="fw-semibold">Add Dispatch</span>}
         open={addModalOpen}
         onCancel={closeAddModal}
@@ -736,7 +732,7 @@ function ProductionDispatch() {
             />
           </div>
         </div>
-      </Modal>
+      </Modal> */}
 
       {/* ── dispatch work order modal ── */}
       <Modal

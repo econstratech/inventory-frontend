@@ -116,6 +116,16 @@ function InventoryMaster() {
     tonne: { group: "weight", factor: 1000000 },
     ml: { group: "volume", factor: 1 },
     l: { group: "volume", factor: 1000 },
+    pc: { group: "count", factor: 1 },
+    pcs: { group: "count", factor: 1 },
+    piece: { group: "count", factor: 1 },
+    pieces: { group: "count", factor: 1 },
+    unit: { group: "count", factor: 1 },
+    units: { group: "count", factor: 1 },
+    no: { group: "count", factor: 1 },
+    nos: { group: "count", factor: 1 },
+    ea: { group: "count", factor: 1 },
+    each: { group: "count", factor: 1 },
   };
   const normalizeUnit = (unit) => String(unit || "").trim().toLowerCase();
   const convertUnitValue = (value, fromUnit, toUnit) => {
