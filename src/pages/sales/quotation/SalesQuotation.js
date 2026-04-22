@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import moment from "moment";
 import {
+  ErrorMessage,
   // ErrorMessage,
   SuccessMessage,
 } from "../../../environment/ToastMessage";
@@ -260,12 +261,15 @@ function MypurchaseList() {
     try {
       const response = await PrivateAxios.put(`sales/statuschange/${id}/${sid}`);
       // const jsonData = response.data;
-      if (response.status == 200) {
+      if (response.status) {
         SuccessMessage("Status Changed Successfully.!");
         TaskData();
+      } else {
+        ErrorMessage(response?.message || "Unable to change the satatus")
       }
     } catch (error) {
-      console.error("Error changing status:", error);
+      ErrorMessage("Unable to change the satatus")
+      console.log("Error changing status:", error);
     }
 
   };

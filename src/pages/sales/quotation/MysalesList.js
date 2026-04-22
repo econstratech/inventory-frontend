@@ -145,11 +145,15 @@ function MypurchaseList() {
   }, []);
 
   const handleStatusChange = async (id, sid) => {
-    const response = await PrivateAxios.put(`sales/statuschange/${id}/${sid}`);
-    const jsonData = response.data;
-    if (response.status == 200) {
-      SuccessMessage("Status Changed Successfully.!");
-      TaskData();
+    try {
+      const response = await PrivateAxios.put(`sales/statuschange/${id}/${sid}`);
+      const jsonData = response.data;
+      if (response.status) {
+        SuccessMessage("Status Changed Successfully.!");
+        TaskData();
+      }
+    } catch (error) {
+      console.log("Error", error);
     }
   };
 

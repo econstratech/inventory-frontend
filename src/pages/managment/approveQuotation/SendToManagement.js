@@ -34,7 +34,7 @@ import DeleteModal from "../../CommonComponent/DeleteModal";
 
 
 function SendToManagement() {
-  const { getGeneralSettingssymbol, isVariantsAvailable, user } = UserAuth();
+  const { getGeneralSettingssymbol, isVariantBased, user } = UserAuth();
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,10 +120,18 @@ function SendToManagement() {
         const initialEditedProducts = {};
         if (response.data && response.data.length > 0) {
           response.data[0].products?.forEach((product) => {
+            const variant = product.productVariant || null;
+            const qpp = parseFloat(variant?.quantity_per_pack);
+            const qty = parseFloat(product.qty);
+            const master_pack =
+              Number.isFinite(qpp) && qpp > 0 && Number.isFinite(qty)
+                ? String(Number((qty / qpp).toFixed(3)))
+                : "";
             initialEditedProducts[product.id] = {
               qty: product.qty,
               unit_price: product.unit_price,
               variant_id: product.variant_id || product.productVariant?.id || null,
+              master_pack,
             };
           });
         }
@@ -140,13 +148,70 @@ function SendToManagement() {
     }
   };
 
+  // Apply a chosen variant to a given row. Shared by the modal's click handler
+  // and the auto-select path (single-variant products).
+  const applyVariantSelection = (productIndex, variant) => {
+    if (
+      !ProductCompare ||
+      ProductCompare.length === 0 ||
+      productIndex === null ||
+      productIndex === undefined
+    )
+      return;
+    const purchaseOrder = ProductCompare[0];
+    const product = purchaseOrder.products?.[productIndex];
+    if (!product) return;
+
+    setEditedProducts((prev) => {
+      const current = prev[product.id] || {};
+      const qpp = parseFloat(variant?.quantity_per_pack);
+      const qty = parseFloat(current.qty ?? product.qty);
+      const master_pack =
+        Number.isFinite(qpp) && qpp > 0 && Number.isFinite(qty)
+          ? String(Number((qty / qpp).toFixed(3)))
+          : "";
+      return {
+        ...prev,
+        [product.id]: {
+          ...current,
+          variant_id: variant.id,
+          variantData: variant,
+          master_pack,
+        },
+      };
+    });
+
+    setProductCompare((prev) => {
+      if (!prev || prev.length === 0) return prev;
+      const next = [...prev];
+      if (next[0] && next[0].products) {
+        const updatedProducts = [...next[0].products];
+        updatedProducts[productIndex] = {
+          ...updatedProducts[productIndex],
+          variant_id: variant.id,
+          productVariant: variant,
+        };
+        next[0] = { ...next[0], products: updatedProducts };
+      }
+      return next;
+    });
+  };
+
   // Fetch product variants
   const fetchProductVariants = async (productId, productIndex) => {
     setLoadingVariants(true);
     try {
       const response = await PrivateAxios.get(`/product/variants/${productId}`);
       if (response.data && response.data.status && response.data.data?.variants?.length > 0) {
-        setProductVariants(response.data.data.variants);
+        const variants = response.data.data.variants;
+
+        // Auto-select when exactly one variant exists — skip the picker UI.
+        if (variants.length === 1) {
+          applyVariantSelection(productIndex, variants[0]);
+          return;
+        }
+
+        setProductVariants(variants);
         setSelectedProductIndex(productIndex);
         // Store product info from response
         if (response.data.data?.product) {
@@ -184,23 +249,11 @@ function SendToManagement() {
     return currentVariant?.id || null;
   };
 
-  // Handle variant selection
+  // Handle variant selection from the picker modal
   const handleVariantSelect = (variant) => {
-    if (!ProductCompare || ProductCompare.length === 0 || selectedProductIndex === null) return;
-    
-    const purchaseOrder = ProductCompare[0];
-    const product = purchaseOrder.products[selectedProductIndex];
-    
-    // Update editedProducts with the selected variant (store variant data for display)
-    setEditedProducts((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...prev[product.id],
-        variant_id: variant.id,
-        variantData: variant, // Store variant data for immediate display
-      },
-    }));
-    
+    if (selectedProductIndex === null) return;
+    applyVariantSelection(selectedProductIndex, variant);
+
     // Close modal
     setShowVariantModal(false);
     setProductVariants([]);
@@ -305,13 +358,38 @@ function SendToManagement() {
 
   // Handle product field changes
   const handleProductFieldChange = (productId, field, value) => {
-    setEditedProducts((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [field]: value,
-      },
-    }));
+    setEditedProducts((prev) => {
+      const current = prev[productId] || {};
+      const next = { ...current, [field]: value };
+      if (field === "qty") {
+        const product = ProductCompare?.[0]?.products?.find((p) => p.id === productId);
+        const variantData = current.variantData || product?.productVariant || null;
+        const qpp = parseFloat(variantData?.quantity_per_pack);
+        const qty = parseFloat(value);
+        next.master_pack =
+          Number.isFinite(qpp) && qpp > 0 && Number.isFinite(qty)
+            ? String(Number((qty / qpp).toFixed(3)))
+            : "";
+      }
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  // Handle master pack changes — sets qty = master_pack × quantity_per_pack.
+  const handleMasterPackChange = (productId, rawValue) => {
+    const numericValue = String(rawValue).replace(/[^0-9.]/g, "");
+    setEditedProducts((prev) => {
+      const current = prev[productId] || {};
+      const product = ProductCompare?.[0]?.products?.find((p) => p.id === productId);
+      const variantData = current.variantData || product?.productVariant || null;
+      const qpp = parseFloat(variantData?.quantity_per_pack);
+      const mp = parseFloat(numericValue);
+      const next = { ...current, master_pack: numericValue };
+      if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+        next.qty = Number((mp * qpp).toFixed(3));
+      }
+      return { ...prev, [productId]: next };
+    });
   };
 
   // Handle product change
@@ -335,9 +413,10 @@ function SendToManagement() {
         variant_id: null, // Reset variant when product changes
         variantData: null, // Reset variant data
         productData: selectedProduct, // Store new product data for display
+        master_pack: "", // Reset master pack when product (and variant) changes
       },
     }));
-    
+
     // Update ProductCompare to reflect the new product in the UI
     const updatedProductCompare = [...ProductCompare];
     if (updatedProductCompare[0] && updatedProductCompare[0].products) {
@@ -345,12 +424,14 @@ function SendToManagement() {
         ...updatedProductCompare[0].products[productIndex],
         product_id: selectedOption.value,
         ProductsItem: selectedProduct, // Update ProductsItem for display
+        productVariant: null, // Clear stale variant — forces user to re-select
+        variant_id: null,
       };
       setProductCompare(updatedProductCompare);
     }
     
     // Fetch variants for the new product
-    if (selectedOption.value && isVariantsAvailable) {
+    if (selectedOption.value && isVariantBased) {
       fetchProductVariants(selectedOption.value, productIndex);
     }
   };
@@ -749,12 +830,17 @@ function SendToManagement() {
                         <th>Product Name</th>
                         <th>Product Code</th>
                         <th>Quantity</th>
-                        {isVariantsAvailable && (
+                        {isVariantBased && (
                           <>
                             <th>Weight per unit</th>
                             <th>Total weight</th>
                           </>
                         )}
+                        {ProductCompare[0].products?.some((p) => {
+                          const ep = editedProducts[p.id];
+                          const pd = ep?.productData || p?.ProductsItem;
+                          return Number(pd?.has_master_pack) === 1;
+                        }) && <th>Master Pack</th>}
                         <th>Unit Price</th>
                         <th>Tax (%)</th>
                         <th>Price (Excl tax)</th>
@@ -790,6 +876,26 @@ function SendToManagement() {
                                       }),
                                     }}
                                   />
+                                  {(() => {
+                                    const currentVariant = getCurrentVariant(product);
+                                    if (!currentVariant) return null;
+                                    return (
+                                      <div className="mt-1">
+                                        <small className="text-muted">
+                                          <i className="fas fa-tag me-1"></i>
+                                          Variant: {currentVariant.masterUOM?.name || "N/A"}
+                                          {currentVariant.masterUOM?.label && (
+                                            <span className="ms-1">({currentVariant.masterUOM.label})</span>
+                                          )}
+                                          {currentVariant.weight_per_unit && (
+                                            <span className="ms-2">
+                                              • Weight: {currentVariant.weight_per_unit}
+                                            </span>
+                                          )}
+                                        </small>
+                                      </div>
+                                    );
+                                  })()}
                                   {!productDataToShow && selectedProductId && (
                                     <small className="text-muted d-block mt-1">
                                       Selected product unavailable (ID: {selectedProductId}). Use search to change.
@@ -870,7 +976,7 @@ function SendToManagement() {
                                 step="0.01"
                               />
                             </td>
-                            {isVariantsAvailable && (
+                            {isVariantBased && (
                               <>
                                 <td>
                                   
@@ -911,6 +1017,36 @@ function SendToManagement() {
                                   })()}
                                 </td>
                               </>
+                            )}
+                            {ProductCompare[0].products?.some((p) => {
+                              const ep = editedProducts[p.id];
+                              const pd = ep?.productData || p?.ProductsItem;
+                              return Number(pd?.has_master_pack) === 1;
+                            }) && (
+                              <td>
+                                <div style={{ minWidth: "180px" }} className="d-flex">
+                                  {Number(productDataToShow?.has_master_pack) === 1 &&
+                                  Number(getCurrentVariant(product)?.quantity_per_pack) > 0 ? (
+                                    <div className="input-group">
+                                      <input
+                                        type="number"
+                                        className="form-control form-control-sm"
+                                        min="0"
+                                        step="0.001"
+                                        placeholder="0"
+                                        style={{ marginRight: "10px" }}
+                                        value={editedProduct.master_pack ?? ""}
+                                        onChange={(e) =>
+                                          handleMasterPackChange(product.id, e.target.value)
+                                        }
+                                      />
+                                      <span className="input-group-text">unit</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted">—</span>
+                                  )}
+                                </div>
+                              </td>
                             )}
                             <td>
                               <input
@@ -972,7 +1108,19 @@ function SendToManagement() {
                         );
                       })}
                       <tr>
-                        <td colSpan={9} align="right">
+                        <td
+                          colSpan={
+                            9 +
+                            (ProductCompare[0].products?.some((p) => {
+                              const ep = editedProducts[p.id];
+                              const pd = ep?.productData || p?.ProductsItem;
+                              return Number(pd?.has_master_pack) === 1;
+                            })
+                              ? 1
+                              : 0)
+                          }
+                          align="right"
+                        >
                           <h6 className="mb-0 text-muted">
                             Grand Total: <span className="text-dark f-s-20">{getGeneralSettingssymbol} {formattedTotalAmount}</span>
                           </h6>
