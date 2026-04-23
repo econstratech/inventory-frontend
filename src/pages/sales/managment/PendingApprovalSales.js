@@ -94,6 +94,13 @@ function PendingApprovalSales() {
           const initialEditedProducts = {};
           if (dataArray.length > 0 && dataArray[0].products) {
             dataArray[0].products.forEach((product) => {
+              const variantData = product.variantData || product.productVariant || null;
+              const qpp = parseFloat(variantData?.quantity_per_pack);
+              const qty = parseFloat(product.qty);
+              const master_pack =
+                Number.isFinite(qpp) && qpp > 0 && Number.isFinite(qty)
+                  ? String(Number((qty / qpp).toFixed(2)))
+                  : "";
               initialEditedProducts[product.id] = {
                 qty: product.qty,
                 unit_price: product.unit_price,
@@ -104,8 +111,9 @@ function PendingApprovalSales() {
                   product.product_variant_id ||
                   product.productVariant?.id ||
                   null,
-                variantData: product.variantData || product.productVariant || null,
+                variantData,
                 tax: product.tax,
+                master_pack,
               };
             });
           }
@@ -149,15 +157,55 @@ function PendingApprovalSales() {
   const { grandTotal } = calculateProductTotals();
   const formattedTotalAmount = grandTotal.toFixed(2);
 
+  // Derive master_pack string from qty + variant's quantity_per_pack. Shared
+  // with handleProductFieldChange (qty edits) and updateEditedProductWithSelection
+  // (variant/product changes) so the Master Pack input stays in sync.
+  const computeMasterPackString = (qty, variantData) => {
+    const qpp = parseFloat(variantData?.quantity_per_pack);
+    const q = parseFloat(qty);
+    if (!Number.isFinite(qpp) || qpp <= 0 || !Number.isFinite(q)) return "";
+    return String(Number((q / qpp).toFixed(2)));
+  };
+
   // Handle product field changes
   const handleProductFieldChange = (productId, field, value) => {
-    setEditedProducts((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [field]: value,
-      },
-    }));
+    setEditedProducts((prev) => {
+      const current = prev[productId] || {};
+      const next = { ...current, [field]: value };
+      if (field === "qty") {
+        // Fall back to the server-loaded productVariant so a previously-saved
+        // variant still drives Master Pack even if editedProducts hasn't been
+        // hydrated with it (e.g. fresh-open before other effects settle).
+        const baseProduct = ProductCompare?.[0]?.products?.find(
+          (p) => p.id === productId
+        );
+        const variantData =
+          current.variantData ||
+          baseProduct?.variantData ||
+          baseProduct?.productVariant ||
+          null;
+        next.master_pack = computeMasterPackString(value, variantData);
+      }
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  // Master Pack drives qty: qty = master_pack × quantity_per_pack.
+  // Total Weight is already derived from qty × weight_per_unit, so it updates
+  // automatically as qty changes here.
+  const handleMasterPackChange = (productId, rawValue) => {
+    const numericValue = String(rawValue).replace(/[^0-9.]/g, "");
+    setEditedProducts((prev) => {
+      const current = prev[productId] || {};
+      const variantData = current.variantData || null;
+      const qpp = parseFloat(variantData?.quantity_per_pack);
+      const mp = parseFloat(numericValue);
+      const next = { ...current, master_pack: numericValue };
+      if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+        next.qty = Number((mp * qpp).toFixed(2));
+      }
+      return { ...prev, [productId]: next };
+    });
   };
 
   // Get calculated values for a product
@@ -201,22 +249,27 @@ function PendingApprovalSales() {
     variantId = null,
     selectedVariantData = null
   ) => {
-    setEditedProducts((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...(prev[product.id] || {}),
-        qty: prev[product.id]?.qty ?? product.qty,
-        unit_price:
-          selectedProductData?.regular_selling_price ??
-          prev[product.id]?.unit_price ??
-          product.unit_price,
-        tax: selectedProductData?.tax ?? prev[product.id]?.tax ?? product.tax,
-        product_id: selectedProductData?.id ?? product.product_id,
-        productData: selectedProductData || product.productData || product.product || null,
-        variant_id: variantId,
-        variantData: selectedVariantData,
-      },
-    }));
+    setEditedProducts((prev) => {
+      const existing = prev[product.id] || {};
+      const nextQty = existing.qty ?? product.qty;
+      return {
+        ...prev,
+        [product.id]: {
+          ...existing,
+          qty: nextQty,
+          unit_price:
+            selectedProductData?.regular_selling_price ??
+            existing.unit_price ??
+            product.unit_price,
+          tax: selectedProductData?.tax ?? existing.tax ?? product.tax,
+          product_id: selectedProductData?.id ?? product.product_id,
+          productData: selectedProductData || product.productData || product.product || null,
+          variant_id: variantId,
+          variantData: selectedVariantData,
+          master_pack: computeMasterPackString(nextQty, selectedVariantData),
+        },
+      };
+    });
   };
 
   const openVariantSelector = (product, selectedProductData, resetVariant = false) => {
@@ -825,6 +878,11 @@ function PendingApprovalSales() {
                             <th>Total Weight</th>
                           </>
                         )}
+                        {ProductCompare[0].products?.some((p) => {
+                          const ep = editedProducts[p.id];
+                          const pd = ep?.productData || p?.productData || p?.product;
+                          return Number(pd?.has_master_pack) === 1;
+                        }) && <th>Master Pack</th>}
                         <th>Unit of Measure</th>
                         <th>Unit Price</th>
                         <th>Tax (%)</th>
@@ -954,7 +1012,7 @@ function PendingApprovalSales() {
                                     {row.productId && (
                                       <button
                                         type="button"
-                                        className="btn btn-link btn-sm p-0"
+                                        className="btn btn-link p-0"
                                         onClick={() => openVariantSelector(product, row.productData, false)}
                                         title="Change variant"
                                       >
@@ -975,14 +1033,47 @@ function PendingApprovalSales() {
                                 </td>
                               </>
                             )}
+                            {ProductCompare[0].products?.some((p) => {
+                              const ep = editedProducts[p.id];
+                              const pd = ep?.productData || p?.productData || p?.product;
+                              return Number(pd?.has_master_pack) === 1;
+                            }) && (
+                              <td>
+                                <div style={{ minWidth: "140px" }} className="d-flex">
+                                  {Number(row.productData?.has_master_pack) === 1 &&
+                                  Number(row.variantData?.quantity_per_pack) > 0 ? (
+                                    <div className="input-group">
+                                      <input
+                                        type="number"
+                                        className="form-control form-control-sm"
+                                        min="0"
+                                        step="0.001"
+                                        placeholder="0"
+                                        style={{ marginRight: "10px", marginTop: "4px" }}
+                                        value={editedProduct.master_pack}
+                                        onChange={(e) =>
+                                          handleMasterPackChange(product.id, e.target.value)
+                                        }
+                                      />
+                                      <span className="input-group-text">unit</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted">—</span>
+                                  )}
+                                </div>
+                              </td>
+                            )}
                             <td>
-                              {row.variantData?.masterUOM?.label ||
+                              <label>
+                                {row.variantData?.masterUOM?.label ||
                                 row.variantData?.master_uom?.label ||
                                 row.variantData?.masterUOM?.name ||
                                 row.variantData?.master_uom?.name ||
                                 row.productData?.masterUOM?.label ||
                                 row.productData?.masterUOM?.name ||
                                 'N/A'}
+                              </label>
+
                             </td>
                             <td>
                               <input
@@ -1005,7 +1096,19 @@ function PendingApprovalSales() {
                         );
                       })}
                       <tr>
-                        <td colSpan={10} align="right">
+                        <td
+                          colSpan={
+                            10 +
+                            (ProductCompare[0].products?.some((p) => {
+                              const ep = editedProducts[p.id];
+                              const pd = ep?.productData || p?.productData || p?.product;
+                              return Number(pd?.has_master_pack) === 1;
+                            })
+                              ? 1
+                              : 0)
+                          }
+                          align="right"
+                        >
                           <h6 className="mb-0 text-muted">
                             Grand Total: <span className="text-dark f-s-20">{getGeneralSettingssymbol} {formattedTotalAmount}</span>
                           </h6>
