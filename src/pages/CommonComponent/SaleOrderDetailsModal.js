@@ -185,6 +185,13 @@ const SaleOrderDetailsModal = ({
       const nextEditedProducts = {};
       productCompare.forEach((purchase) => {
         purchase.products.forEach((product) => {
+          const variantData = product.variantData || product.productVariant || null;
+          const qpp = parseFloat(variantData?.quantity_per_pack);
+          const qty = parseFloat(product.qty);
+          const master_pack =
+            Number.isFinite(qpp) && qpp > 0 && Number.isFinite(qty)
+              ? String(Number((qty / qpp).toFixed(2)))
+              : "";
           nextEditedProducts[product.id] = {
             qty: product.qty,
             unit_price: product.unit_price,
@@ -196,7 +203,8 @@ const SaleOrderDetailsModal = ({
               product.product_variant_id ||
               product.productVariant?.id ||
               null,
-            variantData: product.variantData || product.productVariant || null,
+            variantData,
+            master_pack,
           };
         });
       });
@@ -204,18 +212,74 @@ const SaleOrderDetailsModal = ({
     }
   }, [show, productCompare]);
 
+  const computeMasterPackString = (qty, variantData) => {
+    const qpp = parseFloat(variantData?.quantity_per_pack);
+    const q = parseFloat(qty);
+    if (!Number.isFinite(qpp) || qpp <= 0 || !Number.isFinite(q)) return "";
+    return String(Number((q / qpp).toFixed(2)));
+  };
+
   const handleProductFieldChange = (purchaseId, product, field, value) => {
-    setEditedProducts((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...prev[product.id],
-        [field]: value,
-      },
-    }));
+    setEditedProducts((prev) => {
+      const current = prev[product.id] || {};
+      const next = { ...current, [field]: value };
+      if (field === "qty") {
+        const variantData =
+          current.variantData ||
+          product.variantData ||
+          product.productVariant ||
+          null;
+        next.master_pack = computeMasterPackString(value, variantData);
+      }
+      return { ...prev, [product.id]: next };
+    });
 
     if (field === "qty") {
       const key = `${purchaseId}-${product.id}`;
       const nextQty = Math.max(0, Number(value) || 0);
+      const receivedHistory = Array.isArray(product.sales_product_received)
+        ? product.sales_product_received
+        : [];
+      const historicalReceivedQty = receivedHistory.reduce(
+        (sum, r) => sum + (Number(r.received_quantity) || 0),
+        0
+      );
+      const receivedNow = Number(receivedNowMap[key] || 0);
+      const baseAvailable = Math.max(nextQty - historicalReceivedQty, 0);
+      setReceivedNowMap((prev) => ({
+        ...prev,
+        [`available_qty_${key}`]: Math.max(baseAvailable - receivedNow, 0),
+      }));
+    }
+  };
+
+  const handleMasterPackChange = (purchaseId, product, rawValue) => {
+    const numericValue = String(rawValue).replace(/[^0-9.]/g, "");
+    setEditedProducts((prev) => {
+      const current = prev[product.id] || {};
+      const variantData =
+        current.variantData ||
+        product.variantData ||
+        product.productVariant ||
+        null;
+      const qpp = parseFloat(variantData?.quantity_per_pack);
+      const mp = parseFloat(numericValue);
+      const next = { ...current, master_pack: numericValue };
+      if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+        next.qty = Number((mp * qpp).toFixed(2));
+      }
+      return { ...prev, [product.id]: next };
+    });
+
+    const qpp = parseFloat(
+      (editedProducts[product.id]?.variantData ||
+        product.variantData ||
+        product.productVariant)?.quantity_per_pack
+    );
+    const mp = parseFloat(numericValue);
+    if (Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0) {
+      const nextQty = Math.max(0, Number((mp * qpp).toFixed(2)));
+      const key = `${purchaseId}-${product.id}`;
       const receivedHistory = Array.isArray(product.sales_product_received)
         ? product.sales_product_received
         : [];
@@ -274,22 +338,27 @@ const SaleOrderDetailsModal = ({
     variantId = null,
     selectedVariantData = null
   ) => {
-    setEditedProducts((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...(prev[product.id] || {}),
-        qty: prev[product.id]?.qty ?? product.qty,
-        unit_price:
-          selectedProductData?.regular_selling_price ??
-          prev[product.id]?.unit_price ??
-          product.unit_price,
-        tax: selectedProductData?.tax ?? prev[product.id]?.tax ?? product.tax,
-        product_id: selectedProductData?.id ?? product.product_id,
-        productData: selectedProductData || product.productData || null,
-        variant_id: variantId,
-        variantData: selectedVariantData,
-      },
-    }));
+    setEditedProducts((prev) => {
+      const existing = prev[product.id] || {};
+      const nextQty = existing.qty ?? product.qty;
+      return {
+        ...prev,
+        [product.id]: {
+          ...existing,
+          qty: nextQty,
+          unit_price:
+            selectedProductData?.regular_selling_price ??
+            existing.unit_price ??
+            product.unit_price,
+          tax: selectedProductData?.tax ?? existing.tax ?? product.tax,
+          product_id: selectedProductData?.id ?? product.product_id,
+          productData: selectedProductData || product.productData || null,
+          variant_id: variantId,
+          variantData: selectedVariantData,
+          master_pack: computeMasterPackString(nextQty, selectedVariantData),
+        },
+      };
+    });
   };
 
   const openVariantSelector = (purchaseId, product, selectedProductData, resetVariant = false) => {
@@ -537,6 +606,14 @@ const SaleOrderDetailsModal = ({
     return acc + productsTotal;
   }, 0);
 
+  const hasAnyMasterPack = productCompare.some((purchase) =>
+    (purchase.products || []).some((p) => {
+      const ep = editedProducts[p.id];
+      const pd = ep?.productData || p?.productData || p?.product;
+      return Number(pd?.has_master_pack) === 1;
+    })
+  );
+
   return (
     <Modal
       backdrop="static"
@@ -597,6 +674,7 @@ const SaleOrderDetailsModal = ({
                       <th>Total Weight</th>
                     </>
                   )}
+                  {hasAnyMasterPack && <th>Master Pack</th>}
                   <th>Unit of Measure</th>
                   <th>Unit Price</th>
                   <th>Tax (%)</th>
@@ -783,6 +861,37 @@ const SaleOrderDetailsModal = ({
                             : "N/A"}
                         </td>
                         </>
+                        )}
+                        {hasAnyMasterPack && (
+                          <td>
+                            <div style={{ minWidth: "140px" }} className="d-flex">
+                              {Number(row.productData?.has_master_pack) === 1 &&
+                              Number(row.variantData?.quantity_per_pack) > 0 ? (
+                                <div className="input-group">
+                                  <input
+                                    type="number"
+                                    className="form-control form-control-sm"
+                                    min="0"
+                                    step="0.001"
+                                    placeholder="0"
+                                    style={{ marginRight: "10px", marginTop: "4px" }}
+                                    value={editedProducts[product.id]?.master_pack ?? ""}
+                                    disabled={disableEditableFields}
+                                    onChange={(e) =>
+                                      handleMasterPackChange(
+                                        purchase.id,
+                                        product,
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                  <span className="input-group-text">unit</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              )}
+                            </div>
+                          </td>
                         )}
                         <td>
                           {row.variantData?.masterUOM?.label ||
@@ -1007,7 +1116,10 @@ const SaleOrderDetailsModal = ({
                   })
                 )}
                 <tr>
-                  <td colSpan={15} align="right">
+                  <td
+                    colSpan={15 + (hasAnyMasterPack ? 1 : 0)}
+                    align="right"
+                  >
                     <h6 className="mb-0 text-muted">
                       Grand Total:{" "}
                       <span className="text-dark f-s-20">
