@@ -250,6 +250,7 @@ function ReportsIndex() {
                                         <h6 className='text-start fw-bold'>PRODUCTION REPORTS</h6>
                                         <ul className='mb-0 f-s-15 fw-medium'>
                                             <li><Link to="/report/production/material-issue-report">Material Issue Report</Link></li>
+                                            <li><Link to="/report/production/dispatch-report">Dispatch Report</Link></li>
                                             {companysettings?.is_production_planning === 1 && (
                                                 <li><Link to="/report/production/production-planning-vs-actual-report">Production Planning vs Actual Report</Link></li>
                                             )}
