@@ -171,6 +171,7 @@ const WorkOrdersPlanned = React.lazy(() => import("../pages/ProductionMaster/wor
 const WorkOrdersPending = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersPending.js"));
 const WorkOrdersWip = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersWip.js"));
 const WorkOrdersCompleted = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersCompleted.js"));
+const WorkOrderMaterials = React.lazy(() => import("../pages/ProductionMaster/workOrderMaterials/WorkOrderMaterials.js"));
 const ProductionDispatch   = React.lazy(() => import("../pages/ProductionMaster/dispatch/ProductionDispatch.js"));
 const ProductionDashboard  = React.lazy(() => import("../pages/ProductionMaster/dashboard/ProductionDashboard.js"));
 const ProductionPlanningList = React.lazy(() => import("../pages/ProductionMaster/productionPlanning/ProductionPlanningList.js"));
@@ -409,6 +410,7 @@ function PrivateRoutes() {
           <Route path="/production/work-orders-pending" element={<WorkOrdersPending />} />
           <Route path="/production/work-orders-wip" element={<WorkOrdersWip />} />
           <Route path="/production/work-orders-completed" element={<WorkOrdersCompleted />} />
+          <Route path="/production/work-order-materials" element={<WorkOrderMaterials />} />
           <Route path="/production/dispatch"   element={<ProductionDispatch />} />
           <Route path="/production/dashboard" element={<ProductionDashboard />} />
           <Route path="/production/planning-list" element={<ProductionPlanningList />} />

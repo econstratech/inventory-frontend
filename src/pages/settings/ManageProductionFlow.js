@@ -23,7 +23,7 @@ function ManageProductionFlow() {
   const [modalStepId, setModalStepId] = useState(null);
   const [newStepName, setNewStepName] = useState("");
   const [newStepDescription, setNewStepDescription] = useState("");
-  const [newStepColour, setNewStepColour] = useState("");
+  const [newStepColour, setNewStepColour] = useState("#1677ff"); // set default colour
   const [creatingStep, setCreatingStep] = useState(false);
   const [addingCompanyStep, setAddingCompanyStep] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -181,16 +181,13 @@ function ManageProductionFlow() {
     if (modalStepId == null) {
       ErrorMessage("Please select a production step.");
       return;
-    } else if (newStepColour === "") {
-      ErrorMessage("Please select a colour code for the production step.");
-      return;
     }
     setAddingCompanyStep(true);
     try {
       const res = await PrivateAxios.post("/company/production-steps", {
         company_id: companyId,
         step_id: modalStepId,
-        colour_code: newStepColour,
+        colour_code: newStepColour || "#1677ff",
       });
       SuccessMessage(res?.data?.message || "Step added to the company and sequence.");
       await fetchCompanyStepsOnly();
@@ -219,16 +216,12 @@ function ManageProductionFlow() {
       ErrorMessage("Please enter a step name.");
       return;
     }
-    if (!newStepColour) {
-      ErrorMessage("Please select a colour code.");
-      return;
-    }
     setCreatingStep(true);
     try {
       const res = await PrivateAxios.post("/master/production-steps", {
         name,
         description: newStepDescription.trim() || null,
-        colour_code: newStepColour || null,
+        colour_code: newStepColour || "#1677ff",
         company_id: companyId,
       });
       SuccessMessage(res?.data?.message || "Production step added.");
@@ -489,7 +482,7 @@ function ManageProductionFlow() {
                 onChange={(e) => setNewStepDescription(e.target.value)}
               />
               <div>
-                <label className="form-label mb-1 small text-muted">Colour Code <span style={{ color: "#ff4d4f" }}>*</span></label>
+                <label className="form-label mb-1 small text-muted">Colour Code</label>
                 <div className="d-flex align-items-center gap-2">
                   <ColorPicker
                     value={newStepColour || undefined}

@@ -7,6 +7,8 @@ function Sidebar() {
   const { MatchPermission, user } = UserAuth();
   const location = useLocation();
 
+  const companySettings = user?.company?.generalSettings || null;
+
   return (
     <aside className="main-sidebar sidebar-dark-primary elevation-1 exp-main-nav header-3">
       <div className="brand-link d-flex justify-content-center">
@@ -761,6 +763,7 @@ function Sidebar() {
                   <div className="accordion-header sidebar-item">
                     <button
                       className={`accordion-button ${location.pathname === "/production/work-orders" ||
+                        location.pathname === "/production/work-order-materials" ||
                         location.pathname === "/settings/manage-production-flow" ||
                         location.pathname === "/production/dispatch" ||
                         location.pathname === "/production/dashboard" ||
@@ -781,6 +784,7 @@ function Sidebar() {
                   <div
                     id="ProductionMenu"
                     className={`accordion-collapse collapse ${location.pathname === "/production/work-orders" ||
+                      location.pathname === "/production/work-order-materials" ||
                       location.pathname === "/settings/manage-production-flow" ||
                       location.pathname === "/production/dispatch" ||
                       location.pathname === "/production/dashboard" ||
@@ -813,7 +817,21 @@ function Sidebar() {
                           <p>Work Orders</p>
                         </Link>
                       </div>
-                      <div className="sidebar-item">
+                      {companySettings.production_without_bom === 1 && (
+                        <div className="sidebar-item">
+                          <Link
+                            to="/production/work-order-materials"
+                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/work-order-materials"
+                              ? "active"
+                              : ""
+                              }`}
+                          >
+                            <p>Raw Materials</p>
+                          </Link>
+                        </div>
+                      )}
+                      {companySettings.is_production_planning === 1 && (
+                        <div className="sidebar-item">
                         <Link
                           to="/production/planning-list"
                           className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/planning-list"
@@ -824,6 +842,7 @@ function Sidebar() {
                           <p>Production Planning</p>
                         </Link>
                       </div>
+                      )}
                       <div className="sidebar-item">
                         <Link
                           to="/settings/manage-production-flow"
@@ -852,142 +871,7 @@ function Sidebar() {
                 : ""}
               {/* Production end */}
 
-              {/* Production start */}
-              {/* {MatchPermission(["Production"]) ?
-                <div className="accordion-item">
-                  <div className="accordion-header sidebar-item">
-                    <button
-                      className={`accordion-button ${location.pathname === "/production/bom" ||
-                        location.pathname === "/production/bom/create-bom" ||
-                        location.pathname === "/production/bom-draft" ||
-                        location.pathname === "/production/bom-published" ||
-                        location.pathname === "/production/bom-delete" ||
-                        location.pathname === "/inventory-master-edit" ||
-                        location.pathname === "/production/bom/view-bom" ||
-                        location.pathname === "/production/all-production-process" ||
-                        location.pathname === "/production/all-production-process/create-production" ||
-                        location.pathname === "/production/all-production-process" ||
-                        location.pathname === "/production/production-process-pending-list" ||
-                        location.pathname === "/production/production-approved-list" ||
-                        location.pathname === "/production/production-test-pending-list" ||
-                        location.pathname === "/production/production-canceled-list" ||
-                        location.pathname === "/production/production-repair-pending-list" ||
-                        location.pathname === "/production/work-orders" ||
-                        location.pathname === "/production/work-orders-open" ||
-                        location.pathname === "/production/work-orders-planned" ||
-                        location.pathname === "/production/work-orders-pending" ||
-                        location.pathname === "/production/work-orders-wip" ||
-                        location.pathname === "/production/work-orders-completed" ||
-                        location.pathname === "/production/sub-contract" ||
-                        location.pathname === "/production/sub-contract-approve-pending" ||
-                        location.pathname === "/production/sub-contract-approve" ||
-                        location.pathname === "/production/sub-contract-testing-pending" ||
-                        location.pathname === "/production/sub-contract-canceled" ||
-                        location.pathname === "/production/sub-contract-repair-pending" ||
-                        location.pathname === "/production/all-production-process/view-production" ? "" : "collapsed"
-                        } sidebar-nav-link`}
-                      type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#Production"
-                      aria-expanded="false"
-                      aria-controls="Production"
-                    >
-                      <i className="sidebar-nav-icon fas fa-sitemap" />
-                      <p>Production</p>
-                    </button>
-                  </div>
-                  <div
-                    id="Production"
-                    className={`accordion-collapse collapse ${location.pathname === "/production/bom" ||
-                      location.pathname === "/production/bom/create-bom" ||
-                      location.pathname === "/production/bom-draft" ||
-                      location.pathname === "/production/bom-published" ||
-                      location.pathname === "/production/bom-delete" ||
-                      location.pathname === "/inventory-master" ||
-                      location.pathname === "/inventory-master-edit" ||
-                      location.pathname === "/production/bom/view-bom" ||
-                      location.pathname === "/production/all-production-process/create-production" ||
-                      location.pathname === "/production/all-production-process" ||
-                      location.pathname === "/production/production-process-pending-list" ||
-                      location.pathname === "/production/production-approved-list" ||
-                      location.pathname === "/production/production-test-pending-list" ||
-                      location.pathname === "/production/production-canceled-list" ||
-                      location.pathname === "/production/production-repair-pending-list" ||
-                      location.pathname === "/production/work-orders" ||
-                      location.pathname === "/production/work-orders-open" ||
-                      location.pathname === "/production/work-orders-planned" ||
-                      location.pathname === "/production/work-orders-pending" ||
-                      location.pathname === "/production/work-orders-wip" ||
-                      location.pathname === "/production/work-orders-completed" ||
-                      location.pathname === "/production/sub-contract" ||
-                      location.pathname === "/production/sub-contract-approve-pending" ||
-                      location.pathname === "/production/sub-contract-approve" ||
-                      location.pathname === "/production/sub-contract-testing-pending" ||
-                      location.pathname === "/production/sub-contract-canceled" ||
-                      location.pathname === "/production/sub-contract-repair-pending" ||
-                      location.pathname === "/production/all-production-process/view-production" ? "show" : ""
-                      } `}
-                    data-bs-parent="#menuAccordian"
-                  >
-                    <div className="accordion-body">
-                      {MatchPermission(["Bill of Materials"]) ?
-                        <div className="sidebar-item">
-                          <Link to="/production/bom"
-                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/bom" ||
-                              location.pathname === "/production/bom/create-bom" ||
-                              location.pathname === "/production/bom/view-bom" ||
-                              location.pathname === "/production/bom-draft" ||
-                              location.pathname === "/production/bom-published" ||
-                              location.pathname === "/production/bom-delete"
-                              ? "active" : ""
-                              } `}
-                          >
-                       
-                            <p>Bill of Materials</p>
-                          </Link>
-                        </div>
-                        : ""}
-                      {MatchPermission(["All Production Process"]) ?
-                        <div className="sidebar-item">
-                          <Link to="/production/all-production-process"
-                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/all-production-process" ||
-                              location.pathname === "/production/all-production-process/create-production" ||
-                              location.pathname === "/production/all-production-process/view-production" ||
-                              location.pathname === "/production/production-process-pending-list" ||
-                              location.pathname === "/production/production-approved-list" ||
-                              location.pathname === "/production/production-test-pending-list" ||
-                              location.pathname === "/production/production-canceled-list" ||
-                              location.pathname === "/production/production-repair-pending-list"
-                              ? "active" : ""
-                              } `}
-                          >
-                           
-                            <p>All Production Process</p>
-                          </Link>
-                        </div>
-                        : ""}
-                      {MatchPermission(["Work Orders"]) ?
-                        <div className="sidebar-item">
-                          <Link to="/production/work-orders"
-                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/work-orders" ||
-                              location.pathname === "/production/work-orders-open" ||
-                              location.pathname === "/production/work-orders-planned" ||
-                              location.pathname === "/production/work-orders-pending" ||
-                              location.pathname === "/production/work-orders-wip" ||
-                              location.pathname === "/production/work-orders-completed"
-                              ? "active" : ""
-                              } `}
-                          >
-                           
-                            <p>Work Orders</p>
-                          </Link>
-                        </div>
-                        : ""}
-                  
-                    </div>
-                  </div>
-                </div>
-                : ""} */}
+         
               {/* inventory end */}
               {/* Buyers & Suppliers start */}
               {MatchPermission(["Manage Buyers", "Manage Suppliers"]) ?
@@ -1080,7 +964,8 @@ function Sidebar() {
               {/*  Buyers & Suppliers end  */}
 
               {/* BOM start */}
-              {MatchPermission(["Create BOM Master", "View BOM Master", "BOM Report"]) ?
+              {MatchPermission(["Create BOM Master", "View BOM Master", "BOM Report"]) && 
+              companySettings.production_without_bom !== 1 ?
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button

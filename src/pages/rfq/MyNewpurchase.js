@@ -491,18 +491,6 @@ function MyNewpurchase() {
       setError({ ...error, products: "Please add at least one product to the request for quotation." });
       return false;
     }
-
-    // if (!sendToVendor && !sendToManagement) {
-    //   setError({
-    //     ...error,
-    //     sendDestination: "Please select either Send to vendor or Send to Management.",
-    //   });
-    //   return false;
-    // }
-    
-    // Note: Variant selection is handled in the modal flow
-    // If a product has variants available, the user must select one before proceeding
-    // If no variants are available, the product can proceed without a variant
     
     return true;
   };

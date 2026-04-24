@@ -21,6 +21,7 @@ function CompanyInfo() {
   const [signatureexisting, setSignatureexisting] = useState("");
   const [minimumPOApprovalAmount, setMinimumPOApprovalAmount] = useState("");
   const [minimumSOApprovalAmount, setMinimumSOApprovalAmount] = useState("");
+  const [hasProductionPlanning, setHasProductionPlanning] = useState("");
   // const sigCanvasRef = useRef();
 
 
@@ -134,6 +135,7 @@ function CompanyInfo() {
 
         setMinimumPOApprovalAmount(settings.min_purchase_amount);
         setMinimumSOApprovalAmount(settings.min_sale_amount);
+        setHasProductionPlanning(settings.is_production_planning);
         
         
       }
@@ -155,6 +157,8 @@ function CompanyInfo() {
       setMinimumPOApprovalAmount(value);
     } else if (key === "minimumSOApprovalAmount") {
       setMinimumSOApprovalAmount(value);
+    } else if (key === "hasProductionPlanning") {
+      setHasProductionPlanning(value ? 1 : 0);
     }
   };
   const submit = async (e) => {
@@ -168,7 +172,8 @@ function CompanyInfo() {
       template: selectedTemplate,
       signature, // Include the signature
       minimum_po_approval_amount: minimumPOApprovalAmount,
-      minimum_so_approval_amount: minimumSOApprovalAmount
+      minimum_so_approval_amount: minimumSOApprovalAmount,
+      is_production_planning: hasProductionPlanning,
     };
     // console.log(data);
 
@@ -264,13 +269,41 @@ function CompanyInfo() {
                         <label for="planned_date" className="form-label">
                           Minimum Sale Order Apporoval Amount
                         </label>
-                        <input type="text" className="form-control" name="minimumSOApprovalAmount" value={minimumSOApprovalAmount} onChange={(e) =>
-                          handleSettingsChange(
-                            "minimumSOApprovalAmount",
-                            e.target.value
-                          )
-                        } />
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          name="minimumSOApprovalAmount" 
+                          value={minimumSOApprovalAmount} 
+                          onChange={(e) =>
+                            handleSettingsChange(
+                              "minimumSOApprovalAmount",
+                              e.target.value
+                            )
+                          } 
+                        />
                       </div>
+                    </div>
+
+                    <div className="col-md-6 col-sm-12 mb-6">
+                      <div className="form-group">
+                        <label className="custom-checkbox mb-0" style={{ marginRight: "14px" }}>
+                          <input
+                            type="checkbox"
+                            name="hasProductionPlanning"
+                            checked={hasProductionPlanning}
+                            onChange={(e) =>
+                              handleSettingsChange(
+                                "hasProductionPlanning",
+                                e.target.checked
+                              )
+                            }
+                            // onChange={handleSendToManagementChange}
+                          />
+                          <span className="checkmark"></span>
+                          <span>Has Production Planning?</span>
+                        </label>
+                      </div>
+      
                     </div>
 
 
