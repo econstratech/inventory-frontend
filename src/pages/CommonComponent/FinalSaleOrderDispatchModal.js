@@ -216,6 +216,20 @@ const FinalSaleOrderDispatchModal = ({
     return null;
   }
 
+  const hasAnyMasterPack = productCompare.some((purchase) =>
+    (purchase.products || []).some((p) => {
+      const pd = p?.productData || p?.product;
+      return Number(pd?.has_master_pack) === 1;
+    })
+  );
+
+  const computeMasterPackDisplay = (qty, variantData) => {
+    const qpp = parseFloat(variantData?.quantity_per_pack);
+    const q = parseFloat(qty);
+    if (!Number.isFinite(qpp) || qpp <= 0 || !Number.isFinite(q)) return null;
+    return String(Number((q / qpp).toFixed(2)));
+  };
+
   return (
     <Modal
       backdrop="static"
@@ -402,6 +416,7 @@ const FinalSaleOrderDispatchModal = ({
                   <th>Total Weight</th>
                 </>
               )}
+              {hasAnyMasterPack && <th>Master Pack</th>}
               <th>Unit Price</th>
               <th>Tax (%)</th>
               <th>Tax Amount</th>
@@ -510,6 +525,22 @@ const FinalSaleOrderDispatchModal = ({
                         </td>
                       </>
                     )}
+                    {hasAnyMasterPack && (
+                      <td>
+                        {(() => {
+                          const pd = product?.productData || product?.product;
+                          const variantData = product?.productVariant || product?.variantData;
+                          if (
+                            Number(pd?.has_master_pack) === 1 &&
+                            Number(variantData?.quantity_per_pack) > 0
+                          ) {
+                            const mp = computeMasterPackDisplay(quantity, variantData);
+                            return mp != null ? `${mp} unit` : <span className="text-muted">—</span>;
+                          }
+                          return <span className="text-muted">—</span>;
+                        })()}
+                      </td>
+                    )}
                     <td>
                       {currencySymbol} {unitPrice.toFixed(2)}
                     </td>
@@ -544,7 +575,10 @@ const FinalSaleOrderDispatchModal = ({
 
             {/* Grand Total Row */}
             <tr>
-              <td colSpan={10} className="text-end fw-bold">
+              <td
+                colSpan={10 + (hasAnyMasterPack ? 1 : 0)}
+                className="text-end fw-bold"
+              >
                 Grand Total:
               </td>
               <td className="fw-bold">
