@@ -166,21 +166,21 @@ const AllProductionProcessRepairPendingList = React.lazy(() => import("../pages/
 const CreateProduction = React.lazy(() => import("../pages/ProductionMaster/AllProductionProcess/CreateProduction"));
 const ViewProductionProcess = React.lazy(() => import("../pages/ProductionMaster/AllProductionProcess/ViewProductionProcess.js"));
 const WorkOrders = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrders.js"));
-const WorkOrdersOpen = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersOpen.js"));
-const WorkOrdersPlanned = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersPlanned.js"));
-const WorkOrdersPending = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersPending.js"));
-const WorkOrdersWip = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersWip.js"));
-const WorkOrdersCompleted = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersCompleted.js"));
-const WorkOrderMaterials = React.lazy(() => import("../pages/ProductionMaster/workOrderMaterials/WorkOrderMaterials.js"));
+// const WorkOrdersOpen = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersOpen.js"));
+// const WorkOrdersPlanned = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersPlanned.js"));
+// const WorkOrdersPending = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersPending.js"));
+// const WorkOrdersWip = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersWip.js"));
+// const WorkOrdersCompleted = React.lazy(() => import("../pages/ProductionMaster/workOrders/WorkOrdersCompleted.js"));
+// const WorkOrderMaterials = React.lazy(() => import("../pages/ProductionMaster/workOrderMaterials/WorkOrderMaterials.js"));
 const ProductionDispatch   = React.lazy(() => import("../pages/ProductionMaster/dispatch/ProductionDispatch.js"));
 const ProductionDashboard  = React.lazy(() => import("../pages/ProductionMaster/dashboard/ProductionDashboard.js"));
 const ProductionPlanningList = React.lazy(() => import("../pages/ProductionMaster/productionPlanning/ProductionPlanningList.js"));
 const CreateProductionPlanning = React.lazy(() => import("../pages/ProductionMaster/productionPlanning/CreateProductionPlanning.js"));
 
-const SubContract = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContract.js"));
-const SubContractApprovePending = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractApprovePending.js"));
-const SubContractApprove = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractApprove.js"));
-const SubContractCanceled = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractCanceled.js"));
+// const SubContract = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContract.js"));
+// const SubContractApprovePending = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractApprovePending.js"));
+// const SubContractApprove = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractApprove.js"));
+// const SubContractCanceled = React.lazy(() => import("../pages/ProductionMaster/subContract/SubContractCanceled.js"));
 
 
 const DocumentReceivable = React.lazy(() => import("../pages/Payments/Documents/DocumentReceivable.js"));
@@ -406,21 +406,21 @@ function PrivateRoutes() {
           <Route path="/production/all-production-process/create-production" element={<CreateProduction />} />
           <Route path="/production/all-production-process/view-production/:id" element={<ViewProductionProcess />} />
           <Route path="/production/work-orders" element={<WorkOrders />} />
-          <Route path="/production/work-orders-open" element={<WorkOrdersOpen />} />
-          <Route path="/production/work-orders-planned" element={<WorkOrdersPlanned />} />
-          <Route path="/production/work-orders-pending" element={<WorkOrdersPending />} />
-          <Route path="/production/work-orders-wip" element={<WorkOrdersWip />} />
-          <Route path="/production/work-orders-completed" element={<WorkOrdersCompleted />} />
-          <Route path="/production/work-order-materials" element={<WorkOrderMaterials />} />
+          {/* <Route path="/production/work-orders-open" element={<WorkOrdersOpen />} /> */}
+          {/* <Route path="/production/work-orders-planned" element={<WorkOrdersPlanned />} /> */}
+          {/* <Route path="/production/work-orders-pending" element={<WorkOrdersPending />} /> */}
+          {/* <Route path="/production/work-orders-wip" element={<WorkOrdersWip />} /> */}
+          {/* <Route path="/production/work-orders-completed" element={<WorkOrdersCompleted />} /> */}
+          {/* <Route path="/production/work-order-materials" element={<WorkOrderMaterials />} /> */}
           <Route path="/production/dispatch"   element={<ProductionDispatch />} />
           <Route path="/production/dashboard" element={<ProductionDashboard />} />
           <Route path="/production/planning-list" element={<ProductionPlanningList />} />
           <Route path="/production/planning-create" element={<CreateProductionPlanning />} />
           <Route path="/production/planning-edit/:id" element={<CreateProductionPlanning />} />
-          <Route path="/production/sub-contract" element={<SubContract />} />
+          {/* <Route path="/production/sub-contract" element={<SubContract />} />
           <Route path="/production/sub-contract-approve-pending" element={<SubContractApprovePending />} />
           <Route path="/production/sub-contract-approve" element={<SubContractApprove />} />
-          <Route path="/production/sub-contract-canceled" element={<SubContractCanceled />} />
+          <Route path="/production/sub-contract-canceled" element={<SubContractCanceled />} /> */}
 
           {/* payments   */}
           <Route path="/payment/document/receivable" element={<DocumentReceivable />} />

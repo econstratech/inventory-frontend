@@ -36,6 +36,7 @@ function StockMaster() {
   const [selectedProductType, setSelectedProductType] = useState(null);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [searchKeyInput, setSearchKeyInput] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   
   // Update modal state
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
@@ -50,7 +51,9 @@ function StockMaster() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateErrors, setUpdateErrors] = useState({});
-  const { isVariantBased } = UserAuth();
+  const { isVariantBased, user } = UserAuth();
+
+  const hasMasterPack = user.company?.generalSettings.has_master_pack === 1;
 
   // Fetch warehouses for dropdown
   const fetchStores = async () => {
@@ -163,6 +166,7 @@ function StockMaster() {
           key: index + 1,
           id: item.id || "",
           productVariant: item?.productVariant || "",
+          masterPack: item?.productVariant?.weight_per_pack,
           product: {
             id: item.product.id || "",
             product_code: item.product.product_code || "",
@@ -464,6 +468,57 @@ function StockMaster() {
     });
   };
 
+  const handleExport = async () => {
+    if (isExporting) return;
+
+    const { searchKey, warehouseId, productTypeId, brandId } = productController;
+    const params = {
+      ...(searchKey && { searchkey: searchKey }),
+      ...(warehouseId && { warehouse_id: warehouseId }),
+      ...(productTypeId && { product_type_id: productTypeId }),
+      ...(brandId && { brand_id: brandId }),
+    };
+
+    setIsExporting(true);
+    try {
+      const response = await PrivateAxios.get("/product/stock-entries/export", {
+        params,
+        responseType: "blob",
+      });
+
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const fallbackFilename = `stock_master_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+
+      const disposition = response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+      const filename = fileNameMatch?.[1]
+        ? decodeURIComponent(fileNameMatch[1].replace(/"/g, ""))
+        : fallbackFilename;
+
+      const blob = new Blob([response.data], {
+        type: response?.headers?.["content-type"] || "text/csv;charset=utf-8;",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+
+      SuccessMessage("Stock master exported successfully.");
+    } catch (error) {
+      console.error("Error exporting stock master:", error);
+      ErrorMessage(
+        error?.response?.data?.message || "Failed to export stock master. Please try again."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleProductsListPageChange = (page, pageSize) => {
     setProductController(prev => ({
       ...prev,
@@ -522,6 +577,12 @@ function StockMaster() {
         return record?.product.productType || "N/A";
       },
     },
+    ...(hasMasterPack && [{
+      title: "Master Pack",
+      dataIndex: ["masterPack"],
+      key: "masterPack",
+      width: 150,
+    }]),
     {
       title: "Store",
       dataIndex: ["warehouse", "name"],
@@ -707,6 +768,8 @@ function StockMaster() {
     
                 <StockMasterBulkActions
                   isBulkActions={true}
+                  onExport={handleExport}
+                  isExporting={isExporting}
                   // onAddMultipleItems={multipleItemsModalShow}
                   // onSuccess={fetchData}
                   // onAddSingleItem={handleShowAddSingleItemModal}
@@ -868,7 +931,10 @@ function StockMaster() {
                                 current: productController.page,
                                 pageSize: productController.rowsPerPage,
                                 total: productsCount,
-                                onChange: handleProductsListPageChange
+                                showSizeChanger: true,
+                                pageSizeOptions: ["10", "15", "25", "50"],
+                                onChange: handleProductsListPageChange,
+                                onShowSizeChange: handleProductsListPageChange,
                               }}
                               scroll={{ x: 1000 }}
                             />
