@@ -19,7 +19,7 @@ function InventoryMaster() {
   const [productsCount, setProductsCount] = useState(0);
   const [productController, setProductController] = useState({
     page: 1,
-    rowsPerPage: 6,
+    rowsPerPage: 10,
     searchKey: "",
   });
   const [errorMessage, setErrorMessage] = useState({});
@@ -865,7 +865,10 @@ function InventoryMaster() {
                                 current: productController.page,
                                 pageSize: productController.rowsPerPage,
                                 total: productsCount,
-                                onChange: handleProductsListPageChange
+                                showSizeChanger: true,
+                                pageSizeOptions: ["10", "15", "25", "50"],
+                                onChange: handleProductsListPageChange,
+                                onShowSizeChange: handleProductsListPageChange,
                               }}
                               scroll={{ x: 1500 }}
                             />

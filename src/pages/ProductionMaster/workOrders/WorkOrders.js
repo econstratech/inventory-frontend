@@ -1720,12 +1720,12 @@ function WorkOrders() {
           <div className="px-3 py-2 border-bottom" style={{ background: "#f8fafc", overflowX: "auto" }}>
             <div className="d-flex gap-2">
               {[
-                { value: null, label: "All",            color: "#475569" },
-                { value: 1,    label: "Pending",        color: "#f59e0b" },
-                { value: 2,    label: "Material Issue", color: "#3b82f6" },
-                { value: 3,    label: "In Production",  color: "#8b5cf6" },
-                { value: 4,    label: "Completed",      color: "#10b981" },
-                { value: 5,    label: "Cancelled",      color: "#ef4444" },
+                { value: null, label: "All",            color: "#475569", icon: "fas fa-layer-group" },
+                { value: 1,    label: "Pending",        color: "#f59e0b", icon: "fas fa-clock" },
+                { value: 2,    label: "Material Issue", color: "#3b82f6", icon: "fas fa-boxes" },
+                { value: 3,    label: "In Production",  color: "#8b5cf6", icon: "fas fa-cogs" },
+                { value: 4,    label: "Completed",      color: "#10b981", icon: "fas fa-check-circle" },
+                { value: 5,    label: "Cancelled",      color: "#ef4444", icon: "fas fa-times-circle" },
               ].map((tab) => {
                 const isActive = statusTab === tab.value;
                 return (
@@ -1738,19 +1738,43 @@ function WorkOrders() {
                       setPageState(resetPage);
                       fetchWorkOrders(resetPage, null, null, tab.value);
                     }}
+                    onMouseEnter={(e) => {
+                      if (isActive) return;
+                      e.currentTarget.style.background = `${tab.color}14`;
+                      e.currentTarget.style.borderColor = tab.color;
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = `0 2px 6px ${tab.color}33`;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isActive) return;
+                      e.currentTarget.style.background = "#fff";
+                      e.currentTarget.style.borderColor = `${tab.color}55`;
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                     style={{
                       padding: "6px 14px",
-                      border: isActive ? `1.5px solid ${tab.color}` : "1.5px solid #e2e8f0",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      border: isActive
+                        ? `1.5px solid ${tab.color}`
+                        : `1.5px solid ${tab.color}55`,
                       borderRadius: 20,
-                      background: isActive ? `${tab.color}14` : "#fff",
-                      color: isActive ? tab.color : "#64748b",
+                      background: isActive
+                        ? `linear-gradient(135deg, ${tab.color}, ${tab.color}d9)`
+                        : "#fff",
+                      color: isActive ? "#fff" : tab.color,
                       fontWeight: 600,
                       fontSize: 13,
                       cursor: "pointer",
                       whiteSpace: "nowrap",
-                      transition: "all 0.15s ease",
+                      boxShadow: isActive ? `0 4px 12px ${tab.color}66` : "none",
+                      transform: isActive ? "translateY(-1px)" : "translateY(0)",
+                      transition: "all 0.18s ease",
                     }}
                   >
+                    <i className={tab.icon} style={{ fontSize: 12 }} />
                     {tab.label}
                   </button>
                 );

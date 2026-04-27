@@ -41,6 +41,7 @@ function MaterialIssueReport() {
   });
   const [pageSize, setPageSize] = useState(15);
   const [filterCollapsed, setFilterCollapsed] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Detail modal
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -153,6 +154,56 @@ function MaterialIssueReport() {
 
   const handleRangeToggle = (range) => {
     setSelectedRange((prev) => (prev === range ? "" : range));
+  };
+
+  const handleExport = async () => {
+    if (selectedRange === "custom" && (!fmsData.startDate || !fmsData.endDate || fmsData.startDate > fmsData.endDate)) {
+      alert("Please provide a valid custom date range.");
+      return;
+    }
+
+    const { startDate, endDate } = getDateParams();
+    const params = {};
+    const startStr = toDateString(startDate);
+    const endStr = toDateString(endDate);
+    if (startStr) params.date_from = startStr;
+    if (endStr) params.date_to = endStr;
+    if (search.trim()) params.search = search.trim();
+
+    setExporting(true);
+    try {
+      const response = await PrivateAxios.get("report/production/export/material-issue-report", {
+        params,
+        responseType: "blob",
+      });
+
+      const today = new Date();
+      const dateStr = `${String(today.getDate()).padStart(2, "0")}${String(today.getMonth() + 1).padStart(2, "0")}${today.getFullYear()}`;
+      const fallbackFilename = `material-issue-report${dateStr}.csv`;
+
+      const disposition = response?.headers?.["content-disposition"] || "";
+      const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+      const filename = fileNameMatch?.[1]
+        ? decodeURIComponent(fileNameMatch[1].replace(/"/g, ""))
+        : fallbackFilename;
+
+      const blob = new Blob([response.data], {
+        type: response?.headers?.["content-type"] || "text/csv;charset=utf-8;",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export material issue report:", error);
+      alert("Failed to export material issue report. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const openDetailModal = (record) => {
@@ -330,6 +381,24 @@ function MaterialIssueReport() {
       <div className="card mt-4">
         <div className="card-header bg-primary d-flex justify-content-between align-items-center">
           <h4 className="card-title mb-0">Material Issue Report</h4>
+          <button
+            type="button"
+            className="btn btn-light btn-sm ms-auto"
+            onClick={handleExport}
+            disabled={exporting || loading}
+          >
+            {exporting ? (
+              <>
+                <i className="fas fa-spinner fa-spin me-1" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-file-csv me-1" />
+                Export
+              </>
+            )}
+          </button>
         </div>
         <div className="card-body p-0 table-responsive">
           {loading ? (

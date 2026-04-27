@@ -15,6 +15,8 @@ import StockTransferModal from "./StockTransferModal";
  */
 function StockMasterBulkActions({
   onAddMultipleItems,
+  onExport,
+  isExporting = false,
   onSuccess,
   addSingleItemHref,
   onAddSingleItem,
@@ -125,6 +127,24 @@ function StockMasterBulkActions({
             </div>
           </div>
         </button>
+        {typeof onExport === "function" && (
+        <button
+          type="button"
+          className="dropdown-item"
+          onClick={onExport}
+          disabled={isExporting}
+        >
+          <div className="d-flex align-items-start">
+            <i className={`fas ${isExporting ? "fa-spinner fa-spin" : "fa-file-csv"} me-2 text-primary mt-1`}></i>
+            <div>
+              <div className="fw-medium f-s-14">{isExporting ? "Exporting..." : "Export"}</div>
+              <span className="text-muted f-s-12">
+                Download all stock entries as CSV (current filters applied)
+              </span>
+            </div>
+          </div>
+        </button>
+        )}
         {typeof onAddMultipleItems === "function" && (
         <>
         <div className="dropdown-item d-flex align-items-center">
