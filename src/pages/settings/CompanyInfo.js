@@ -284,7 +284,7 @@ function CompanyInfo() {
                       </div>
                     </div>
 
-                    <div className="col-md-6 col-sm-12 mb-6">
+                    {/* <div className="col-md-6 col-sm-12 mb-6">
                       <div className="form-group">
                         <label className="custom-checkbox mb-0" style={{ marginRight: "14px" }}>
                           <input
@@ -304,7 +304,7 @@ function CompanyInfo() {
                         </label>
                       </div>
       
-                    </div>
+                    </div> */}
 
 
                   </div>

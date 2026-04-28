@@ -1,12 +1,110 @@
 import React, { useEffect, useState, useRef } from 'react'
 import DataTable from 'react-data-table-component'
 import { Modal, OverlayTrigger, Tooltip } from 'react-bootstrap'
+import PhoneInput from 'react-phone-input-2'
 import moment from 'moment'
 
-import { SuccessMessage } from '../../environment/ToastMessage'
+import { ErrorMessage, SuccessMessage } from '../../environment/ToastMessage'
 import { PrivateAxios } from '../../environment/AxiosInstance'
 import AddCompany from './AddCompany'
 import AddUser from './AddUser'
+
+const initialEditData = {
+    id: "",
+    name: "",
+    company_name: "",
+    company_email: "",
+    company_phone: "",
+    c_p_isd: "91",
+    whatsapp_number: "",
+    w_isd: "91",
+    contact_name: "",
+    contact_email: "",
+    contact_phone: "",
+    p_isd: "91",
+    owner_name: "",
+    owner_email: "",
+    address: "",
+    renew_date: "",
+    is_variant_based: "",
+    min_purchase_amount: "",
+    min_sale_amount: "",
+    is_production_planning: "",
+    production_without_bom: "",
+    allowed_modules: [],
+}
+
+const parseAllowedModules = (raw) => {
+    if (Array.isArray(raw)) return raw.map(Number).filter((n) => !Number.isNaN(n))
+    if (typeof raw === "string" && raw.trim()) {
+        try {
+            const parsed = JSON.parse(raw)
+            if (Array.isArray(parsed)) return parsed.map(Number).filter((n) => !Number.isNaN(n))
+        } catch {
+            // ignore — fall through to empty
+        }
+    }
+    return []
+}
+
+const RadioCard = ({ name, id, value, checked, onChange, label, activeColor = "#1d4ed8", activeBg = "#eff6ff" }) => (
+    <label
+        htmlFor={id}
+        className="mb-0"
+        style={{
+            cursor: "pointer",
+            flex: 1,
+            padding: "10px 14px",
+            border: checked ? `2px solid ${activeColor}` : "1px solid #e2e8f0",
+            borderRadius: 8,
+            background: checked ? activeBg : "#fff",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            transition: "all .15s",
+            userSelect: "none",
+        }}
+    >
+        <input
+            type="radio"
+            className="form-check-input m-0"
+            name={name}
+            id={id}
+            value={value}
+            checked={checked}
+            onChange={onChange}
+            style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }}
+        />
+        <span className="fw-semibold" style={{ fontSize: 14, color: checked ? activeColor : "#475569" }}>
+            {label}
+        </span>
+    </label>
+)
+
+const YesNoRadioGroup = ({ name, value, onChange, yesValue = "1", noValue = "0" }) => (
+    <div className="d-flex align-items-stretch gap-2 mt-2">
+        <RadioCard
+            name={name}
+            id={`${name}_yes`}
+            value={yesValue}
+            checked={String(value) === String(yesValue)}
+            onChange={onChange}
+            label="Yes"
+            activeColor="#16a34a"
+            activeBg="#f0fdf4"
+        />
+        <RadioCard
+            name={name}
+            id={`${name}_no`}
+            value={noValue}
+            checked={String(value) === String(noValue)}
+            onChange={onChange}
+            label="No"
+            activeColor="#64748b"
+            activeBg="#f1f5f9"
+        />
+    </div>
+)
 
 
 function CompanyManagement() {
@@ -59,58 +157,142 @@ function CompanyManagement() {
 
     //==========Edit Company Permission==============//
     const [permissionEditId, serPermissionEditId] = useState("")
-    const [companyEditData, setCompanyEditData] = useState({
-        "id": "",
-        "name": "",
-        "tasktracker": 0,
-        "checksheet": 0,
-        "workflow": 0,
-        "helpticket": 0,
-        "renew_date": ""
-    })
-    // const getCompanyData = (id) => {
-    //     PrivateAxios.get(`company/company-info/${id}`)
-    //         .then((res) => {
-    //             const { tasktracker, checksheet, workflow, helpticket, renew_date } = res.data.data
-    //             setCompanyEditData({ ...companyEditData, tasktracker, checksheet, workflow, helpticket, renew_date });
-    //         }).catch((err) => {
+    const [companyEditData, setCompanyEditData] = useState(initialEditData)
+    const [availableModules, setAvailableModules] = useState([])
+    const [editLoading, setEditLoading] = useState(false)
+    const [editSaving, setEditSaving] = useState(false)
+    const [editErrors, setEditErrors] = useState({})
 
-    //         })
-    // }
+    const clearEditFieldError = (field) => {
+        setEditErrors((prev) => {
+            if (!prev[field]) return prev
+            const next = { ...prev }
+            delete next[field]
+            return next
+        })
+    }
+
+    const getCompanyData = (id, rowData) => {
+        setEditLoading(true)
+        PrivateAxios.get(`company/company-info/${id}`)
+            .then((res) => {
+                const data = res.data?.data || {}
+                const cd = data.companyDetails || {}
+                const gs = cd.generalSettings || {}
+                const mods = Array.isArray(data.modules) ? data.modules : []
+                setAvailableModules(mods)
+                setCompanyEditData({
+                    id: cd.id || id,
+                    name: cd.company_name || rowData?.company_name || "",
+                    company_name: cd.company_name || "",
+                    company_email: cd.company_email || "",
+                    company_phone: cd.company_phone || "",
+                    c_p_isd: cd.c_p_isd || "91",
+                    whatsapp_number: cd.whatsapp_number || "",
+                    w_isd: cd.w_isd || "91",
+                    contact_name: cd.contact_name || "",
+                    contact_email: cd.contact_email || "",
+                    contact_phone: cd.contact_phone || "",
+                    p_isd: cd.p_isd || "91",
+                    owner_name: rowData?.users?.[0]?.name || "",
+                    owner_email: rowData?.users?.[0]?.email || "",
+                    address: cd.address || "",
+                    renew_date: cd.renew_date ? String(cd.renew_date).slice(0, 10) : "",
+                    is_variant_based:
+                        gs.is_variant_based != null ? String(gs.is_variant_based) : "",
+                    min_purchase_amount:
+                        gs.min_purchase_amount != null ? String(gs.min_purchase_amount) : "",
+                    min_sale_amount:
+                        gs.min_sale_amount != null ? String(gs.min_sale_amount) : "",
+                    is_production_planning:
+                        gs.is_production_planning != null ? String(gs.is_production_planning) : "",
+                    production_without_bom:
+                        gs.production_without_bom != null ? String(gs.production_without_bom) : "",
+                    allowed_modules: parseAllowedModules(cd.allowed_modules),
+                })
+            })
+            .catch((err) => {
+                ErrorMessage(err?.response?.data?.message || "Failed to fetch company details.")
+            })
+            .finally(() => setEditLoading(false))
+    }
+
+    const validateEditForm = () => {
+        const next = {}
+        if (!companyEditData.company_name?.trim()) next.company_name = "Company name is required."
+        if (!companyEditData.company_email?.trim()) next.company_email = "Company email is required."
+        if (!companyEditData.company_phone?.trim()) next.company_phone = "Company phone is required."
+        if (companyEditData.is_variant_based !== "0" && companyEditData.is_variant_based !== "1") {
+            next.is_variant_based = "Please select whether the company is variant based."
+        }
+        if (!companyEditData.renew_date) next.renew_date = "Renew date is required."
+        if (!companyEditData.address?.trim()) next.address = "Address is required."
+        if (!Array.isArray(companyEditData.allowed_modules) || companyEditData.allowed_modules.length === 0) {
+            next.allowed_modules = "Please select at least one module."
+        }
+        setEditErrors(next)
+        return Object.keys(next).length === 0
+    }
 
     const UpdateSubmit = (e) => {
         e.preventDefault();
-        PrivateAxios.put(`company/company-update/${permissionEditId}`, companyEditData)
+        if (!validateEditForm()) return
+        setEditSaving(true)
+        // console.log("companyEditData", companyEditData);
+        // return;
+        PrivateAxios.put(`company/update/${permissionEditId}`, companyEditData)
             .then((res) => {
                 SuccessMessage(res.data.message);
                 EditpermissionHide();
                 GetCompany(page, limit);
-            }).catch((err) => {
-
             })
+            .catch((err) => {
+                ErrorMessage(err?.response?.data?.message || err?.response?.data?.msg || "Failed to update company.")
+            })
+            .finally(() => setEditSaving(false))
     }
 
     const [permissionEditModel, setEditpermissionModel] = useState(false);
 
-    // const EditpermissionShow = (data) => {
-    //     setEditpermissionModel(true);
-    //     serPermissionEditId(data.id);
-    //     getCompanyData(data.id)
-    //     setCompanyEditData({ ...companyEditData, id: data.id, name: data.company_name })
-    // }
+    const EditpermissionShow = (data) => {
+        setEditpermissionModel(true);
+        serPermissionEditId(data.id);
+        setEditErrors({})
+        setCompanyEditData({ ...initialEditData, id: data.id, name: data.company_name })
+        getCompanyData(data.id, data)
+    }
     const EditpermissionHide = () => {
         setEditpermissionModel(false);
         serPermissionEditId("");
-        setCompanyEditData({
-            "id": "",
-            "name": "",
-            "tasktracker": 0,
-            "checksheet": 0,
-            "workflow": 0,
-            "helpticket": 0,
-            "renew_date": ""
+        setCompanyEditData(initialEditData)
+        setAvailableModules([])
+        setEditErrors({})
+    }
+
+    const toggleModule = (moduleId, checked) => {
+        clearEditFieldError("allowed_modules")
+        setCompanyEditData((prev) => {
+            const current = Array.isArray(prev.allowed_modules) ? prev.allowed_modules : []
+            const next = checked
+                ? Array.from(new Set([...current, Number(moduleId)]))
+                : current.filter((id) => Number(id) !== Number(moduleId))
+            return { ...prev, allowed_modules: next }
         })
     }
+
+    const toggleAllModules = (checked) => {
+        clearEditFieldError("allowed_modules")
+        setCompanyEditData((prev) => ({
+            ...prev,
+            allowed_modules: checked ? availableModules.map((m) => Number(m.id)) : [],
+        }))
+    }
+
+    const allModulesSelected =
+        availableModules.length > 0 &&
+        availableModules.every((m) =>
+            (companyEditData.allowed_modules || []).map(Number).includes(Number(m.id))
+        )
 
     const selectedColumns = [
         {
@@ -189,7 +371,7 @@ function CompanyManagement() {
                             <i className="fas fa-eye"></i>
                         </button>
                     </OverlayTrigger>
-                    {/* <OverlayTrigger
+                    <OverlayTrigger
                         placement="top"
                         overlay={
                             <Tooltip>
@@ -200,7 +382,7 @@ function CompanyManagement() {
                         <button className="me-1 table-action-btn" onClick={() => EditpermissionShow(row)}>
                             <i className="fas fa-pen"></i>
                         </button>
-                    </OverlayTrigger> */}
+                    </OverlayTrigger>
                     <OverlayTrigger
                         placement="top"
                         overlay={
@@ -285,6 +467,26 @@ function CompanyManagement() {
         if (v === 1 || v === "1") return "Yes";
         if (v === 0 || v === "0") return "No";
         return "—";
+    };
+
+    const yesNoLabel = (v) => {
+        if (v === 1 || v === "1") return "Yes";
+        if (v === 0 || v === "0") return "No";
+        return "—";
+    };
+
+    // Inverted: production_without_bom=0 means "Has BOM = Yes"
+    const hasBomLabel = (v) => {
+        if (v === 0 || v === "0") return "Yes";
+        if (v === 1 || v === "1") return "No";
+        return "—";
+    };
+
+    const formatAmountDisplay = (v) => {
+        if (v === undefined || v === null || v === "") return "—";
+        const num = Number(v);
+        if (Number.isFinite(num)) return new Intl.NumberFormat("en-IN").format(num);
+        return v;
     };
 
     const viewField = (label, value) => {
@@ -596,6 +798,10 @@ function CompanyManagement() {
                         {viewField("Owner Email", viewModelData?.users && viewModelData?.users.length > 0 ? viewModelData?.users[0]?.email : "")}
                         {/* {viewField("Password", "Not shown for security")} */}
                         {viewField("Renew Date", formatViewDate(viewModelData?.renew_date))}
+                        {viewField("Minimum Purchase Amount", formatAmountDisplay(viewModelData?.generalSettings?.min_purchase_amount))}
+                        {viewField("Minimum Sale Amount", formatAmountDisplay(viewModelData?.generalSettings?.min_sale_amount))}
+                        {viewField("Has Production Planning", yesNoLabel(viewModelData?.generalSettings?.is_production_planning))}
+                        {viewField("Has BOM", hasBomLabel(viewModelData?.generalSettings?.production_without_bom))}
                         <div className="col-12">
                             <div className="company-view-field border rounded-3 p-3 bg-light">
                                 <div className="text-muted small fw-semibold mb-1">Address</div>
@@ -661,79 +867,266 @@ function CompanyManagement() {
             </Modal>
 
             {/* =======================Edit Company=================== */}
-            <Modal id="viewUserListModal" show={permissionEditModel} onHide={EditpermissionHide} backdrop="static" keyboard={false} centered size="xl">
+            <Modal id="editCompanyModal" show={permissionEditModel} onHide={EditpermissionHide} backdrop="static" keyboard={false} centered size="lg" scrollable>
                 <Modal.Header closeButton className="gth-blue-light-bg">
                     <Modal.Title className="gth-modal-title">
-                        <h5 className="profile-name text-nowrap text-truncate mb-0">{companyEditData && companyEditData.name}</h5>
+                        <h5 className="profile-name text-nowrap text-truncate mb-0">
+                            Edit Company {companyEditData?.name ? `— ${companyEditData.name}` : ""}
+                        </h5>
                     </Modal.Title>
                 </Modal.Header>
-                <Modal.Body className='pb-1'>
-                    <form onSubmit={UpdateSubmit}>
-                        <div className="form-group">
-                            <label className="form-label">Permission <span className='text-danger'>*</span></label>
-                            <div className="d-flex flex-wrap">
-                                <label className="custom-checkbox me-3 mb-2">
-                                    <input type="checkbox" checked={companyEditData.checksheet == 1 && companyEditData.tasktracker == 1 && companyEditData.workflow == 1} onChange={(e) => {
-                                        e.target.checked ? setCompanyEditData({ ...companyEditData, tasktracker: 1, checksheet: 1, workflow: 1, }) : setCompanyEditData({ ...companyEditData, tasktracker: 0, checksheet: 0, workflow: 0, helpticket: 0 })
-                                    }} />
-                                    <span className="checkmark" />
-                                    <span className="text-">All</span>
-                                </label>
-                                <label className="custom-checkbox me-3 mb-2">
-                                    <input
-                                        type="checkbox" checked={companyEditData.tasktracker == 1} onChange={(e) => { e.target.checked ? setCompanyEditData({ ...companyEditData, tasktracker: 1 }) : setCompanyEditData({ ...companyEditData, tasktracker: 0 }) }}
-                                    />
-                                    <span className="checkmark" />
-                                    <span className="text-">Task Tracker</span>
-                                </label>
-                                <label className="custom-checkbox me-3 mb-2">
-                                    <input
-                                        type="checkbox" checked={companyEditData.checksheet == 1} onChange={(e) => { e.target.checked ? setCompanyEditData({ ...companyEditData, checksheet: 1 }) : setCompanyEditData({ ...companyEditData, checksheet: 0 }) }}
-                                    />
-                                    <span className="checkmark" />
-                                    <span className="text-">Check Sheet</span>
-                                </label>
-                                <label className="custom-checkbox me-3 mb-2">
-                                    <input
-                                        type="checkbox" checked={companyEditData.workflow == 1} onChange={(e) => { e.target.checked ? setCompanyEditData({ ...companyEditData, workflow: 1 }) : setCompanyEditData({ ...companyEditData, workflow: 0 }) }}
-                                    />
-                                    <span className="checkmark" />
-                                    <span className="text-">Work Flow</span>
-                                </label>
-                                {/* <label className="custom-checkbox me-3 mb-2">
-                                    <input
-                                        type="checkbox" checked={companyEditData.helpticket == 1} onChange={(e) => { e.target.checked ? setCompanyEditData({ ...companyEditData, helpticket: 1 }) : setCompanyEditData({ ...companyEditData, helpticket: 0 }) }}
-                                    />
-                                    <span className="checkmark" />
-                                    <span className="text-">Help Ticket</span>
-                                </label> */}
+                <form onSubmit={UpdateSubmit}>
+                    <Modal.Body className='pb-1'>
+                        {editLoading ? (
+                            <div className="text-center py-4 text-muted">
+                                <i className="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                                <p className="mb-0">Loading company details...</p>
                             </div>
-                        </div>
-                        <div className='col-md-6'>
-                            <div className="form-group">
-                                <label className="form-label">Renew Date <span className="text-exp-red">*</span></label>
-                                <input type="date" required className="form-control" onChange={(e) => setCompanyEditData({ ...companyEditData, renew_date: e.target.value })} value={companyEditData.renew_date} />
+                        ) : (
+                            <div className='row'>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Company Name <span className="text-exp-red">*</span></label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={companyEditData.company_name}
+                                            onChange={(e) => { clearEditFieldError("company_name"); setCompanyEditData({ ...companyEditData, company_name: e.target.value }) }}
+                                        />
+                                        {editErrors.company_name && <span className="error-message text-danger small d-block mt-1">{editErrors.company_name}</span>}
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Company Email <span className="text-exp-red">*</span></label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={companyEditData.company_email}
+                                            onChange={(e) => { clearEditFieldError("company_email"); setCompanyEditData({ ...companyEditData, company_email: e.target.value }) }}
+                                        />
+                                        {editErrors.company_email && <span className="error-message text-danger small d-block mt-1">{editErrors.company_email}</span>}
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Company Phone <span className="text-exp-red">*</span></label>
+                                        <PhoneInput
+                                            country={'in'}
+                                            value={`${companyEditData.c_p_isd || ""}${companyEditData.company_phone || ""}`}
+                                            onChange={(value, country) => {
+                                                clearEditFieldError("company_phone")
+                                                const code = `${country.dialCode}`
+                                                const number = value.replace(code, '')
+                                                setCompanyEditData({ ...companyEditData, company_phone: number, c_p_isd: code })
+                                            }}
+                                        />
+                                        {editErrors.company_phone && <span className="error-message text-danger small d-block mt-1">{editErrors.company_phone}</span>}
+                                    </div>
+                                </div>
+
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Company WhatsApp Number</label>
+                                        <PhoneInput
+                                            country={'in'}
+                                            value={`${companyEditData.w_isd || ""}${companyEditData.whatsapp_number || ""}`}
+                                            onChange={(value, country) => {
+                                                const code = `${country.dialCode}`
+                                                const number = value.replace(code, '')
+                                                setCompanyEditData({ ...companyEditData, whatsapp_number: number, w_isd: code })
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Minimum Purchase Amount</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="form-control"
+                                            value={companyEditData.min_purchase_amount}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, min_purchase_amount: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Minimum Sale Amount</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="form-control"
+                                            value={companyEditData.min_sale_amount}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, min_sale_amount: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Is Variant Based? <span className="text-exp-red">*</span></label>
+                                        <YesNoRadioGroup
+                                            name="edit_is_variant_based"
+                                            value={companyEditData.is_variant_based}
+                                            onChange={(e) => { clearEditFieldError("is_variant_based"); setCompanyEditData({ ...companyEditData, is_variant_based: e.target.value }) }}
+                                        />
+                                        {editErrors.is_variant_based && <span className="error-message text-danger small d-block mt-1">{editErrors.is_variant_based}</span>}
+                                    </div>
+                                </div>
+
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Has Production Planning</label>
+                                        <YesNoRadioGroup
+                                            name="edit_is_production_planning"
+                                            value={companyEditData.is_production_planning}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, is_production_planning: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Has BOM</label>
+                                        <YesNoRadioGroup
+                                            name="edit_production_without_bom"
+                                            value={companyEditData.production_without_bom}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, production_without_bom: e.target.value })}
+                                            yesValue="0"
+                                            noValue="1"
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-12'>
+                                    <div className="form-group">
+                                        <label className="form-label">Modules <span className='text-danger'>*</span></label>
+                                        {availableModules.length === 0 ? (
+                                            <div className="text-muted small">No modules available.</div>
+                                        ) : (
+                                            <div className="d-flex flex-wrap">
+                                                <label className="custom-checkbox me-3 mb-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allModulesSelected}
+                                                        onChange={(e) => toggleAllModules(e.target.checked)}
+                                                    />
+                                                    <span className="checkmark" />
+                                                    <span className="text-">All</span>
+                                                </label>
+                                                {availableModules.map((m) => (
+                                                    <label key={m.id} className="custom-checkbox me-3 mb-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(companyEditData.allowed_modules || []).map(Number).includes(Number(m.id))}
+                                                            onChange={(e) => toggleModule(m.id, e.target.checked)}
+                                                        />
+                                                        <span className="checkmark" />
+                                                        <span className="text-">{m.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {editErrors.allowed_modules && <span className="error-message text-danger small d-block mt-1">{editErrors.allowed_modules}</span>}
+                                    </div>
+                                </div>
+
+
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Contact Person Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={companyEditData.contact_name}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, contact_name: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Contact Person Email</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={companyEditData.contact_email}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, contact_email: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Contact Person Phone No</label>
+                                        <PhoneInput
+                                            country={'in'}
+                                            value={`${companyEditData.p_isd || ""}${companyEditData.contact_phone || ""}`}
+                                            onChange={(value, country) => {
+                                                const code = `${country.dialCode}`
+                                                const number = value.replace(code, '')
+                                                setCompanyEditData({ ...companyEditData, contact_phone: number, p_isd: code })
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Owner Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={companyEditData.owner_name}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, owner_name: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Owner Email</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            value={companyEditData.owner_email}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, owner_email: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Renew Date <span className="text-exp-red">*</span></label>
+                                        <input
+                                            type="date"
+                                            className="form-control"
+                                            value={companyEditData.renew_date}
+                                            onChange={(e) => { clearEditFieldError("renew_date"); setCompanyEditData({ ...companyEditData, renew_date: e.target.value }) }}
+                                        />
+                                        {editErrors.renew_date && <span className="error-message text-danger small d-block mt-1">{editErrors.renew_date}</span>}
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Address <span className="text-exp-red">*</span></label>
+                                        <textarea
+                                            className="form-control"
+                                            value={companyEditData.address}
+                                            onChange={(e) => { clearEditFieldError("address"); setCompanyEditData({ ...companyEditData, address: e.target.value }) }}
+                                        />
+                                        {editErrors.address && <span className="error-message text-danger small d-block mt-1">{editErrors.address}</span>}
+                                    </div>
+                                </div>
+                              
                             </div>
-                        </div>
-                        {/* <div className='d-flex w-100 align-items-center mb-3'>
-                        <span className='me-2 fw-medium'>Search:</span><input className='form-control' onChange={(e) => search(e)} />
-                    </div> */}
-                        {/* <DataTable
-                        columns={AllUserColumns}
-                        data={UserList}
-                        pagination={[5, 10, 25, 50]}
-                        theme="solarized"
-                        striped
-                        className='custom-table-wrap checklist-table-striped'
-                    //customStyles={customStyles}
-                    /> */}
-                        <Modal.Footer>
-                            <button className='btn btn-exp-green'>
-                                Update
-                            </button>
-                        </Modal.Footer>
-                    </form>
-                </Modal.Body>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <button type="button" className='btn btn-exp-light' onClick={EditpermissionHide} disabled={editSaving}>
+                            Cancel
+                        </button>
+                        <button type="submit" className='btn btn-exp-green' disabled={editSaving || editLoading}>
+                            {editSaving ? "Updating..." : "Update"}
+                        </button>
+                    </Modal.Footer>
+                </form>
             </Modal>
 
             {/* ======================Add User=========================== */}

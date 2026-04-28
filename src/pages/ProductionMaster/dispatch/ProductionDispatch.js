@@ -83,6 +83,7 @@ function ProductionDispatch() {
   const [dispatchRecord, setDispatchRecord] = useState(null);
   const [dispatchForm, setDispatchForm] = useState({ dispatchQty: "", dispatchType: 1, notes: "" });
   const [dispatchSaving, setDispatchSaving] = useState(false);
+  const [dispatchBatches, setDispatchBatches] = useState([]);
 
   // ─── dispatch history modal state ─────────────────────────────
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -222,12 +223,31 @@ function ProductionDispatch() {
   const openDispatchModal = (record) => {
     setDispatchRecord(record);
     setDispatchForm({ dispatchQty: "", dispatchType: 1, notes: "" });
+    setDispatchBatches([]);
     setDispatchModalOpen(true);
   };
 
   const closeDispatchModal = () => {
     setDispatchModalOpen(false);
     setDispatchRecord(null);
+    setDispatchBatches([]);
+  };
+
+  const addBatchRow = () => {
+    setDispatchBatches((prev) => [
+      ...prev,
+      { batch_no: "", mfg_date: null, exp_date: null, quantity: "" },
+    ]);
+  };
+
+  const updateBatchRow = (index, field, value) => {
+    setDispatchBatches((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const removeBatchRow = (index) => {
+    setDispatchBatches((prev) => prev.filter((_, i) => i !== index));
   };
 
   // ── dispatch history ──────────────────────────────────────────
@@ -263,12 +283,52 @@ function ProductionDispatch() {
       ErrorMessage(`Dispatch quantity cannot exceed final quantity (${finalQty}).`);
       return;
     }
+
+    const batchesPayload = [];
+    for (let i = 0; i < dispatchBatches.length; i++) {
+      const b = dispatchBatches[i];
+      const batchNo = (b.batch_no || "").trim();
+      if (!batchNo) {
+        ErrorMessage(`Batch ${i + 1}: Batch No. is required.`);
+        return;
+      }
+      const batchQty = b.quantity === "" || b.quantity == null ? null : Number(b.quantity);
+      if (batchQty != null && (!Number.isFinite(batchQty) || batchQty <= 0)) {
+        ErrorMessage(`Batch ${i + 1}: Quantity must be a positive number.`);
+        return;
+      }
+      if (b.mfg_date && b.exp_date && dayjs(b.exp_date).isBefore(dayjs(b.mfg_date), "day")) {
+        ErrorMessage(`Batch ${i + 1}: Expiry date cannot be before manufacturing date.`);
+        return;
+      }
+      batchesPayload.push({
+        batch_no: batchNo,
+        mfg_date: b.mfg_date ? dayjs(b.mfg_date).format("YYYY-MM-DD") : null,
+        exp_date: b.exp_date ? dayjs(b.exp_date).format("YYYY-MM-DD") : null,
+        quantity: batchQty,
+      });
+    }
+
+    if (finalQty > 0) {
+      const totalBatchQty = batchesPayload.reduce(
+        (sum, b) => sum + (Number(b.quantity) || 0),
+        0
+      );
+      if (totalBatchQty > finalQty) {
+        ErrorMessage(
+          `Total batch quantity (${totalBatchQty}) cannot exceed final quantity (${finalQty}).`
+        );
+        return;
+      }
+    }
+
     setDispatchSaving(true);
     try {
       const res = await PrivateAxios.post(`/production/dispatch/${dispatchRecord.id}`, {
         dispatched_qty: qty,
         dispatch_status: dispatchForm.dispatchType,
         dispatch_note: dispatchForm.notes || null,
+        batches: batchesPayload,
       });
       SuccessMessage(res?.data?.message || "Dispatch updated successfully.");
       closeDispatchModal();
@@ -313,33 +373,6 @@ function ProductionDispatch() {
   };
 
   const closeAddModal = () => setAddModalOpen(false);
-
-  // const handleAddDispatch = async () => {
-  //   if (!addForm.woId) { ErrorMessage("Please select a work order."); return; }
-  //   const qty = Number(addForm.dispatchQty);
-  //   if (!Number.isFinite(qty) || qty <= 0) { ErrorMessage("Dispatch quantity must be a positive number."); return; }
-  //   if (!addForm.dispatchDate) { ErrorMessage("Dispatch date is required."); return; }
-
-  //   setAddSaving(true);
-  //   try {
-  //     const res = await PrivateAxios.post("/production/dispatch/create", {
-  //       wo_id: addForm.woId,
-  //       dispatch_qty: qty,
-  //       dispatch_date: dayjs(addForm.dispatchDate).format("YYYY-MM-DD"),
-  //       notes: addForm.notes || null,
-  //     });
-  //     SuccessMessage(res?.data?.message || "Dispatch created successfully.");
-  //     closeAddModal();
-  //     const next = { skip: 0, take: pageState.take };
-  //     setPageState(next);
-  //     fetchDispatches(next);
-  //     fetchStats();
-  //   } catch (error) {
-  //     ErrorMessage(error?.response?.data?.message || "Failed to create dispatch.");
-  //   } finally {
-  //     setAddSaving(false);
-  //   }
-  // };
 
   // ── render helpers ─────────────────────────────────────────────
 
@@ -836,6 +869,103 @@ function ProductionDispatch() {
               </div>
             </div>
 
+            <div className="mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <label className="form-label fw-semibold mb-0">Batches</label>
+                <Button
+                  type="dashed"
+                  size="small"
+                  icon={<i className="fas fa-plus me-1" />}
+                  onClick={addBatchRow}
+                >
+                  Add Batch
+                </Button>
+              </div>
+              {dispatchBatches.length === 0 ? (
+                <div
+                  className="text-center text-muted py-3 rounded"
+                  style={{ background: "#f8fafc", border: "1px dashed #e2e8f0", fontSize: 12 }}
+                >
+                  No batches added. Click "Add Batch" to register batch details.
+                </div>
+              ) : (
+                <div className="d-flex flex-column gap-2">
+                  {dispatchBatches.map((b, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded"
+                      style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="fw-semibold" style={{ fontSize: 12 }}>
+                          Batch {idx + 1}
+                        </span>
+                        <Button
+                          type="text"
+                          size="small"
+                          danger
+                          icon={<i className="fas fa-trash" />}
+                          onClick={() => removeBatchRow(idx)}
+                        />
+                      </div>
+                      <div className="row g-2">
+                        <div className="col-md-6">
+                          <label className="form-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                            Batch No. <span className="text-danger">*</span>
+                          </label>
+                          <Input
+                            value={b.batch_no}
+                            onChange={(e) => updateBatchRow(idx, "batch_no", e.target.value)}
+                            placeholder="e.g. X0199"
+                            size="small"
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                            Quantity
+                          </label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={b.quantity}
+                            onChange={(e) => updateBatchRow(idx, "quantity", e.target.value)}
+                            placeholder="Qty"
+                            size="small"
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                            Mfg Date
+                          </label>
+                          <DatePicker
+                            value={b.mfg_date}
+                            onChange={(d) => updateBatchRow(idx, "mfg_date", d)}
+                            format="DD/MM/YYYY"
+                            placeholder="dd/mm/yyyy"
+                            style={{ width: "100%" }}
+                            size="small"
+                          />
+                        </div>
+                        <div className="col-md-6">
+                          <label className="form-label" style={{ fontSize: 12, marginBottom: 2 }}>
+                            Exp Date
+                          </label>
+                          <DatePicker
+                            value={b.exp_date}
+                            onChange={(d) => updateBatchRow(idx, "exp_date", d)}
+                            format="DD/MM/YYYY"
+                            placeholder="dd/mm/yyyy"
+                            style={{ width: "100%" }}
+                            size="small"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mb-2">
               <label className="form-label fw-semibold">Dispatch Note</label>
               <Input.TextArea
@@ -861,7 +991,7 @@ function ProductionDispatch() {
         footer={[
           <Button key="close" onClick={closeHistoryModal}>Close</Button>,
         ]}
-        width={620}
+        width={720}
       >
         {historyLoading ? (
           <div className="text-center py-4 text-muted">
@@ -879,6 +1009,53 @@ function ProductionDispatch() {
             dataSource={historyLogs}
             pagination={false}
             size="small"
+            expandable={{
+              rowExpandable: (record) => Array.isArray(record.batches) && record.batches.length > 0,
+              expandedRowRender: (record) => (
+                <div className="px-3 py-2" style={{ background: "#f8fafc" }}>
+                  <div className="fw-semibold mb-2" style={{ fontSize: 12, color: "#475569" }}>
+                    Batches ({record.batches.length})
+                  </div>
+                  <Table
+                    rowKey="id"
+                    dataSource={record.batches}
+                    pagination={false}
+                    size="small"
+                    columns={[
+                      {
+                        title: "Batch No.",
+                        dataIndex: "batch_no",
+                        key: "batch_no",
+                        width: 140,
+                        render: (v) => <span className="fw-semibold">{v || "—"}</span>,
+                      },
+                      {
+                        title: "Quantity",
+                        dataIndex: "quantity",
+                        key: "quantity",
+                        width: 90,
+                        render: (v) =>
+                          v != null ? new Intl.NumberFormat("en-IN").format(Number(v)) : <span className="text-muted">—</span>,
+                      },
+                      {
+                        title: "Mfg Date",
+                        dataIndex: "mfg_date",
+                        key: "mfg_date",
+                        width: 120,
+                        render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : <span className="text-muted">—</span>),
+                      },
+                      {
+                        title: "Exp Date",
+                        dataIndex: "exp_date",
+                        key: "exp_date",
+                        width: 120,
+                        render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : <span className="text-muted">—</span>),
+                      },
+                    ]}
+                  />
+                </div>
+              ),
+            }}
             columns={[
               {
                 title: "#",
@@ -894,10 +1071,35 @@ function ProductionDispatch() {
                 render: (v) => <span className="fw-bold">{new Intl.NumberFormat("en-IN").format(Number(v) || 0)}</span>,
               },
               {
+                title: "Batches",
+                key: "batches_count",
+                width: 80,
+                render: (_, record) => {
+                  const count = Array.isArray(record.batches) ? record.batches.length : 0;
+                  return count > 0 ? (
+                    <span
+                      style={{
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: 12,
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  );
+                },
+              },
+              {
                 title: "Note",
                 dataIndex: "dispatch_note",
                 key: "dispatch_note",
-                width: 200,
+                width: 180,
                 render: (v) => v || <span className="text-muted">—</span>,
               },
               {
@@ -908,8 +1110,8 @@ function ProductionDispatch() {
               },
               {
                 title: "Date",
-                dataIndex: "dispacthed_at",
-                key: "dispacthed_at",
+                dataIndex: "dispatched_at",
+                key: "dispatched_at",
                 width: 140,
                 render: (v) => v ? dayjs(v).format("DD/MM/YYYY hh:mm A") : "—",
               },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Tag } from "antd";
+import { Button, Modal, Table, Tag, Tooltip } from "antd";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { subMonths } from "date-fns";
@@ -19,6 +19,20 @@ const formatDisplayDate = (dateStr) => {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+};
+
+const formatDisplayDateTime = (dateStr) => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${day}/${month}/${year} ${String(hours).padStart(2, "0")}:${minutes} ${ampm}`;
 };
 
 const DISPATCH_STATUS_OPTIONS = [
@@ -58,7 +72,20 @@ function DispatchReport() {
   const [filterCollapsed, setFilterCollapsed] = useState(false);
   const [exporting, setExporting] = useState(false);
 
+  const [logModalOpen, setLogModalOpen] = useState(false);
+  const [logModalRow, setLogModalRow] = useState(null);
+
   const PAGE_SIZE_OPTIONS = [10, 15, 25, 50];
+
+  const openLogModal = (row) => {
+    setLogModalRow(row);
+    setLogModalOpen(true);
+  };
+
+  const closeLogModal = () => {
+    setLogModalOpen(false);
+    setLogModalRow(null);
+  };
 
   const getDateParams = useCallback(
     (rangeOverride, fmsOverride) => {
@@ -220,7 +247,7 @@ function DispatchReport() {
     }
   };
 
-  const colCount = isVariantBased ? 10 : 7;
+  const colCount = isVariantBased ? 11 : 8;
 
   return (
     <div className="p-4">
@@ -378,10 +405,12 @@ function DispatchReport() {
                     {isVariantBased && <th>Variant</th>}
                     <th>Planned Qty</th>
                     {isVariantBased && <th>Planned Weight</th>}
-                    <th>Raw Material Used Qty</th>
+                    <th>Used RM Qty</th>
                     {isVariantBased && <th>Used Weight</th>}
+                    <th>Dispatched Qty</th>
                     <th>Dispatch Status</th>
                     <th>Production Completed</th>
+                    <th style={{ width: 80 }} className="text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -421,6 +450,7 @@ function DispatchReport() {
                         {isVariantBased && (
                           <td className="fw-semibold">{row.used_weight || "N/A"}</td>
                         )}
+                        <td>{row.dispatched_quantity || 0 }</td>
                         <td>
                           <Tag
                             color={dispatchStatusTagColor(row.dispatch_status)}
@@ -430,6 +460,17 @@ function DispatchReport() {
                           </Tag>
                         </td>
                         <td>{formatDisplayDate(row.production_completed_at)}</td>
+                        <td className="text-center">
+                          <Tooltip title="View Dispatch Log">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<i className="fas fa-eye" style={{ color: "#1d4ed8" }} />}
+                              onClick={() => openLogModal(row)}
+                              disabled={!Array.isArray(row.dispatch_log) || row.dispatch_log.length === 0}
+                            />
+                          </Tooltip>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -477,6 +518,154 @@ function DispatchReport() {
           )}
         </div>
       </div>
+
+      {/* ── dispatch log modal ── */}
+      <Modal
+        title={
+          <span className="fw-semibold">
+            Dispatch Log {logModalRow?.wo_number ? `— ${logModalRow.wo_number}` : ""}
+          </span>
+        }
+        open={logModalOpen}
+        onCancel={closeLogModal}
+        footer={[
+          <Button key="close" onClick={closeLogModal}>Close</Button>,
+        ]}
+        width={760}
+      >
+        {(() => {
+          const logs = Array.isArray(logModalRow?.dispatch_log) ? logModalRow.dispatch_log : [];
+          if (logs.length === 0) {
+            return (
+              <div className="text-center py-4 text-muted">
+                <i className="fas fa-inbox fa-2x mb-2"></i>
+                <p className="mb-0">No dispatch records found.</p>
+              </div>
+            );
+          }
+          return (
+            <Table
+              rowKey="id"
+              dataSource={logs}
+              pagination={false}
+              size="small"
+              expandable={{
+                rowExpandable: (record) => Array.isArray(record.batches) && record.batches.length > 0,
+                expandedRowRender: (record) => (
+                  <div className="px-3 py-2" style={{ background: "#f8fafc" }}>
+                    <div className="fw-semibold mb-2" style={{ fontSize: 12, color: "#475569" }}>
+                      Batches ({record.batches.length})
+                    </div>
+                    <Table
+                      rowKey="id"
+                      dataSource={record.batches}
+                      pagination={false}
+                      size="small"
+                      columns={[
+                        {
+                          title: "Batch No.",
+                          dataIndex: "batch_no",
+                          key: "batch_no",
+                          width: 140,
+                          render: (v) => <span className="fw-semibold">{v || "—"}</span>,
+                        },
+                        {
+                          title: "Quantity",
+                          dataIndex: "quantity",
+                          key: "quantity",
+                          width: 90,
+                          render: (v) =>
+                            v != null
+                              ? new Intl.NumberFormat("en-IN").format(Number(v))
+                              : <span className="text-muted">—</span>,
+                        },
+                        {
+                          title: "Mfg Date",
+                          dataIndex: "mfg_date",
+                          key: "mfg_date",
+                          width: 120,
+                          render: (v) => (v ? formatDisplayDate(v) : <span className="text-muted">—</span>),
+                        },
+                        {
+                          title: "Exp Date",
+                          dataIndex: "exp_date",
+                          key: "exp_date",
+                          width: 120,
+                          render: (v) => (v ? formatDisplayDate(v) : <span className="text-muted">—</span>),
+                        },
+                      ]}
+                    />
+                  </div>
+                ),
+              }}
+              columns={[
+                {
+                  title: "#",
+                  key: "index",
+                  width: 40,
+                  render: (_, __, i) => i + 1,
+                },
+                {
+                  title: "Quantity",
+                  dataIndex: "dispatched_qty",
+                  key: "dispatched_qty",
+                  width: 90,
+                  render: (v) => (
+                    <span className="fw-bold">
+                      {new Intl.NumberFormat("en-IN").format(Number(v) || 0)}
+                    </span>
+                  ),
+                },
+                {
+                  title: "Batches",
+                  key: "batches_count",
+                  width: 80,
+                  render: (_, record) => {
+                    const count = Array.isArray(record.batches) ? record.batches.length : 0;
+                    return count > 0 ? (
+                      <span
+                        style={{
+                          background: "#eff6ff",
+                          color: "#1d4ed8",
+                          border: "1px solid #bfdbfe",
+                          borderRadius: 12,
+                          padding: "2px 8px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {count}
+                      </span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    );
+                  },
+                },
+                {
+                  title: "Note",
+                  dataIndex: "dispatch_note",
+                  key: "dispatch_note",
+                  width: 200,
+                  render: (v) => v || <span className="text-muted">—</span>,
+                },
+                {
+                  title: "Dispatched By",
+                  key: "dispatched_by",
+                  width: 130,
+                  render: (_, record) => record.dispatchedBy?.name || "—",
+                },
+                {
+                  title: "Date",
+                  dataIndex: "dispatched_at",
+                  key: "dispatched_at",
+                  width: 160,
+                  render: (v) => formatDisplayDateTime(v),
+                },
+              ]}
+            />
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
