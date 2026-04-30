@@ -47,14 +47,11 @@ const PermissionsManager = ({ roleId }) => {
       const rows = apiData?.rows ?? [];
       const pagination = apiData?.pagination ?? {};
       if (Array.isArray(rows)) {
-        let list = [];
-          let startingIndex = (page - 1) * limit;
-            rows.map((permission, index) => {
-            list.push({
-              ...permission,
-              id: startingIndex + index + 1
-            });
-          });
+        const startingIndex = (page - 1) * limit;
+        const list = rows.map((permission, index) => ({
+          ...permission,
+          serial: startingIndex + index + 1,
+        }));
         setPermissions(list);
         setTotalRecords(pagination.total_records ?? rows.length);
       } else {
@@ -112,6 +109,7 @@ const PermissionsManager = ({ roleId }) => {
         name: editDataItem.name,
         module_id: editDataItem.module_id,
       };
+      // console.log("editDataItem", editDataItem);
       await PrivateAxios.put(`/permission/update/${editDataItem.id}`, updatedPermission);
       SuccessMessage("Updated successfully");
       refreshPermissions();
@@ -140,7 +138,7 @@ const PermissionsManager = ({ roleId }) => {
   };
 
   const tableColumns = [
-    { title: "Sl. No.", dataIndex: "id", key: "id", width: 80 },
+    { title: "Sl. No.", dataIndex: "serial", key: "serial", width: 80 },
     { title: "Permission Name", dataIndex: "name", key: "name", width: 200 },
     {
       title: "Module",
