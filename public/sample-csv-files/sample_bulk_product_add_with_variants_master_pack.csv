@@ -1,0 +1,4 @@
+Item Code,Item Name,Item Type,Category,UOM,Unit Qty ,Master Pack UOM ,Pack Qty ,Markup Percent,Batch Applicable,Brand
+FD0001,FG-Item001,FG MTS,FG,kg,1,kg,50,10,Yes,ITC
+FD0001,FG-Item001,FG MTS,FG,g,500,kg,5,10,No,ITC
+FD0001,FG-Item001,FG MTS,FG,g,250,kg,5,10,No,ITC

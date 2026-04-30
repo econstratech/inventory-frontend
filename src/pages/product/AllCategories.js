@@ -15,6 +15,7 @@ import InventoryMasterPageTopBar from "../InventoryMaster/itemMaster/InventoryMa
 import { Tooltip, Table, Switch } from "antd";
 // import CategoryStatusBar from "./CategoryStatusBar";
 import { exportExcel, exportPDF } from "../../environment/exportTable";
+import DeleteModal from "../CommonComponent/DeleteModal";
 
 function AllCategories() {
   const { isLoading, setIsLoading, Logout } = UserAuth();
@@ -51,7 +52,7 @@ function AllCategories() {
 
   const [pageState, setPageState] = useState({
     skip: 0,
-    take: 10,
+    take: 15,
   });
 
   const fetchCategories = async (customPageState = null, customFilters = null) => {
@@ -127,14 +128,22 @@ function AllCategories() {
   };
 
   const handleDelete = () => {
-    PrivateAxios.delete(`category/${deleteId}`)
-      .then(() => {
+    if (!deleteId) return;
+    PrivateAxios.delete(`product-category/${deleteId}`)
+      .then((res) => {
+        SuccessMessage(res?.data?.message || "Category deleted successfully.");
         fetchCategories(pageState);
-        setDeleteShow(false);
-        setDeleteId(null);
       })
       .catch((error) => {
-        console.error("Error deleting data:", error);
+        console.error("Error deleting category:", error);
+        ErrorMessage(
+          error?.response?.data?.message || "Failed to delete category."
+        );
+        if (error?.response?.status === 401) {
+          Logout();
+        }
+      })
+      .finally(() => {
         setDeleteShow(false);
         setDeleteId(null);
       });
@@ -186,7 +195,7 @@ function AllCategories() {
 
     try {
       const res = await PrivateAxios.put(
-        `/product-category-update/${record.id}`,
+        `/product-category/${record.id}`,
         { status: nextStatus }
       );
       SuccessMessage(
@@ -280,6 +289,15 @@ function AllCategories() {
               <i className="fas fa-pen"></i>
             </button>
           </Tooltip>
+          <Tooltip title="Delete Category">
+            <button
+              type="button"
+              className="icon-btn text-danger"
+              onClick={() => deleteModalShow(record.id)}
+            >
+              <i className="fas fa-trash"></i>
+            </button>
+          </Tooltip>
         </div>
       ),
     },
@@ -311,7 +329,7 @@ function AllCategories() {
   const handleResetFilter = () => {
     const newPageState = {
       skip: 0,
-      take: 10,
+      take: 15,
     };
     setStatusFilter("");
     setTitleFilter("");
@@ -534,52 +552,13 @@ function AllCategories() {
             </div>
           </div>
 
-          <Modal
+          <DeleteModal
             show={deleteShow}
-            onHide={deleteModalClose}
-            backdrop="static"
-            keyboard={false}
-            centered
-          >
-            <Modal.Header closeButton>
-              <Modal.Title>Delete Confirmation</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="delete-confirm-wrap text-center">
-                <div className="delete-confirm-icon mb-3 mt-2">
-                  <img
-                    src={
-                      process.env.PUBLIC_URL +
-                      "assets/images/delete-warning.svg"
-                    }
-                    alt="Warning"
-                    className="img-fluid"
-                  />
-                </div>
-                <h4 className="text-muted">Are you sure?</h4>
-                <p className="text-muted">
-                  Do you really want to delete these record? This process cannot
-                  be undone.
-                </p>
-              </div>
-            </Modal.Body>
-            <Modal.Footer className="justify-content-center">
-              <button
-                type="reset"
-                className="btn btn-secondary"
-                onClick={deleteModalClose}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-exp-red"
-                onClick={handleDelete}
-              >
-                Delete
-              </button>
-            </Modal.Footer>
-          </Modal>
+            handleClose={deleteModalClose}
+            onDelete={handleDelete}
+            title="Delete Category"
+            message="Are you sure you want to delete this category? This action cannot be undone."
+          />
 
           <Modal
             show={editShow}
