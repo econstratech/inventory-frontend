@@ -856,7 +856,7 @@ function PurchaseOrderRecv() {
                               const editedProduct = editedProducts[product.id];
                               const productDataToShow = editedProduct?.productData || product.ProductsItem;
                               const isProductReceived = (product.received || 0) > 0;
-                              const masterPackValue = product?.productVariant.quantity_per_pack ? parseFloat(product.qty / product.productVariant.quantity_per_pack).toFixed(2) : null;
+                              const masterPackValue = product?.productVariant?.quantity_per_pack ? parseFloat(product.qty / product.productVariant.quantity_per_pack).toFixed(2) : null;
                               
                               return (
                               <React.Fragment key={index}>
