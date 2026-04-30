@@ -577,12 +577,12 @@ function StockMaster() {
         return record?.product.productType || "N/A";
       },
     },
-    ...(hasMasterPack && [{
+    ...(hasMasterPack ? [{
       title: "Master Pack",
       dataIndex: ["masterPack"],
       key: "masterPack",
       width: 150,
-    }]),
+    }] : []),
     {
       title: "Store",
       dataIndex: ["warehouse", "name"],
