@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import { Button, Input, Modal, Select, Table } from "antd";
 import {
   DeleteOutlined,
+  DownloadOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { PrivateAxios } from "../../../environment/AxiosInstance";
+import { PrivateAxios, PrivateAxiosFile } from "../../../environment/AxiosInstance";
 import { ErrorMessage, SuccessMessage } from "../../../environment/ToastMessage";
 import { UserAuth } from "../../auth/Auth";
 import ProductSelect from "../../filterComponents/ProductSelect";
@@ -37,6 +39,10 @@ function WorkOrderMaterials() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [formRows, setFormRows] = useState([makeEmptyRow()]);
   const [saving, setSaving] = useState(false);
+
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
 
   const [deleteModalShow, setDeleteModalShow] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -146,6 +152,71 @@ function WorkOrderMaterials() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openBulkModal = () => {
+    setBulkFile(null);
+    setIsBulkOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (bulkUploading) return;
+    setIsBulkOpen(false);
+    setBulkFile(null);
+  };
+
+  const downloadSampleCsv = () => {
+    const headers = "FG Product,FG Variant,RM Product";
+    const sampleRows = [
+      "Finished Steel Rod,12mm,Iron Ore",
+      "Finished Steel Rod,,Carbon",
+      "Aluminium Sheet,5mm,Aluminium Ingot",
+    ].join("\n");
+    const csvContent = `${headers}\n${sampleRows}\n`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "work-order-material-mapping-sample.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkFile) {
+      ErrorMessage("Please select a CSV file first.");
+      return;
+    }
+    setBulkUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", bulkFile);
+      const res = await PrivateAxiosFile.post(
+        "/production/work-order/material-mapping/bulk-upload",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      SuccessMessage(res?.data?.message || "Bulk upload completed.");
+      const skipped = Array.isArray(res?.data?.errors) ? res.data.errors.length : 0;
+      if (skipped > 0) {
+        ErrorMessage(
+          `${skipped} row${skipped > 1 ? "s" : ""} skipped (missing/duplicate/unknown product). Check your file.`
+        );
+      }
+      setIsBulkOpen(false);
+      setBulkFile(null);
+      const next = { skip: 0, take: pageState.take };
+      setPageState(next);
+      fetchMappings(next);
+    } catch (error) {
+      ErrorMessage(
+        error?.response?.data?.message || "Failed to upload material mappings."
+      );
+    } finally {
+      setBulkUploading(false);
     }
   };
 
@@ -351,6 +422,9 @@ function WorkOrderMaterials() {
           <p className="text-muted mb-0">{totalCount} total records</p>
         </div>
         <div className="d-flex align-items-center gap-2">
+          <Button icon={<UploadOutlined />} onClick={openBulkModal}>
+            Bulk Upload
+          </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -546,6 +620,67 @@ function WorkOrderMaterials() {
               Add More
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        title={<span className="fw-semibold">Bulk Upload Raw Materials</span>}
+        open={isBulkOpen}
+        onCancel={closeBulkModal}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={closeBulkModal}
+            disabled={bulkUploading}
+          >
+            Cancel
+          </Button>,
+          <Button
+            key="upload"
+            type="primary"
+            icon={<UploadOutlined />}
+            loading={bulkUploading}
+            onClick={handleBulkUpload}
+            disabled={!bulkFile}
+          >
+            Upload
+          </Button>,
+        ]}
+        width={560}
+        destroyOnClose
+      >
+        <div className="pt-2">
+          <p className="text-muted mb-2">
+            Upload a CSV file with the columns:{" "}
+            <code>FG Product</code>, <code>FG Variant</code> (optional), and{" "}
+            <code>RM Product</code>. Products are matched by name within your
+            company.
+          </p>
+          <div className="mb-3">
+            <Button
+              type="link"
+              icon={<DownloadOutlined />}
+              onClick={downloadSampleCsv}
+              style={{ paddingLeft: 0 }}
+            >
+              Download sample CSV
+            </Button>
+          </div>
+          <label className="form-label fw-semibold">
+            CSV File <span className="text-danger">*</span>
+          </label>
+          <input
+            type="file"
+            accept=".csv"
+            className="form-control"
+            onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
+            disabled={bulkUploading}
+          />
+          {bulkFile && (
+            <div className="text-muted mt-2" style={{ fontSize: 12 }}>
+              Selected: <strong>{bulkFile.name}</strong>
+            </div>
+          )}
         </div>
       </Modal>
 

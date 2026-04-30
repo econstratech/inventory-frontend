@@ -390,10 +390,17 @@ function PendingApprovalSales() {
         // Reset edited products
         setEditedProducts({});
         setRemarks('');
+      } else {
+        ErrorMessage(response.message ?? "Error approving sales order. Please try again.");
       }
     } catch (error) {
-      ErrorMessage("Error approving sales order. Please try again.");
-      console.error("Error approving sales order:", error);
+      console.log("Error approving sales order:", error);
+      ErrorMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error.message ||
+        "Error approving sales order. Please try again."
+      );
     }
   };
 
