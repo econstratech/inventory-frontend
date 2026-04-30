@@ -7,10 +7,12 @@ import { PrivateAxiosFile } from "../../environment/AxiosInstance";
 import { SuccessMessage } from "../../environment/ToastMessage";
 
 const AddMultipleItemsModal = ({ show, onClose ,FetchProduct}) => {
-  const { isVariantsAvailable } = UserAuth();
+  const { isVariantsAvailable, user } = UserAuth();
   const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const hasMasterPack = user?.company?.generalSettings.has_master_pack === 1;
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -205,7 +207,11 @@ const AddMultipleItemsModal = ({ show, onClose ,FetchProduct}) => {
             <div className="gth-bg-warning-light p-3 rounded f-s-15">
               <i className="fas fa-info-circle me-2"></i>Need a reference?{" "}
               <a
-                href={isVariantsAvailable ? "/sample-csv-files/sample_bulk_product_add_with_variants.csv" : "/sample-csv-files/sample_bulk_product_add.csv"}
+                href={
+                  isVariantsAvailable ? "/sample-csv-files/sample_bulk_product_add_with_variants.csv" : 
+                  hasMasterPack ? "/sample-csv-files/sample_bulk_product_add_with_variants_master_pack.csv" :
+                  "/sample-csv-files/sample_bulk_product_add.csv"
+                }
                 target="_blank"
                 rel="noopener noreferrer"
               >
