@@ -491,7 +491,7 @@ function StockMaster() {
       const fallbackFilename = `stock_master_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
 
       const disposition = response?.headers?.["content-disposition"] || "";
-      const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
+      const fileNameMatch = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
       const filename = fileNameMatch?.[1]
         ? decodeURIComponent(fileNameMatch[1].replace(/"/g, ""))
         : fallbackFilename;
