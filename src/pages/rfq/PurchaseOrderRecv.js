@@ -70,7 +70,7 @@ function PurchaseOrderRecv() {
   const [selectedProductInfo, setSelectedProductInfo] = useState(null);
   const [loadingVariants, setLoadingVariants] = useState(false);
   const [editedProducts, setEditedProducts] = useState({}); // Store edited product data { productId: { product_id, variant_id, variantData, productData } }
-  const { isVariantsAvailable, getGeneralSettingssymbol } = UserAuth();
+  const { isVariantsAvailable, getGeneralSettingssymbol, user } = UserAuth();
   // const [setPaymentReference, PaymentReference] = useState("");
 
   const [vendor, setVendor] = useState({ vendor_id: "" });
@@ -84,6 +84,8 @@ function PurchaseOrderRecv() {
   // const [advancePayment, setAdvancePayment] = useState("");
   const [purchaseData, setPurchaseData] = useState(null);
   const [receivedStatus, setReceivedStatus] = useState({ label: "Pending", value: "pending" });
+
+  const hasMasterPack = user.company?.generalSettings.has_master_pack === 1;
 
   useEffect(() => {
     const fetchData = async () => {

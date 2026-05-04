@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Table, Input } from "antd";
 import Select from "react-select";
 import moment from "moment";
+import Barcode from "react-barcode";
 
 import { UserAuth } from "../auth/Auth";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
@@ -552,6 +553,76 @@ function InventoryMaster() {
     preserveSelectedRowKeys: true,
   };
 
+  const downloadBarcodePdf = async (variantIds) => {
+    if (isDownloadingBarcodes) return;
+    setIsDownloadingBarcodes(true);
+    try {
+      const res = await PrivateAxios.post(
+        "/product/variants/barcode-pdf",
+        { variant_ids: variantIds },
+        { responseType: "blob" }
+      );
+
+      const timestamp = moment().format("YYYYMMDDHHmmss");
+      const filename = `product_barcodes_${timestamp}.pdf`;
+      const fileBlob = new Blob([res.data], {
+        type: res?.headers?.["content-type"] || "application/pdf",
+      });
+      const url = window.URL.createObjectURL(fileBlob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+
+      SuccessMessage(
+        variantIds.length
+          ? "Selected barcodes downloaded successfully."
+          : "All barcodes downloaded successfully."
+      );
+    } catch (error) {
+      // Error response is a Blob when responseType is "blob"; try to parse it.
+      let message = "Failed to download barcodes.";
+      const errBlob = error?.response?.data;
+      if (errBlob instanceof Blob && errBlob.type === "application/json") {
+        try {
+          const text = await errBlob.text();
+          const parsed = JSON.parse(text);
+          message = parsed?.message || message;
+        } catch (_) { /* fall through */ }
+      } else if (error?.response?.data?.message) {
+        message = error.response.data.message;
+      }
+      ErrorMessage(message);
+    } finally {
+      setIsDownloadingBarcodes(false);
+    }
+  };
+
+  const handleBulkDownloadBarcodesClick = async () => {
+    if (!selectedProductIds.length) {
+      ErrorMessage("Please select at least one item to download barcodes.");
+      return;
+    }
+    const selectedSet = new Set(selectedProductIds);
+    const variantIds = filteredData
+      .filter((row) => selectedSet.has(row.id))
+      .flatMap((row) => (row.productVariants || []).map((v) => v.id))
+      .filter(Boolean);
+
+    if (!variantIds.length) {
+      ErrorMessage("No variants with barcodes found for the selected items on this page.");
+      return;
+    }
+    await downloadBarcodePdf(variantIds);
+  };
+
+  const handleDownloadAllBarcodesClick = async () => {
+    await downloadBarcodePdf([]);
+  };
+
   const handleBulkExportClick = async () => {
     try {
       const idsToExport = selectedProductIds.length ? selectedProductIds : [];
@@ -737,6 +808,7 @@ function InventoryMaster() {
   // Product Variants & Attributes Modal
   const [showVariantsModal, setShowVariantsModal] = useState(false);
   const [selectedProductData, setSelectedProductData] = useState(null);
+  const [isDownloadingBarcodes, setIsDownloadingBarcodes] = useState(false);
   const handleCloseVariantsModal = () => {
     setShowVariantsModal(false);
     setSelectedProductData(null);
@@ -796,6 +868,15 @@ function InventoryMaster() {
                         <button
                           type="button"
                           className="dropdown-item"
+                          onClick={handleBulkDownloadBarcodesClick}
+                          disabled={!selectedProductIds.length || isDownloadingBarcodes}
+                        >
+                          <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success`}></i>
+                          {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
+                        </button>
+                        <button
+                          type="button"
+                          className="dropdown-item"
                           onClick={handleBulkDeleteClick}
                           disabled={!selectedProductIds.length}
                         >
@@ -817,6 +898,26 @@ function InventoryMaster() {
                             <div className="fw-medium f-s-14">Add Multiple Items</div>
                             <span className="text-muted f-s-12">
                               Upload hundreds of items at once through csv file
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="dropdown-item"
+                        onClick={handleDownloadAllBarcodesClick}
+                        disabled={isDownloadingBarcodes}
+                      >
+                        <div className="d-flex align-items-start">
+                          <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success mt-1`}></i>
+                          <div>
+                            <div className="fw-medium f-s-14">
+                              {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
+                            </div>
+                            <span className="text-muted f-s-12">
+                              {isDownloadingBarcodes
+                                ? "This may take a few seconds, please wait."
+                                : "Download a printable PDF of all variant barcodes in the company"}
                             </span>
                           </div>
                         </div>
@@ -1372,6 +1473,7 @@ function InventoryMaster() {
                           {selectedProductData.has_master_pack === 1 && (
                             <th>Master Pack</th>
                           )}
+                          <th>Barcode</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1394,10 +1496,25 @@ function InventoryMaster() {
                                 <span className="text-muted">-</span>
                               )}
                             </td>
-                            
+
                             {selectedProductData.has_master_pack === 1 && variant.weight_per_pack && (
                               <td><span className="fw-medium">{variant.weight_per_pack}</span></td>
                             )}
+                            <td>
+                              {variant.barcode_number ? (
+                                <Barcode
+                                  value={variant.barcode_number}
+                                  format="CODE128"
+                                  displayValue={true}
+                                  width={1}
+                                  height={30}
+                                  fontSize={10}
+                                  margin={0}
+                                />
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

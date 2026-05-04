@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { OverlayTrigger, Tooltip, Modal } from "react-bootstrap";
 
 import Select from "react-select";
+import Barcode from "react-barcode";
 
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
 import { UserAuth } from "../auth/Auth";
@@ -78,6 +79,7 @@ function InventoryMasterEditItemDetails() {
   // Product variants state
   const [productVariants, setProductVariants] = useState([]);
   const [isEditingVariants, setIsEditingVariants] = useState(false);
+  const [barcodeSettings, setBarcodeSettings] = useState(null);
 
 
   /**
@@ -174,7 +176,10 @@ function InventoryMasterEditItemDetails() {
     try {
       const productResponse = await PrivateAxios.get(`product/details/${id}`);
 
-      const productData = productResponse.data.data;
+      const { product: productData, barcodeSettings }  = productResponse.data.data;
+
+      setBarcodeSettings(barcodeSettings || null);
+
       const attributeValues = productData?.productAttributeValues || [];
 
       const updatedAttributes = productAttributes.map(attr => {
@@ -216,6 +221,7 @@ function InventoryMasterEditItemDetails() {
             has_master_pack: hasMasterPack,
             pack_uom_id: variant.pack_uom_id || null,
             weight_per_pack: packWeightNumeric,
+            barcode_number: variant.barcode_number || null,
           };
         });
         setProductVariants(variants);
@@ -1269,6 +1275,30 @@ function InventoryMasterEditItemDetails() {
                                         </div>
                                       </div>
                                     </>
+                                  )}
+                                  {variant.barcode_number && (
+                                    <div className="col-12 mt-3">
+                                      <div className="text-center border rounded p-3">
+                                        {barcodeSettings?.company_name && (
+                                          <div className="fw-bold mb-1">
+                                            {barcodeSettings.company_name}
+                                          </div>
+                                        )}
+                                        {barcodeSettings?.has_product_code === 1 && formData.product_code && (
+                                          <div className="fw-bold mb-2">
+                                            {formData.product_code}
+                                          </div>
+                                        )}
+                                        <Barcode
+                                          value={variant.barcode_number}
+                                          format="CODE128"
+                                          displayValue={barcodeSettings?.has_barcode_number === 1}
+                                          width={1.5}
+                                          height={60}
+                                          fontSize={14}
+                                        />
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
                               </div>

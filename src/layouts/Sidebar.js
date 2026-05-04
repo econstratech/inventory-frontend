@@ -1749,7 +1749,7 @@ function Sidebar() {
                                     <p>Stores</p>
                                   </Link>
                                 </li>
-                                {/* <li className="sidebar-item">
+                                <li className="sidebar-item">
                                   <Link
                                     to="/settings/inventory/barcode"
                                     className={`sidebar-nav-link ${location.pathname === "/settings/inventory/barcode"
@@ -1759,7 +1759,7 @@ function Sidebar() {
                                   >
                                     <p>Barcode</p>
                                   </Link>
-                                </li> */}
+                                </li>
                                 <li className="sidebar-item">
                                   <Link
                                     to="/settings/inventory/master-uom"

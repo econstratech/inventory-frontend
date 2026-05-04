@@ -81,7 +81,6 @@ function BarcodePermission() {
   // Handle form submission
   const handleSubmit = (event) => {
     event.preventDefault();
-    console.log(formData, 'dddd');
 
     PrivateAxios.post('/updatebarcode', formData)
       .then(response => {
@@ -206,20 +205,20 @@ function BarcodePermission() {
                       <div className="row">
                         <div class='col-12 text-center f-s-15 pb-10 mb-10'>SAMPLE LABELS</div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name_display != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.item_id != 0 ? 'SKU00024' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name != 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code != 0 ? 'SKU00024' : ''}</div>
                           <div style={styles.barcode}>
                             <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
                           </div>
-                          <div style={styles.productCode}>{formData.barcode_number != 0 ? "65463535365665634" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number != 0 ? "65463535365665634" : ''}</div>
                         </div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name_display != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.item_id != 0 ? 'SKU00324' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name != 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code != 0 ? 'SKU00324' : ''}</div>
                           <div style={styles.barcode}>
                             <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
                           </div>
-                          <div style={styles.productCode}>{formData.barcode_number != 0 ? "3454354523464566" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number != 0 ? "3454354523464566" : ''}</div>
                         </div>
                       </div>
                       <div className="row">
@@ -243,8 +242,8 @@ function BarcodePermission() {
                             <label>Barcode Number</label>
 
                             <select
-                              name="barcode_number"  // Ensure this matches the key in formData
-                              value={formData.barcode_number}
+                              name="has_barcode_number"  // Ensure this matches the key in formData
+                              value={formData.has_barcode_number}
                               onChange={handleChange}
                               className="form-control"
                             >
@@ -254,10 +253,10 @@ function BarcodePermission() {
                           </div>
 
                           <div className="form-group">
-                            <label>Item ID</label>
+                            <label>Product Code</label>
                             <select
-                              name="item_id"  // Ensure this matches the key in formData
-                              value={formData.item_id}
+                              name="has_product_code"  // Ensure this matches the key in formData
+                              value={formData.has_product_code}
                               onChange={handleChange}
                               className="form-control"
                             >
@@ -266,18 +265,18 @@ function BarcodePermission() {
                             </select>
                           </div>
 
-                          <div className="form-group">
+                          {/* <div className="form-group">
                             <label>Another Company Name</label>
                             <select
-                              name="company_name_display"  // Ensure this matches the key in formData
-                              value={formData.company_name_display}
+                              name="company_name"  // Ensure this matches the key in formData
+                              value={formData.company_name}
                               onChange={handleChange}
                               className="form-control"
                             >
                               <option value="1">Yes</option>
                               <option value="0">No</option>
                             </select>
-                          </div>
+                          </div> */}
 
                           <button type="submit" className="btn btn-success  ms-auto d-block">
                             Update
