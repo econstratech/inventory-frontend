@@ -205,20 +205,20 @@ function BarcodePermission() {
                       <div className="row">
                         <div class='col-12 text-center f-s-15 pb-10 mb-10'>SAMPLE LABELS</div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.has_product_code != 0 ? 'SKU00024' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name != 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code != 0 ? 'SKU00024' : ''}</div>
                           <div style={styles.barcode}>
                             <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
                           </div>
-                          <div style={styles.productCode}>{formData.has_barcode_number != 0 ? "65463535365665634" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number != 0 ? "65463535365665634" : ''}</div>
                         </div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.has_product_code != 0 ? 'SKU00324' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name != 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code != 0 ? 'SKU00324' : ''}</div>
                           <div style={styles.barcode}>
                             <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
                           </div>
-                          <div style={styles.productCode}>{formData.has_barcode_number != 0 ? "3454354523464566" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number != 0 ? "3454354523464566" : ''}</div>
                         </div>
                       </div>
                       <div className="row">
@@ -231,7 +231,7 @@ function BarcodePermission() {
                             <input
                               type="text"
                               name="company_name"  // Ensure this matches the key in formData
-                              value={formData.company_name}
+                              value={formData.company_name || ""}
                               onChange={handleChange}
                               placeholder="Enter title"
                               className="form-control"
@@ -243,7 +243,7 @@ function BarcodePermission() {
 
                             <select
                               name="has_barcode_number"  // Ensure this matches the key in formData
-                              value={formData.has_barcode_number}
+                              value={formData.has_barcode_number || "1"}
                               onChange={handleChange}
                               className="form-control"
                             >
@@ -256,7 +256,7 @@ function BarcodePermission() {
                             <label>Product Code</label>
                             <select
                               name="has_product_code"  // Ensure this matches the key in formData
-                              value={formData.has_product_code}
+                              value={formData.has_product_code || "1"}
                               onChange={handleChange}
                               className="form-control"
                             >
