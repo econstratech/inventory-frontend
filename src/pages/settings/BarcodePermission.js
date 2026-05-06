@@ -44,17 +44,18 @@ function BarcodePermission() {
   };
 
   const [formData, setFormData] = useState({
-    companyName: '',
-    barcodeNumber: '1',
-    itemId: '1',
-    anotherCompanyName: '1',
+    company_name: '',
+    has_product_code: "1",
+    has_barcode_number: "1"
   });
 
   // Fetch existing data on component mount
   useEffect(() => {
     PrivateAxios.get('/getbarcode')
       .then(response => {
-        setFormData(response.data.data);
+        if (response.data.data) {
+          setFormData(response.data.data);
+        }
       })
       .catch(error => {
         ErrorMessage('There was an error fetching the data!');
