@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Dropdown,
-  Form,
-  Modal,
-  OverlayTrigger,
-  Tooltip,
-} from "react-bootstrap";
+
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import Loader from "../landing/loder/Loader";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
 import SettingsInventoryTopBar from "./settingsInventory/SettingsInventoryTopBar";
 
 function BarcodePermission() {
-  const [key, setKey] = useState("In-Stock Stores");
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const styles = {
     labelContainer: {
       width: '50%',
@@ -116,7 +108,7 @@ function BarcodePermission() {
                       type="button"
                       role="tab"
                       aria-controls="systemTaskTodo"
-                      aria-selected="General"
+                      aria-selected={true}
                     >
                       <span className="btn-todo">General</span>
                     </button>
@@ -129,7 +121,7 @@ function BarcodePermission() {
                       type="button"
                       role="tab"
                       aria-controls="systemTaskInProgressLabel"
-                      aria-selected="Label"
+                      aria-selected={false}
                     >
                       <span className="btn-inprogress">Label</span>
                     </button>
@@ -149,7 +141,6 @@ function BarcodePermission() {
                             How to Print Barcodes
                           </span>
                           <hr
-                            role="separator"
                             aria-orientation="horizontal"
                             class="v-divider theme--light"
                           ></hr>
@@ -205,20 +196,20 @@ function BarcodePermission() {
                       <div className="row">
                         <div class='col-12 text-center f-s-15 pb-10 mb-10'>SAMPLE LABELS</div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code != 0 ? 'SKU00024' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name !== 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code !== 0 ? 'SKU00024' : ''}</div>
                           <div style={styles.barcode}>
-                            <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
+                            <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" alt="" />
                           </div>
-                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number != 0 ? "65463535365665634" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number !== 0 ? "65463535365665634" : ''}</div>
                         </div>
                         <div style={styles.labelContainer}>
-                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name != 0 ? formData.company_name : ''}</div>
-                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code != 0 ? 'SKU00324' : ''}</div>
+                          <div style={styles.labelHeader}>{formData.company_name && formData.company_name !== 0 ? formData.company_name : ''}</div>
+                          <div style={styles.sku}>{formData.has_product_code && formData.has_product_code !== 0 ? 'SKU00324' : ''}</div>
                           <div style={styles.barcode}>
-                            <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" />
+                            <img src={process.env.PUBLIC_URL + '/assets/images/barcode.png'} style={styles.barcodeimage} className=" img-fluid mt-1 ms-2" alt="" />
                           </div>
-                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number != 0 ? "3454354523464566" : ''}</div>
+                          <div style={styles.productCode}>{formData.has_barcode_number && formData.has_barcode_number !== 0 ? "3454354523464566" : ''}</div>
                         </div>
                       </div>
                       <div className="row">
