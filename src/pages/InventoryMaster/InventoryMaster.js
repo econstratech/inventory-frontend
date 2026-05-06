@@ -76,15 +76,16 @@ function InventoryMaster() {
     const isRequired = Number(dataset.required);
   
     setAddItemFormData(prev => {
-      const existingIndex = prev.dynamic_attributes.findIndex(
+      const currentAttributes = prev.dynamic_attributes || [];
+      const existingIndex = currentAttributes.findIndex(
         attr => attr.product_attribute_id === attrId
       );
-  
+
       let updatedAttributes;
-  
+
       if (existingIndex !== -1) {
         // Update existing attribute value
-        updatedAttributes = prev.dynamic_attributes.map(attr =>
+        updatedAttributes = currentAttributes.map(attr =>
           attr.product_attribute_id === attrId
             ? { ...attr, value }
             : attr
@@ -92,7 +93,7 @@ function InventoryMaster() {
       } else {
         // Add new attribute
         updatedAttributes = [
-          ...prev.dynamic_attributes,
+          ...currentAttributes,
           {
             product_attribute_id: attrId,
             is_required: isRequired,
@@ -100,7 +101,7 @@ function InventoryMaster() {
           }
         ];
       }
-  
+
       return {
         ...prev,
         dynamic_attributes: updatedAttributes
@@ -256,7 +257,7 @@ function InventoryMaster() {
       // 🔥 Dynamic attributes validation (ARRAY BASED)
       dynamicProductAttributes.forEach(attr => {
         if (attr.is_required === 1) {
-          const found = addItemFormData.dynamic_attributes.find(
+          const found = (addItemFormData.dynamic_attributes || []).find(
             item => item.product_attribute_id === attr.id
           );
 
