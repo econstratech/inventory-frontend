@@ -46,6 +46,7 @@ function StockMaster() {
     variant: null,
     store: null,
     quantity: "",
+    buffer_size: "",
   });
   const [productOptions, setProductOptions] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
@@ -317,6 +318,7 @@ function StockMaster() {
           variant: data.productVariant ? `${data.productVariant.weight_per_unit} ${data.productVariant.masterUOM?.label || ""}` : "",
           store: storeOption,
           quantity: data.quantity.toString(),
+          buffer_size: data.buffer_size.toString()
         });
       }
     } catch (error) {
@@ -396,6 +398,7 @@ function StockMaster() {
         product_id: updateFormData.product.value,
         warehouse_id: updateFormData.store.value,
         quantity: parseFloat(updateFormData.quantity),
+        buffer_size: parseFloat(updateFormData.buffer_size),
         product_variant_id: updateFormData.variant ? updateFormData.variant.value : null,
       };
 
@@ -1118,6 +1121,38 @@ function StockMaster() {
                   setUpdateErrors((prev) => {
                     const newErrors = { ...prev };
                     delete newErrors.quantity;
+                    return newErrors;
+                  });
+                }
+              }}
+              min="0"
+              step="0.01"
+              style={{ height: "38px" }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={
+              <span>
+                Buffer Quantity <span style={{ color: "red" }}>*</span>
+              </span>
+            }
+            validateStatus={updateErrors.buffer_size ? "error" : ""}
+            help={updateErrors.buffer_size}
+          >
+            <Input
+              type="number"
+              placeholder="Enter Buffer Quantity"
+              value={updateFormData.buffer_size}
+              onChange={(e) => {
+                setUpdateFormData((prev) => ({
+                  ...prev,
+                  buffer_size: e.target.value,
+                }));
+                if (updateErrors.buffer_size) {
+                  setUpdateErrors((prev) => {
+                    const newErrors = { ...prev };
+                    delete newErrors.buffer_size;
                     return newErrors;
                   });
                 }
