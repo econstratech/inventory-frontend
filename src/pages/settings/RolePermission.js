@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "react-bootstrap";
-import { Table as AntTable } from "antd";
+import { Table as AntTable, Tooltip } from "antd";
+
+import { UserAuth } from "../auth/Auth";
 import { PrivateAxios } from "../../environment/AxiosInstance";
 import SettingsPageTopBar from "./SettingsPageTopBar";
 import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
-import { Tooltip } from "antd";
+
 
 const PermissionsManager = ({ roleId }) => {
+  const { user } = UserAuth();
+
   const [modules, setModules] = useState([]);
   const [selectedModuleId, setSelectedModuleId] = useState("");
   const [newPermissionName, setNewPermissionName] = useState("");
@@ -151,7 +155,8 @@ const PermissionsManager = ({ roleId }) => {
       title: "Actions",
       key: "actions",
       width: 120,
-      render: (_, record) => (
+      render: (_, record) => 
+       user?.position === "Owner" && (
         <div className="d-flex gap-2">
           <Tooltip title="Edit">
             <button
@@ -183,51 +188,55 @@ const PermissionsManager = ({ roleId }) => {
         <div className="card">
           <div className="card-body p-0">
             <div className="card mb-0">
-              <div className="card-body">
-                <h5 className="mb-3">Add New Permission</h5>
-                <div className="row g-2">
-                  <div className="col-md-6">
-                    <label className="col-form-label pb-1">
-                      Select Module <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      className="form-select"
-                      value={selectedModuleId}
-                      onChange={(e) =>
-                        setSelectedModuleId(e.target.value ? Number(e.target.value) : "")
-                      }
+              {user?.position === "Owner" && (
+                <div className="card-body">
+                  <h5 className="mb-3">Add New Permission</h5>
+                  <div className="row g-2">
+                    <div className="col-md-6">
+                      <label className="col-form-label pb-1">
+                        Select Module <span className="text-danger">*</span>
+                      </label>
+                      <select
+                        className="form-select"
+                        value={selectedModuleId}
+                        onChange={(e) =>
+                          setSelectedModuleId(e.target.value ? Number(e.target.value) : "")
+                        }
+                      >
+                        <option value="">-- Select Module --</option>
+                        {modules.map((module) => (
+                          <option key={module.id} value={module.id}>
+                            {module.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="col-form-label pb-1">
+                        Permission Name <span className="text-danger">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Insert"
+                        value={newPermissionName}
+                        onChange={(e) => setNewPermissionName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="d-flex justify-content-end mt-3">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleAddPermission}
+                      disabled={!selectedModuleId || !newPermissionName.trim()}
                     >
-                      <option value="">-- Select Module --</option>
-                      {modules.map((module) => (
-                        <option key={module.id} value={module.id}>
-                          {module.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="col-form-label pb-1">
-                      Permission Name <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Insert"
-                      value={newPermissionName}
-                      onChange={(e) => setNewPermissionName(e.target.value)}
-                    />
+                      Add Permission
+                    </button>
                   </div>
                 </div>
-                <div className="d-flex justify-content-end mt-3">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleAddPermission}
-                    disabled={!selectedModuleId || !newPermissionName.trim()}
-                  >
-                    Add Permission
-                  </button>
-                </div>
-              </div>
+              )}
+
+
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                   <h5 className="mb-0">Permissions List</h5>

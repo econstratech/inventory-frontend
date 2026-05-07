@@ -85,7 +85,7 @@ function renderStatusBadge(status) {
 }
 
 function MypurchaseList() {
-  const { isLoading, setIsLoading, getGeneralSettingssymbol, MatchPermission, companysettings } = UserAuth();
+  const { isLoading, setIsLoading, getGeneralSettingssymbol, MatchPermission, companysettings, user } = UserAuth();
 
   const [lgShow, setLgShow] = useState(false);
 
@@ -203,6 +203,7 @@ function MypurchaseList() {
           deliveryDate: moment(item.expected_delivery_date).format("DD/MM/YYYY"),
           customer: item.customer && item.customer?.name,
           salesPerson: item.createdBy?.name,
+          salesPersonId: item.createdBy?.id,
           storeName: item.warehouse?.name,
           total: `${getGeneralSettingssymbol}${item.total_amount}`,
           status: item.status,
@@ -299,7 +300,7 @@ function MypurchaseList() {
 
     return (
       <div className="d-flex gap-2 flex-wrap">
-        {MatchPermission(["Sales Quotation Edit"]) && [2, 3, 5].includes(dataItem.status) ? (
+        {MatchPermission(["Update SO"]) && [2, 3, 5].includes(dataItem.status) ? (
           <Tooltip title="Edit">
             <Link
               to={{ pathname: `/sales/${dataItem.id}` }}
@@ -334,7 +335,9 @@ function MypurchaseList() {
           </button>
         </Tooltip>
 
-        {[2, 3, 5].includes(dataItem.status) && (
+        {[2, 3, 5].includes(dataItem.status) 
+        && (MatchPermission(["Send SO To Management"]) || dataItem.salesPersonId === user.id) 
+        && (
           <Tooltip title="Send to management for approval">
             <button
               type="button"

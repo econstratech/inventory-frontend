@@ -292,7 +292,7 @@ function MypurchaseList() {
             </Tooltip>
           )}
 
-          {MatchPermission(["Send To Management (PO)"]) && record.is_parent == 1 && record.status == 2 && (
+          {(MatchPermission(["Send To Management"]) || record.createdByUser.id === user.id) && record.is_parent == 1 && record.status == 2 && (
             <Tooltip title="Send Approval">
               <button
                 className="me-1 icon-btn"
@@ -304,13 +304,13 @@ function MypurchaseList() {
               </button>
             </Tooltip>
           )}
-          {MatchPermission(["Send to Vendor"]) && record.is_parent == 1 && 
+          {(MatchPermission(["Send to Vendor"]) || record.createdByUser.id === user.id) && record.is_parent == 1 && 
           ((
             record.status == 2 && record.total_amount && generalSettings 
             && generalSettings.min_purchase_amount && parseFloat(record.total_amount) < parseFloat(generalSettings.min_purchase_amount)) 
           || record.status == 4)
           && (
-              <Tooltip title="Send to Vendor">
+            <Tooltip title="Send to Vendor">
               <button
                 className="me-1 icon-btn"
                 style={{ cursor: "pointer" }}

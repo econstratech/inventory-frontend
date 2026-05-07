@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Modal, Table } from 'react-bootstrap'
- 
- 
- 
 import { Tooltip, Pagination, Input, Button } from 'antd';
+
+import { UserAuth } from '../../auth/Auth';
 // import CreateRole from './role/CreateRole';
 // import UpdateRole from './role/UpdateRole';
 import { ErrorMessage } from '../../../environment/ToastMessage';
@@ -14,6 +13,7 @@ import { SuccessMessage } from '../../../environment/ToastMessage';
  
  
 function UserList() {
+    const { MatchPermission } = UserAuth();
     const [users, setUsers] = useState([]);
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
@@ -226,13 +226,15 @@ function UserList() {
                                                 <td>{u.email || "-"}</td>
                                                 <td>{u.roleNames.length > 0 ? u.roleNames.join(", ") : "N/A"}</td>
                                                 <td>
-                                                    <div className="d-flex">
-                                                        <Tooltip title='Edit'>
-                                                            <button type='button' onClick={() => { UpdateModalShow(u) }} to="#" className="me-1 icon-btn">
-                                                                <i className='fas fa-pen d-flex'></i>
-                                                            </button>
-                                                        </Tooltip>
-                                                    </div>
+                                                    {MatchPermission(["Create or update users"]) && (
+                                                        <div className="d-flex">
+                                                            <Tooltip title='Edit'>
+                                                                <button type='button' onClick={() => { UpdateModalShow(u) }} to="#" className="me-1 icon-btn">
+                                                                    <i className='fas fa-pen d-flex'></i>
+                                                                </button>
+                                                            </Tooltip>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                             ))

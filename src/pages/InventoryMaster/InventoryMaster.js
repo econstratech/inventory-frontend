@@ -34,7 +34,7 @@ function InventoryMaster() {
   const [dynamicProductAttributes, setDynamicProductAttributes] = useState([]);
   const [masterBrands, setMasterBrands] = useState([]);
 
-  const { user, isVariantBased } = UserAuth();
+  const { user, isVariantBased, MatchPermission } = UserAuth();
 
   const [addItemFormData, setAddItemFormData] = useState({
     product_code: "",
@@ -769,34 +769,35 @@ function InventoryMaster() {
       key: "actions",
       width: 120,
       fixed: "right",
-      render: (_, record) => (
+      render: (_, record) =>
+        MatchPermission(["Manage Item Master"]) && (
         <div className="d-flex align-items-center gap-2">
-        <OverlayTrigger
-          placement="top"
-          overlay={<Tooltip id={`edit-item-tooltip-${record.id}`}>Edit item</Tooltip>}
-        >
-          <Link
-            to={{ pathname: `/inventory/inventory-master-edit/${record.id}/item-details` }}
-            state={{ data: record }}
-            className="d-inline-flex align-items-center justify-content-center"
-            style={{ minWidth: 40, textDecoration: "none" }}
+          <OverlayTrigger
+            placement="top"
+            overlay={<Tooltip id={`edit-item-tooltip-${record.id}`}>Edit item</Tooltip>}
           >
-            <i className="fas fa-pen me-1 text-success"></i>
-          </Link>
-        </OverlayTrigger>
-        <OverlayTrigger
-          placement="top"
-          overlay={<Tooltip id={`delete-item-tooltip-${record.id}`}>Delete item</Tooltip>}
-        >
-          <button
-            type="button"
-            className="btn btn-link p-0 d-inline-flex align-items-center justify-content-center"
-            onClick={() => handleDeleteItem(record.id)}
-            style={{ minWidth: 40, textDecoration: "none" }}
+            <Link
+              to={{ pathname: `/inventory/inventory-master-edit/${record.id}/item-details` }}
+              state={{ data: record }}
+              className="d-inline-flex align-items-center justify-content-center"
+              style={{ minWidth: 40, textDecoration: "none" }}
+            >
+              <i className="fas fa-pen me-1 text-success"></i>
+            </Link>
+          </OverlayTrigger>
+          <OverlayTrigger
+            placement="top"
+            overlay={<Tooltip id={`delete-item-tooltip-${record.id}`}>Delete item</Tooltip>}
           >
-            <i className="fas fa-trash-alt me-1 text-danger"></i>
-          </button>
-        </OverlayTrigger>
+            <button
+              type="button"
+              className="btn btn-link p-0 d-inline-flex align-items-center justify-content-center"
+              onClick={() => handleDeleteItem(record.id)}
+              style={{ minWidth: 40, textDecoration: "none" }}
+            >
+              <i className="fas fa-trash-alt me-1 text-danger"></i>
+            </button>
+          </OverlayTrigger>
         </div>
       ),
     },
@@ -849,89 +850,92 @@ function InventoryMaster() {
           <div className="col-12">
             <div className="card mb-2">
               <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center flex-wrap ">
-                  <div className="d-flex gap-2 ms-auto">
-                    <Dropdown align="end">
-                      <Dropdown.Toggle className="btn btn-outline-danger btn-sm" variant="unset">
-                        <i className="fas fa-tasks me-2"></i>
-                        Bulk Actions
-                        {selectedProductIds.length > 0 ? ` (${selectedProductIds.length})` : ""}
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <button
-                          type="button"
-                          className="dropdown-item"
-                          onClick={handleBulkExportClick}
-                        >
-                          <i className="fas fa-file-csv me-2 text-primary"></i>
-                          Bulk export
-                        </button>
-                        <button
-                          type="button"
-                          className="dropdown-item"
-                          onClick={handleBulkDownloadBarcodesClick}
-                          disabled={!selectedProductIds.length || isDownloadingBarcodes}
-                        >
-                          <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success`}></i>
-                          {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
-                        </button>
-                        <button
-                          type="button"
-                          className="dropdown-item"
-                          onClick={handleBulkDeleteClick}
-                          disabled={!selectedProductIds.length}
-                        >
-                          <i className="fas fa-trash-alt me-2 text-danger"></i>
-                          Bulk delete
-                        </button>
-                      </Dropdown.Menu>
-                    </Dropdown>
 
-                  <Dropdown align="end">
-                    <Dropdown.Toggle className="btn btn-outline-primary btn-sm" variant="unset">
-                      <i className="fas fa-cog me-2"></i> Actions
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu className="dropdown-min-width320">
-                      <button type="button" className="dropdown-item" onClick={multipleItemsModalShow}>
-                        <div className="d-flex align-items-start">
-                          <i className="fas fa-plus me-2 text-primary mt-1"></i>
-                          <div>
-                            <div className="fw-medium f-s-14">Add Multiple Items</div>
-                            <span className="text-muted f-s-12">
-                              Upload hundreds of items at once through csv file
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        className="dropdown-item"
-                        onClick={handleDownloadAllBarcodesClick}
-                        disabled={isDownloadingBarcodes}
-                      >
-                        <div className="d-flex align-items-start">
-                          <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success mt-1`}></i>
-                          <div>
-                            <div className="fw-medium f-s-14">
-                              {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
+                {MatchPermission(["Manage Item Master"]) && (
+                  <div className="d-flex justify-content-between align-items-center flex-wrap ">
+                    <div className="d-flex gap-2 ms-auto">
+                      <Dropdown align="end">
+                        <Dropdown.Toggle className="btn btn-outline-danger btn-sm" variant="unset">
+                          <i className="fas fa-tasks me-2"></i>
+                          Bulk Actions
+                          {selectedProductIds.length > 0 ? ` (${selectedProductIds.length})` : ""}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handleBulkExportClick}
+                          >
+                            <i className="fas fa-file-csv me-2 text-primary"></i>
+                            Bulk export
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handleBulkDownloadBarcodesClick}
+                            disabled={!selectedProductIds.length || isDownloadingBarcodes}
+                          >
+                            <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success`}></i>
+                            {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handleBulkDeleteClick}
+                            disabled={!selectedProductIds.length}
+                          >
+                            <i className="fas fa-trash-alt me-2 text-danger"></i>
+                            Bulk delete
+                          </button>
+                        </Dropdown.Menu>
+                      </Dropdown>
+
+                      <Dropdown align="end">
+                        <Dropdown.Toggle className="btn btn-outline-primary btn-sm" variant="unset">
+                          <i className="fas fa-cog me-2"></i> Actions
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu className="dropdown-min-width320">
+                          <button type="button" className="dropdown-item" onClick={multipleItemsModalShow}>
+                            <div className="d-flex align-items-start">
+                              <i className="fas fa-plus me-2 text-primary mt-1"></i>
+                              <div>
+                                <div className="fw-medium f-s-14">Add Multiple Items</div>
+                                <span className="text-muted f-s-12">
+                                  Upload hundreds of items at once through csv file
+                                </span>
+                              </div>
                             </div>
-                            <span className="text-muted f-s-12">
-                              {isDownloadingBarcodes
-                                ? "This may take a few seconds, please wait."
-                                : "Download a printable PDF of all variant barcodes in the company"}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                      </Dropdown.Menu>
-                    </Dropdown>
-                    <StockMasterBulkActions
-                      onSuccess={fetchData}
-                      onAddSingleItem={handleShowAddSingleItemModal}
-                      isBulkActions={false}
-                    />
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handleDownloadAllBarcodesClick}
+                            disabled={isDownloadingBarcodes}
+                          >
+                            <div className="d-flex align-items-start">
+                              <i className={`fas ${isDownloadingBarcodes ? "fa-spinner fa-spin" : "fa-barcode"} me-2 text-success mt-1`}></i>
+                              <div>
+                                <div className="fw-medium f-s-14">
+                                  {isDownloadingBarcodes ? "Generating PDF..." : "Download Barcodes"}
+                                </div>
+                                <span className="text-muted f-s-12">
+                                  {isDownloadingBarcodes
+                                    ? "This may take a few seconds, please wait."
+                                    : "Download a printable PDF of all variant barcodes in the company"}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                      <StockMasterBulkActions
+                        onSuccess={fetchData}
+                        onAddSingleItem={handleShowAddSingleItemModal}
+                        isBulkActions={false}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
 
                 <div className="inventory-body pt-2">

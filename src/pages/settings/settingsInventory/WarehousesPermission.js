@@ -4,9 +4,9 @@ import {
   Dropdown,
   Form,
   Modal,
-  // OverlayTrigger,
-  // Tooltip,
 } from "react-bootstrap";
+
+import { UserAuth } from "../../auth/Auth";
 import { PrivateAxios } from "../../../environment/AxiosInstance";
 import Loader from "../../landing/loder/Loader";
 import { SuccessMessage, ErrorMessage } from "../../../environment/ToastMessage";
@@ -15,6 +15,7 @@ import SettingsInventoryTopBar from "./SettingsInventoryTopBar";
 function WarehousesPermission() {
   const [key, setKey] = useState("Finished Goods");
   const [loading, setLoading] = useState(false);
+  const { MatchPermission } = UserAuth();
   const [data, setData] = useState(null);
 
   const [update, setUpdate] = useState(false);
@@ -220,18 +221,20 @@ function WarehousesPermission() {
                   <h3 className="card-title">Stores</h3>
                   <p>You can create multiple stores/ warehouses here</p>
                   </div>
-                  <div className="col-md-6 col-sm-6 col-12 mb-2">
-                  <button
-                    onClick={() => setCreate(true)}
-                    className="me-2 btn btn-exp-primary btn-sm ms-auto"
-                  >
-                    <i className="fas fa-plus me-2"></i>
-                    Add New Store
-                  </button>
-                  </div>
+
+                  {MatchPermission(["Manage Stores"]) && (
+                    <div className="col-md-6 col-sm-6 col-12 mb-2">
+                    <button
+                      onClick={() => setCreate(true)}
+                      className="me-2 btn btn-exp-primary btn-sm ms-auto"
+                    >
+                      <i className="fas fa-plus me-2"></i>
+                      Add New Store
+                    </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* <div className="card-body"> */}
                 <ul
                   className="nav nav-tabs gth-tabs"
                   id="systemControllerFilterTab"
@@ -278,34 +281,36 @@ function WarehousesPermission() {
                                 <div className="p-3">
                                   <div className="d-flex align-items-center">
                                     <h5 className="my-1 fs-6">{item.name}</h5>
-                                    <Dropdown align="end" className="ms-auto">
-                                      <Dropdown.Toggle
-                                        className="scal-threedot-dropdown"
-                                        variant="unset"
-                                      >
-                                        <i className="fas fa-ellipsis-v"></i>
-                                      </Dropdown.Toggle>
-                                      <Dropdown.Menu className="">
-                                        <Dropdown.Item
-                                          onClick={() => {
-                                            setSelectedStoreData(item);
-                                            setUpdate(true);
-                                          }}
-                                        >
-                                          {" "}
-                                          Edit
-                                        </Dropdown.Item>
-                                        <Dropdown.Item
-                                          onClick={() => {
-                                            setDeleteShow(true);
-                                            setDeleteId(item.id);
-                                          }}
-                                        >
-                                          {" "}
-                                          Delete{" "}
-                                        </Dropdown.Item>
-                                      </Dropdown.Menu>
-                                    </Dropdown>
+                                      {MatchPermission(["Manage Stores"]) && (
+                                        <Dropdown align="end" className="ms-auto">
+                                          <Dropdown.Toggle
+                                            className="scal-threedot-dropdown"
+                                            variant="unset"
+                                          >
+                                            <i className="fas fa-ellipsis-v"></i>
+                                          </Dropdown.Toggle>
+                                          <Dropdown.Menu className="">
+                                            <Dropdown.Item
+                                              onClick={() => {
+                                                setSelectedStoreData(item);
+                                                setUpdate(true);
+                                              }}
+                                            >
+                                              {" "}
+                                              Edit
+                                            </Dropdown.Item>
+                                            <Dropdown.Item
+                                              onClick={() => {
+                                                setDeleteShow(true);
+                                                setDeleteId(item.id);
+                                              }}
+                                            >
+                                              {" "}
+                                              Delete{" "}
+                                            </Dropdown.Item>
+                                          </Dropdown.Menu>
+                                        </Dropdown>
+                                      )}
                                   </div>
                                   <div className="store-address">
                                     <div className="px-2 f-s-14 text-muted">
