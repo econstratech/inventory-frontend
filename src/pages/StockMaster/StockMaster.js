@@ -52,7 +52,7 @@ function StockMaster() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateErrors, setUpdateErrors] = useState({});
-  const { isVariantBased, user } = UserAuth();
+  const { isVariantBased, user, MatchPermission } = UserAuth();
 
   const hasMasterPack = user.company?.generalSettings.has_master_pack === 1;
 
@@ -627,7 +627,6 @@ function StockMaster() {
         const quantity = record?.quantity || 0;
         const quantityValue = parseFloat(quantity) || 0;
         const bgColor = record?.quantityColour;
-        // console.log(record?.quantityColour);
         
         // Determine text color based on background color
         // Yellow and cyan need dark text for readability
@@ -737,23 +736,24 @@ function StockMaster() {
       key: "actions",
       width: 120,
       // fixed: "right",
-      render: (_, record) => (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleUpdateClick(record)}
-            title="Update"
-          />
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteClick(record)}
-            title="Delete"
-          />
-        </div>
-      ),
+      render: (_, record) =>
+        MatchPermission(["Manage Stock Master"]) && (
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleUpdateClick(record)}
+              title="Update"
+            />
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteClick(record)}
+              title="Delete"
+            />
+          </div>
+        ),
     },
   ];
 
@@ -769,6 +769,7 @@ function StockMaster() {
               </div>
               <div className="d-flex gap-2 ms-auto">
     
+              {MatchPermission(["Stock Transfer"]) && (
                 <StockMasterBulkActions
                   isBulkActions={true}
                   onExport={handleExport}
@@ -777,13 +778,16 @@ function StockMaster() {
                   // onSuccess={fetchData}
                   // onAddSingleItem={handleShowAddSingleItemModal}
                 />
+              )}
 
+              {MatchPermission(["Manage Stock Master"]) && (
                 <Link to="/inventory/stock-master/add-stock">
                   <button className="btn btn-exp-primary btn-sm">
                     <i className="fas fa-plus me-2"></i>
                     Add Stock
                   </button>
                 </Link>
+              )}
               </div>
             </div>
           </div>

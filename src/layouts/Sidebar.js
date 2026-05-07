@@ -31,9 +31,6 @@ function Sidebar() {
 
       <div className="sidebar">
         <div className='side_menu'>
-          {/* <div className='text-center my-2'>
-            <img src={`${process.env.PUBLIC_URL}/assets/images/ERP-log.png`} alt="ERP" className="img-fluid" />
-          </div> */}
           <nav className="nav-customSidebar">
             <div className="accordion menu-accordian" id="menuAccordian">
               {/* new add */}
@@ -204,7 +201,7 @@ function Sidebar() {
                                 </li>
                                 : ""}
 
-                              {MatchPermission(["Create PO", "Update PO", "Delete PO", "approve PO"]) ?
+                              {MatchPermission(["Create PO", "View PO", "Update PO", "Delete PO", "Approve PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/create-rfq-active"
@@ -222,7 +219,7 @@ function Sidebar() {
                                 </li>
                               : ""}
 
-                              {MatchPermission(["Completed PO"]) ?
+                              {MatchPermission(["View PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/complete-orders/received-done"
@@ -236,7 +233,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Rejected PO"]) ?
+                              {MatchPermission(["View PO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/rejected-orders/rejected"
@@ -253,7 +250,7 @@ function Sidebar() {
                           </div>
                         </div>
                         {/* operation end*/}
-                        {MatchPermission(["approve PO"]) ?
+                        {MatchPermission(["Approve PO"]) ?
                         <div className={`sidebar-item sidebar-item-no-child ${location.pathname === "/pending-approval/send-to-management" ? "active" : ""}`}>
                           <Link
                               to="/pending-approval/send-to-management"
@@ -264,33 +261,7 @@ function Sidebar() {
                         </div>
                         : ''}
 
-                        {/* <div
-                          id="Follow"
-                          className={`accordion-collapse collapse ${location.pathname === "/followup/order-followup/nothing-bill" ? "show" : ""
-                            } `}
-                          data-bs-parent="#submenuAccordian"
-                        >
-                          <div className="accordion-body">
-                            <ul className="sidebar-submenu">
-                              {MatchPermission(["Order Followup"]) ?
-                                <li className="sidebar-item">
-                                  <Link
-                                    to="/followup/order-followup/nothing-bill"
-                                    className={`sidebar-nav-link ${location.pathname === "/followup/order-followup/nothing-bill"
-                                      ? "active"
-                                      : ""
-                                      }`}
-                                  >
-                                    <p>Order Followup</p>
-                                  </Link>
-                                </li>
-                                : ''}
-                            </ul>
-                          </div>
-                        </div> */}
-                        {/* follow-up end*/}
-
-                        {MatchPermission(["Pending GRN"]) ?
+                        {MatchPermission(["View Pending GRN"]) ?
                           <div className={`sidebar-item sidebar-item-no-child 
                             ${location.pathname === "/store/recv_update/request-quotation" ||
                             location.pathname === "/purchase-orders/recvorder/:id"
@@ -305,25 +276,6 @@ function Sidebar() {
                               </Link>
                           </div>
                         : ''}
-
-                        {/* {MatchPermission(["PO Reports"]) ?
-                        <div className="accordion-header sidebar-item ">
-                            <button
-                              className={`accordion-button submenu ${
-                                  location.pathname === "/purchase-reports"
-                                ? "active"
-                                : "collapsed"
-                                } sidebar-nav-link`}
-                              type="button"
-                              data-bs-toggle="collapse"
-                              data-bs-target="#PurchaseReports"
-                              aria-expanded="false"
-                              aria-controls="PurchaseReports"
-                            >
-                              <p>Reports</p>
-                            </button>
-                        </div>
-                        : ''} */}
 
 
                         {/* {MatchPermission(["Purchase Reports"]) ?
@@ -391,7 +343,7 @@ function Sidebar() {
                   <div className="accordion-header sidebar-item">
                     <button
                       className={`accordion-button 
-                        ${location.pathname.split("/")[1] === "my-task-done2" ||
+                        ${
                         location.pathname === "/sales-orders" ||
                         location.pathname === "/sales-orders-done" ||
                         location.pathname === "/sales-orders/dispatch/order-dispatch" ||
@@ -421,7 +373,7 @@ function Sidebar() {
                   <div
                     id="Sales"
                     className={`accordion-collapse collapse 
-                      ${location.pathname.split("/")[1] === "my-task-done" ||
+                      ${
                       location.pathname === "/sales-orders" ||
                       location.pathname === "/sales-dashboard" ||
                       location.pathname === "/my-checklist-task" ||
@@ -505,7 +457,7 @@ function Sidebar() {
                         >
                           <div className="accordion-body">
                             <ul className="sidebar-submenu">
-                              {/* {MatchPermission(["Sales Ledger"]) ?
+                              {MatchPermission(["Sales Ledger"]) && (
                                 <li className="sidebar-item">
                                   <Link
                                     to="/operation/sales_ledger"
@@ -518,7 +470,7 @@ function Sidebar() {
                                     <p>Sales Ledger</p>
                                   </Link>
                                 </li>
-                                : ""} */}
+                              )}
 
                               {MatchPermission(["Create SO"]) ?
                                 <li className="sidebar-item">
@@ -534,7 +486,7 @@ function Sidebar() {
                                 </li>
                               : ""}
 
-                              {MatchPermission(["Create SO", "Update SO", "Delete SO", "approve SO"]) ?
+                              {MatchPermission(["Create SO", "View SO", "Update SO", "Delete SO", "Approve SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/sales/quotation"
@@ -551,7 +503,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Completed SO"]) ?
+                              {MatchPermission(["View SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/completed-sales-orders"
@@ -564,7 +516,7 @@ function Sidebar() {
                                   </Link>
                                 </li>
                                 : ""}
-                              {MatchPermission(["Dispatch SO"]) ?
+                              {MatchPermission(["View SO"]) ?
                                 <li className="sidebar-item">
                                   <Link
                                     to="/sales-orders/dispatch/order-dispatch"
@@ -693,7 +645,7 @@ function Sidebar() {
                           <p>Dashboard</p>
                         </Link>
                       </div>
-                      {MatchPermission(["Inventory Item Master"]) ?
+
                         <div className="sidebar-item">
                           <Link to="/inventory/inventory-master"
                             className={`sidebar-nav-link subMenu_item ${location.pathname === "/inventory/inventory-master"
@@ -705,12 +657,11 @@ function Sidebar() {
                               ? "active" : ""
                               } `}
                           >
-                            {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                             <p>Item Master</p>
                           </Link>
                         </div>
-                        : ""}
-                        {MatchPermission(["Inventory Item Master"]) ?
+            
+
                         <div className="sidebar-item">
                           <Link to="/inventory/stock-master"
                             className={`sidebar-nav-link subMenu_item 
@@ -720,12 +671,11 @@ function Sidebar() {
                               ? "active" : ""
                               } `}
                           >
-                            {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                             <p>Stock Master</p>
                           </Link>
                         </div>
-                        : ""}
-                      {MatchPermission(["Floor Manager"]) ?
+                  
+                      {MatchPermission(["Floor Manager View"]) ?
                         <div className="sidebar-item">
                           <Link
                             to="/inventory/floor_manager"
@@ -738,7 +688,7 @@ function Sidebar() {
                           </Link>
                         </div>
                         : ""}
-                      {MatchPermission(["Inventory Category"]) ?
+                      {MatchPermission(["Manage Category"]) ?
                         <div className="sidebar-item">
                           <Link to={'/category'}
                             className={`sidebar-nav-link subMenu_item ${location.pathname === "/add-new-category" ||
@@ -746,7 +696,6 @@ function Sidebar() {
                               ? "active" : ""
                               } `}
                           >
-                            {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                             <p>Category</p>
                           </Link>
                         </div>
@@ -758,7 +707,7 @@ function Sidebar() {
               {/* inventory end */}
 
               {/* Production start */}
-              {MatchPermission(["Production", "Work Orders"]) ?
+              {MatchPermission(["Production"]) ?
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button
@@ -817,7 +766,7 @@ function Sidebar() {
                           <p>Work Orders</p>
                         </Link>
                       </div>
-                      {companySettings.production_without_bom === 1 && (
+                      {companySettings.production_without_bom === 1 && MatchPermission(["Manage Raw Materials"]) && (
                         <div className="sidebar-item">
                           <Link
                             to="/production/work-order-materials"
@@ -830,7 +779,7 @@ function Sidebar() {
                           </Link>
                         </div>
                       )}
-                      {companySettings.is_production_planning === 1 && (
+                      {companySettings.is_production_planning === 1 && MatchPermission(["Manage Production Planning"]) && (
                         <div className="sidebar-item">
                         <Link
                           to="/production/planning-list"
@@ -843,28 +792,33 @@ function Sidebar() {
                         </Link>
                       </div>
                       )}
-                      <div className="sidebar-item">
-                        <Link
-                          to="/settings/manage-production-flow"
-                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/settings/manage-production-flow"
-                            ? "active"
-                            : ""
-                            }`}
-                        >
-                          <p>Manage Production Flow</p>
-                        </Link>
-                      </div>
-                      <div className="sidebar-item">
-                        <Link
-                          to="/production/dispatch"
-                          className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/dispatch"
-                            ? "active"
-                            : ""
-                            }`}
-                        >
-                          <p>Dispatch & Delivery</p>
-                        </Link>
-                      </div>
+                      {MatchPermission(["Manage Production Flow"]) && (
+                        <div className="sidebar-item">
+                          <Link
+                            to="/settings/manage-production-flow"
+                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/settings/manage-production-flow"
+                              ? "active"
+                              : ""
+                              }`}
+                          >
+                            <p>Manage Production Flow</p>
+                          </Link>
+                        </div>
+                      )}
+   
+                      {MatchPermission(["Dispatch Work Orders"]) && (
+                        <div className="sidebar-item">
+                          <Link
+                            to="/production/dispatch"
+                            className={`sidebar-nav-link subMenu_item ${location.pathname === "/production/dispatch"
+                              ? "active"
+                              : ""
+                              }`}
+                          >
+                            <p>Dispatch & Delivery</p>
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1528,10 +1482,10 @@ function Sidebar() {
                         location.pathname === "/notification-setting" ||
                         location.pathname === "/company-info" ||
                         location.pathname === "/office-timing" ||
-                        location.pathname === "/settings/inventory/warehouses" ||
+                        location.pathname === "/settings/inventory/stores" ||
                         location.pathname === "/settings/inventory/barcode" ||
                         location.pathname === "/settings/gst/eway-bill-api-account" ||
-                        location.pathname === "/settings/inventory/warehouses" ||
+                        location.pathname === "/settings/inventory/stores" ||
                         location.pathname === "/settings/inventory/barcode" ||
                         location.pathname === "/settings/inventory/master-uom" ||
                         location.pathname === "//settings/inventory/entry-into-store" ||
@@ -1556,19 +1510,14 @@ function Sidebar() {
                   <div
                     id="Settings"
                     className={`accordion-collapse collapse ${
-                        location.pathname === "/notification-setting" ||
                         location.pathname === "/department" ||
                         location.pathname === "/office-timing" ||
                         location.pathname === "/modules" ||
                         location.pathname === "/role" ||
                         location.pathname === "/permission" ||
-                        location.pathname === "/settings/inventory/warehouses" ||
+                        location.pathname === "/settings/inventory/stores" ||
                         location.pathname === "/settings/inventory/barcode" ||
                         location.pathname === "/settings/inventory/master-uom" ||
-                        location.pathname === "/settings/inventory/default-approval" ||
-                        location.pathname === "/settings/inventory/entry-into-store" ||
-                        location.pathname === "/settings/gst/eway-bill-api-account" ||
-                        location.pathname === "/settings/gst/einvoice-api-account" ||
                         location.pathname === "/company-info" ||
                         location.pathname === "/settings/user" ||
                         location.pathname === "/settings/product-attributes" ||
@@ -1587,12 +1536,11 @@ function Sidebar() {
                               className={`sidebar-nav-link ${location.pathname === "/company-info" ? "active" : ""
                                 }`}
                             >
-                              {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                               <p>General Settings</p>
                             </Link>
                           </li>
                           : null}
-                        {MatchPermission(["User List"]) ?
+                        {MatchPermission(["View Users"]) ?
                           <li className="sidebar-item">
                             <Link
                               to="/settings/user"
@@ -1601,38 +1549,11 @@ function Sidebar() {
                                 : ""
                                 }`}
                             >
-                              {/* <i className="sidebar-nav-icon far fa-dot-circle" /> */}
                               <p>User List</p>
                             </Link>
                           </li>
                           : null}
-                        {/* {MatchPermission(["Whatsapp Setting"]) ?
-                          <li className="sidebar-item">
-                            <Link
-                              to="/whatsapp-setting"
-                              className={`sidebar-nav-link ${location.pathname === "/whatsapp-setting"
-                                ? "active"
-                                : ""
-                                }`}
-                            >
-                              <p>Whatsapp Setting</p>
-                            </Link>
-                          </li>
-                          : null} */}
-                        {/* {MatchPermission(["Notification Setting"]) ?
-                          <li className="sidebar-item">
-                            <Link
-                              to="/notification-setting"
-                              className={`sidebar-nav-link ${location.pathname === "/notification-setting"
-                                ? "active"
-                                : ""
-                                }`}
-                            >
-                              <p>Notification Setting</p>
-                            </Link>
-                          </li>
-                          : null} */}
-                        {MatchPermission(["Department"]) ?
+                        {MatchPermission(["Manage Departments"]) ?
                           <li className="sidebar-item">
                             <Link
                               to="/department"
@@ -1643,18 +1564,6 @@ function Sidebar() {
                             </Link>
                           </li>
                           : null}
-                        {/* {MatchPermission(["Office Timing"]) ?
-                          <li className="sidebar-item">
-                            <Link
-                              to="/office-timing"
-                              className={`sidebar-nav-link ${location.pathname === "/office-timing" ? "active" : ""
-                                }`}
-                            >
-                              <p>Office Timing</p>
-                            </Link>
-                          </li>
-                          : null} */}
-                        {MatchPermission(["Modules"]) ?
                           <li className="sidebar-item">
                             <Link
                               to="/modules"
@@ -1664,8 +1573,7 @@ function Sidebar() {
                               <p>Modules</p>
                             </Link>
                           </li>
-                          : null}
-                        {MatchPermission(["Role"]) ?
+                        {MatchPermission(["Manage Roles"]) ?
                           <li className="sidebar-item">
                             <Link
                               to="/role"
@@ -1676,7 +1584,6 @@ function Sidebar() {
                             </Link>
                           </li>
                           : null}
-                        {MatchPermission(["Permission"]) ?
                           <li className="sidebar-item">
                             <Link
                               to="/permission"
@@ -1686,15 +1593,7 @@ function Sidebar() {
                               <p>Permission</p>
                             </Link>
                           </li>
-                          : null}
-                        <li className="sidebar-item">
-                          <Link
-                            to="/settings/product-attributes"
-                            className={`sidebar-nav-link ${location.pathname === "/settings/product-attributes" ? "active" : ""}`}
-                          >
-                            <p>Product Attributes</p>
-                          </Link>
-                        </li>
+
                       </ul>
 
                       <div
@@ -1709,8 +1608,9 @@ function Sidebar() {
                                 location.pathname === "/settings/inventory/master-uom" ||
                                 location.pathname === "/settings/inventory/entry-into-store" ||
                                 location.pathname === "/settings/inventory/default-approval" ||
-                                location.pathname === "/settings/inventory/warehouses" ||
-                                location.pathname === "/settings/brands"
+                                location.pathname === "/settings/inventory/stores" ||
+                                location.pathname === "/settings/brands" ||
+                                location.pathname === "/settings/product-attributes"
                                 ? "" : "collapsed"
                                 } sidebar-nav-link`}
                               type="button"
@@ -1730,8 +1630,9 @@ function Sidebar() {
                               location.pathname === "/settings/inventory/master-uom" ||
                               location.pathname === "/settings/inventory/entry-into-store" ||
                               location.pathname === "/settings/inventory/default-approval" ||
-                              location.pathname === "/settings/inventory/warehouses" ||
-                              location.pathname === "/settings/brands"
+                              location.pathname === "/settings/inventory/stores" ||
+                              location.pathname === "/settings/brands" || 
+                              location.pathname === "/settings/product-attributes"
                               ? "show" : ""
                               } `}
                             data-bs-parent="#submenuAccordian"
@@ -1740,8 +1641,8 @@ function Sidebar() {
                               <ul className="sidebar-submenu">
                                 <li className="sidebar-item">
                                   <Link
-                                    to="/settings/inventory/warehouses"
-                                    className={`sidebar-nav-link ${location.pathname === "/settings/inventory/warehouses"
+                                    to="/settings/inventory/stores"
+                                    className={`sidebar-nav-link ${location.pathname === "/settings/inventory/stores"
                                       ? "active"
                                       : ""
                                       }`}
@@ -1780,6 +1681,16 @@ function Sidebar() {
                                       }`}
                                   >
                                     <p>Brands</p>
+                                  </Link>
+                                </li>
+
+                                
+                                <li className="sidebar-item">
+                                  <Link
+                                    to="/settings/product-attributes"
+                                    className={`sidebar-nav-link ${location.pathname === "/settings/product-attributes" ? "active" : ""}`}
+                                  >
+                                    <p>Product Attributes</p>
                                   </Link>
                                 </li>
                                 {/* <li className="sidebar-item">

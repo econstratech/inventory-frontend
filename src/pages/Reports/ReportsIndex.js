@@ -169,95 +169,101 @@ function ReportsIndex() {
                             </div>
                             <h5 className='text-center'>Please select a format to view the report.</h5>
                         </div>
+                        
                         <div className='row g-4'>
-                            {MatchPermission(["Inventory Master Reports"]) ?
-                            <div className='col-lg-6'>
-                                <div className='card h-100 mb-0'>
-                                    <div className='card-body'>
-                                        <h6 className='text-start fw-bold'>INVENTORY MASTER REPORTS</h6>
-                                        <ul className='mb-0 f-s-15 fw-medium'>
-                                            {/* <li><Link to="/report/stock-ledger-report">Stock Ledger Report</Link></li> */}
-                                            {/* <li><Link to="/report/fifo-lifo-stock-valuation-report">FIFO/LIFO Stock Valuation</Link></li> */}
-                                            <li><Link to="/report/stock-transfer-report">Stock Transfer Report</Link></li>
-                                            <li><Link to="/report/batch-expiry-report">Batch Expiry Report</Link></li>
-                                            {/* <li><Link to="/report/inventory-valuation-summary">Inventory Valuation Summary</Link></li> */}
-                                            {/* <li><Link to="/report/reorder-level-report">Reorder Level Report</Link></li> */}
-                                            {/* <li><Link to="/report/aging-report">Aging Report</Link></li> */}
-                                            {/* <li><Link to="/report/bin-card-item-movement-report">Bin Card / Item Movement Report</Link></li> */}
-                                        </ul>
+                            {MatchPermission(["Inventory Reports"]) && (
+                                <div className='col-lg-6'>
+                                    <div className='card h-100 mb-0'>
+                                        <div className='card-body'>
+                                            <h6 className='text-start fw-bold'>INVENTORY MASTER REPORTS</h6>
+                                            <ul className='mb-0 f-s-15 fw-medium'>
+                                                {/* <li><Link to="/report/stock-ledger-report">Stock Ledger Report</Link></li> */}
+                                                {/* <li><Link to="/report/fifo-lifo-stock-valuation-report">FIFO/LIFO Stock Valuation</Link></li> */}
+                                                <li><Link to="/report/stock-transfer-report">Stock Transfer Report</Link></li>
+                                                <li><Link to="/report/batch-expiry-report">Batch Expiry Report</Link></li>
+                                                {/* <li><Link to="/report/inventory-valuation-summary">Inventory Valuation Summary</Link></li> */}
+                                                {/* <li><Link to="/report/reorder-level-report">Reorder Level Report</Link></li> */}
+                                                {/* <li><Link to="/report/aging-report">Aging Report</Link></li> */}
+                                                {/* <li><Link to="/report/bin-card-item-movement-report">Bin Card / Item Movement Report</Link></li> */}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            : null}
-                             {MatchPermission(["PO Reports"]) ?
-                            <div className='col-lg-6'>
-                                <div className='card h-100 mb-0'>
-                                    <div className='card-body'>
-                                        <h6 className='text-start fw-bold'>PURCHASE REPORTS</h6>
-                                        <ul className='mb-0 f-s-15 fw-medium'>
-                                            {/* <li><Link to="/report/purchase-order-summary">Purchase Order Summary</Link></li> */}
-                                            {/* <li><Link to="/report/purchase-register">Purchase Register</Link></li> */}
-                                            <li><Link to="/report/pending-po-report">Pending PO Report</Link></li>
-                                            {/* <li><Link to="/report/vendor-performance-report">Vendor Performance Report</Link></li> */}
-                                            {/* <li><Link to="/report/purchase-rate-comparison">Purchase Rate Comparison</Link></li> */}
-                                            {/* <li><Link to="/report/pr-to-po-conversion-report">PR to PO Conversion Report</Link></li> */}
-                                            <li><Link to="/report/month-wise-purchase-value">Month Wise Purchase Value Report</Link></li>
-                                            <li><Link to="/report/item-wise-purchase-report">Item-wise Purchase Report</Link></li>
-                                            <li><Link to="/report/indent-requirement-report">Indent Requirement Report</Link></li>
-                                        </ul>
+                            )}
+                            {MatchPermission(["Purchase Reports"]) && (
+                                <div className='col-lg-6'>
+                                    <div className='card h-100 mb-0'>
+                                        <div className='card-body'>
+                                            <h6 className='text-start fw-bold'>PURCHASE REPORTS</h6>
+                                            <ul className='mb-0 f-s-15 fw-medium'>
+                                                {/* <li><Link to="/report/purchase-order-summary">Purchase Order Summary</Link></li> */}
+                                                {/* <li><Link to="/report/purchase-register">Purchase Register</Link></li> */}
+                                                <li><Link to="/report/pending-po-report">Pending PO Report</Link></li>
+                                                {/* <li><Link to="/report/vendor-performance-report">Vendor Performance Report</Link></li> */}
+                                                {/* <li><Link to="/report/purchase-rate-comparison">Purchase Rate Comparison</Link></li> */}
+                                                {/* <li><Link to="/report/pr-to-po-conversion-report">PR to PO Conversion Report</Link></li> */}
+                                                <li><Link to="/report/month-wise-purchase-value">Month Wise Purchase Value Report</Link></li>
+                                                <li><Link to="/report/item-wise-purchase-report">Item-wise Purchase Report</Link></li>
+                                                <li><Link to="/report/indent-requirement-report">Indent Requirement Report</Link></li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            : null}
-                            {MatchPermission(["Sales Reports"]) ?
-                            <div className='col-lg-6'>
-                                <div className='card h-100 mb-0'>
-                                    <div className='card-body'>
-                                        <h6 className='text-start fw-bold'>SALES REPORTS</h6>
-                                        <ul className='mb-0 f-s-15 fw-medium'>
-                                            {/* <li><Link to="/report/sale-register">Sales Register</Link></li> */}
-                                            <li><Link to="/report/customer-wise-sales-report">Customer Wise Sales Report</Link></li>
-                                            <li><Link to="/report/item-wise-sales-report">Item Wise Sales Report</Link></li>
-                                            {/* <li><Link to="/report/profitability-report">Profitability Report</Link></li> */}
-                                            {/* <li><Link to="/report/top-selling-products-report">Top Selling Product Report</Link></li> */}
-                                            {/* <li><Link to="/report/region-wise-sales-report">Region Wise Sale Report</Link></li> */}
-                                            {/* <li><Link to="/report/backorder-report">Back Order Report</Link></li> */}
-                                            {/* <li><Link to="/report/slow-moving-item-report">Slow Moving Item Report</Link></li> */}
-                                        </ul>
+                            )}
+
+                            {MatchPermission(["Sales Reports"]) && (
+                                <div className='col-lg-6'>
+                                    <div className='card h-100 mb-0'>
+                                        <div className='card-body'>
+                                            <h6 className='text-start fw-bold'>SALES REPORTS</h6>
+                                            <ul className='mb-0 f-s-15 fw-medium'>
+                                                {/* <li><Link to="/report/sale-register">Sales Register</Link></li> */}
+                                                <li><Link to="/report/customer-wise-sales-report">Customer Wise Sales Report</Link></li>
+                                                <li><Link to="/report/item-wise-sales-report">Item Wise Sales Report</Link></li>
+                                                {/* <li><Link to="/report/profitability-report">Profitability Report</Link></li> */}
+                                                {/* <li><Link to="/report/top-selling-products-report">Top Selling Product Report</Link></li> */}
+                                                {/* <li><Link to="/report/region-wise-sales-report">Region Wise Sale Report</Link></li> */}
+                                                {/* <li><Link to="/report/backorder-report">Back Order Report</Link></li> */}
+                                                {/* <li><Link to="/report/slow-moving-item-report">Slow Moving Item Report</Link></li> */}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            : null}
-                            {MatchPermission(["Combined Reports"]) ?
-                            <div className='col-lg-6' style={{ display: 'none' }}>
-                                <div className='card h-100 mb-0'>
-                                    <div className='card-body'>
-                                        <h6 className='text-start fw-bold'>CROSS-MODULE / COMBINED REPORTS</h6>
-                                        <ul className='mb-0 f-s-15 fw-medium'>
-                                            <li><Link to="/report/stock-sale-analysis">Stock vs Sales Analysis</Link></li>
-                                            {/* <li><Link to="/report/purchase-consumption-report">Purchase vs Consumption Report</Link></li> */}
-                                            {/* <li><Link to="/report/abc-analysis-report">ABC Analysis</Link></li> */}
-                                            <li><Link to="/report/dead-stock-report">Dead Stock Report</Link></li>
-                                            {/* <li><Link to="/report/mrp-report">MRP (Material Requirements Planning)</Link></li> */}
-                                        </ul>
+                            )}
+
+                            {MatchPermission(["Combined Reports"]) && (
+                                <div className='col-lg-6' style={{ display: 'none' }}>
+                                    <div className='card h-100 mb-0'>
+                                        <div className='card-body'>
+                                            <h6 className='text-start fw-bold'>CROSS-MODULE / COMBINED REPORTS</h6>
+                                            <ul className='mb-0 f-s-15 fw-medium'>
+                                                <li><Link to="/report/stock-sale-analysis">Stock vs Sales Analysis</Link></li>
+                                                {/* <li><Link to="/report/purchase-consumption-report">Purchase vs Consumption Report</Link></li> */}
+                                                {/* <li><Link to="/report/abc-analysis-report">ABC Analysis</Link></li> */}
+                                                <li><Link to="/report/dead-stock-report">Dead Stock Report</Link></li>
+                                                {/* <li><Link to="/report/mrp-report">MRP (Material Requirements Planning)</Link></li> */}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            : ""}
-                            <div className='col-lg-6'>
-                                <div className='card h-100 mb-0'>
-                                    <div className='card-body'>
-                                        <h6 className='text-start fw-bold'>PRODUCTION REPORTS</h6>
-                                        <ul className='mb-0 f-s-15 fw-medium'>
-                                            <li><Link to="/report/production/material-issue-report">Material Issue Report</Link></li>
-                                            <li><Link to="/report/production/dispatch-report">Dispatch Report</Link></li>
-                                            {companysettings?.is_production_planning === 1 && (
-                                                <li><Link to="/report/production/production-planning-vs-actual-report">Production Planning vs Actual Report</Link></li>
-                                            )}
-                                        </ul>
+                            )}
+
+                            {MatchPermission(["Production Reports"]) && (
+                                <div className='col-lg-6'>
+                                    <div className='card h-100 mb-0'>
+                                        <div className='card-body'>
+                                            <h6 className='text-start fw-bold'>PRODUCTION REPORTS</h6>
+                                            <ul className='mb-0 f-s-15 fw-medium'>
+                                                <li><Link to="/report/production/material-issue-report">Material Issue Report</Link></li>
+                                                <li><Link to="/report/production/dispatch-report">Dispatch Report</Link></li>
+                                                {companysettings?.is_production_planning === 1 && (
+                                                    <li><Link to="/report/production/production-planning-vs-actual-report">Production Planning vs Actual Report</Link></li>
+                                                )}
+                                            </ul>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

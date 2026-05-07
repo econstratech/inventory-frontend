@@ -328,7 +328,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           availableBatches,
           batchQuantities,
           disableTransferQuantity: disableMainTransfer,
-          itemID: rp.id,
+          itemID: rp.product_id,
           defaultPrice: Number(rp.unit_price) || 0,
           itemUnit: variantUnit,
           availableVariants,
@@ -390,23 +390,41 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
           is_batch_applicable: isBatchApplicable ? 1 : 0,
           warehouse_id: sp.warehouse_id ?? null,
         };
+        const pv = sp.productVariant;
+        const variantUnit = pv?.masterUOM?.label || pv?.masterUOM?.name || "";
+        const variantLabel = pv
+          ? `${pv.weight_per_unit ?? ""} ${variantUnit}`.trim() || `Variant #${pv.id}`
+          : "";
+        const availableVariants =
+          pv?.id != null
+            ? [
+                {
+                  value: pv.id,
+                  label: variantLabel,
+                  quantity: qty,
+                  itemUnit: variantUnit,
+                },
+              ]
+            : [];
         const disableMainTransfer = qty <= 0 || (isBatchApplicable && batchCount > 1);
         return {
           key: baseKey + i,
           itemId: sp.id,
-          selectedVariantId: null,
+          selectedVariantId: pv?.id ?? null,
           itemName: product.product_name || sp.description || "",
           product,
+          productVariant: pv || null,
+          lockVariantSelection: availableVariants.length > 0,
           availableQuantity: qty,
           transferQuantity: isBatchApplicable ? "0" : "",
           batchesLoading: false,
           availableBatches,
           batchQuantities,
           disableTransferQuantity: disableMainTransfer,
-          // itemID: productId,
+          itemID: sp.product_id,
           defaultPrice: Number(sp.unit_price) || 0,
-          itemUnit: "",
-          availableVariants: [],
+          itemUnit: variantUnit,
+          availableVariants,
           currentQuantity: String(qty),
           finalQuantity: "",
           changeQuantity: 1,
@@ -733,8 +751,6 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       return;
     }
 
-    console.log("transferItems", transferItems);
-
     const validItems = transferItems.filter(
       (item) => item.itemID != null && item.itemID !== "" && item.product != null
     );
@@ -950,7 +966,7 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
       })),
     };
 
-    console.log("stockTransferPayload", stockTransferPayload);
+    // console.log("stockTransferPayload", stockTransferPayload);
 
     try {
       const response = await PrivateAxios.post(
@@ -1135,7 +1151,8 @@ function StockTransferModal({ show, onHide, transferType, onSuccess }) {
             variants.find((v) => String(v.value) === String(record.selectedVariantId)) || null;
           const variantLocked =
             Boolean(record.lockVariantSelection) &&
-            transferType === "purchase_order_return";
+            (transferType === "purchase_order_return" ||
+              transferType === "sales_order_return");
           return (
             <div className="custom-select-wrap">
               <DropDownList

@@ -29,7 +29,7 @@ const boxSelectStyles = {
 };
 
 function WorkOrders() {
-  const { user, isVariantBased } = UserAuth();
+  const { user, isVariantBased, MatchPermission } = UserAuth();
   const companyId = user?.company_id ?? user?.company?.id ?? null;
   const companySettings = user?.company?.generalSettings || null;
   const productionwithoutBOM = companySettings.production_without_bom === 1;
@@ -337,6 +337,7 @@ function WorkOrders() {
         orderId: item?.wo_number ?? "N/A",
         createdAt: item?.created_at ? dayjs(item.created_at).format("DD/MM/YYYY") : "N/A",
         warehouse: item?.warehouse || "",
+        userId: item?.user_id,
         customer:
           item?.customer?.name ||
           item?.customer_name ||
@@ -1605,13 +1606,15 @@ function WorkOrders() {
       width: 160,
       render: (_, record) => (
         <div className="d-flex gap-2 align-items-center">
-          <Tooltip title="Material Issue">
-            <i
-              className="fas fa-box-open text-primary"
-              style={{ cursor: "pointer" }}
-              onClick={() => openMaterialIssueModal(record)}
-            ></i>
-          </Tooltip>
+          {MatchPermission(["Work Order Material Issue"]) && (
+            <Tooltip title="Material Issue">
+              <i
+                className="fas fa-box-open text-primary"
+                style={{ cursor: "pointer" }}
+                onClick={() => openMaterialIssueModal(record)}
+              ></i>
+            </Tooltip>
+          )}
           {/* {Number(record.status) === 2 && (
             <Tooltip title="Start Production">
               {startingProductionId === record.id ? (
@@ -1625,29 +1628,35 @@ function WorkOrders() {
               )}
             </Tooltip>
           )} */}
-          <Tooltip title="Edit">
-            <i
-              className="far fa-edit text-success"
-              style={{ cursor: "pointer" }}
-              onClick={() => openEditModal(record)}
-            ></i>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={() => openDeleteModal(record)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  openDeleteModal(record);
-                }
-              }}
-              className="text-danger"
-              style={{ cursor: "pointer", lineHeight: 1 }}
-            >
-              <i className="far fa-trash-alt"></i>
-            </span>
-          </Tooltip>
+
+          {(MatchPermission(["Update Work Orders"]) || (record?.userId && record?.userId === user.id)) && (
+            <Tooltip title="Edit">
+              <i
+                className="far fa-edit text-success"
+                style={{ cursor: "pointer" }}
+                onClick={() => openEditModal(record)}
+              ></i>
+            </Tooltip>
+          )}
+
+          {(MatchPermission(["Delete Work Orders"]) || (record?.userId && record?.userId === user.id)) && (
+            <Tooltip title="Delete">
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => openDeleteModal(record)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    openDeleteModal(record);
+                  }
+                }}
+                className="text-danger"
+                style={{ cursor: "pointer", lineHeight: 1 }}
+              >
+                <i className="far fa-trash-alt"></i>
+              </span>
+            </Tooltip>
+          )}
         </div>
       ),
     },
@@ -1660,10 +1669,13 @@ function WorkOrders() {
           <h3 className="mb-0">Work Orders</h3>
           <p className="text-muted mb-0">Production work order management with material tracking</p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={openAddModal}>
-          <i className="fas fa-plus me-2"></i>
-          Add Work Order
-        </button>
+        {MatchPermission(["Create Work Order"]) && (
+          <button type="button" className="btn btn-primary" onClick={openAddModal}>
+            <i className="fas fa-plus me-2"></i>
+            Add Work Order
+          </button>
+        )}
+
       </div>
 
       <div className="card">

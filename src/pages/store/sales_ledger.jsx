@@ -1,25 +1,32 @@
 import React, { useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
+import dayjs from "dayjs";
 import Form from 'react-bootstrap/Form'
-import { Container, Row, Col, Button, Table } from 'react-bootstrap'
-import Select from 'react-select'
-import { UserAuth } from '../auth/Auth'
+import { Container, Row, Col, Button } from 'react-bootstrap'
+import { Table } from 'antd'
+
 import { PrivateAxios } from '../../environment/AxiosInstance'
+import { ErrorMessage } from '../../environment/ToastMessage'
+import CustomerSelect from '../filterComponents/CustomerSelect'
+
+const DEFAULT_PAGE_SIZE = 15
 
 function SalesLedger () {
   const [vendorId, setVendor] = useState(null)
   const [startDate, setStartDate] = useState(null)
   const [endDate, setEndDate] = useState(null)
-  const [ledgerData, setLedgerData] = useState([])
+  const [ledgerRows, setLedgerRows] = useState([])
+  const [total, setTotal] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [hasFetched, setHasFetched] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [dateError, setDateError] = useState('')
 
-  const { getCustomer, userDetails } = UserAuth()
-
-  const handleSubmit = async e => {
-    e.preventDefault()
+  const fetchLedger = async (page, limit) => {
     setLoading(true)
-
     try {
       const formattedStartDate = startDate
         ? startDate.toISOString().slice(0, 10)
@@ -31,64 +38,156 @@ function SalesLedger () {
       const res = await PrivateAxios.post('/Sales/SalesLedger', {
         customer_id: vendorId?.id || null,
         startDate: formattedStartDate,
-        endDate: formattedEndDate
+        endDate: formattedEndDate,
+        page,
+        limit,
       })
 
-      setLedgerData(res.data)
+      const payload = res.data?.data || {}
+      setLedgerRows(Array.isArray(payload.rows) ? payload.rows : [])
+      setTotal(Number(payload.total) || 0)
+      setCurrentPage(Number(payload.page) || page)
+      setPageSize(Number(payload.pageSize) || limit)
+      setHasFetched(true)
     } catch (error) {
       console.error('Error fetching ledger:', error)
+      ErrorMessage('Failed to fetch sales ledger')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDownload = () => {
-    if (!ledgerData.length) return
+  const handleSubmit = e => {
+    e.preventDefault()
 
-    const header = [
-      'Customer Name',
-      'Reference No',
-      'Invoice No',
-      'Invoice Date',
-      'Product',
-      'Product ID',
-      'Qty',
-      'Amount',
-      'Production Number',
-      'Dispatched Status'
-    ]
-
-    const escapeCSV = value => {
-      if (value === null || value === undefined) return ''
-      const str = String(value).replace(/"/g, '""') // escape double quotes
-      return `"${str}"` // wrap in quotes to handle commas and newlines
+    // Validate: if start date is provided, end date must be entered and greater than start date
+    if (startDate) {
+      if (!endDate) {
+        setDateError('End date is required when start date is provided')
+        ErrorMessage('End date is required when start date is provided')
+        return
+      }
+      if (endDate < startDate) {
+        setDateError('End date must be greater than start date')
+        ErrorMessage('End date must be greater than start date')
+        return
+      }
     }
+    setDateError('')
 
-    const rows = ledgerData.map(item =>
-      [
-        escapeCSV(item.customer_name || item.vendor_name),
-        escapeCSV(item.reference_number),
-        escapeCSV(item.invoice_number),
-        escapeCSV(item.invoice_date),
-        escapeCSV(item.product_name),
-        escapeCSV(item.product_id),
-        escapeCSV(item.qty),
-        escapeCSV(item.taxIncl || item.amount),
-        escapeCSV(item.production_number),
-        escapeCSV(item.is_dispatched == 1 ? 'Yes' : 'No')
-      ].join(',')
-    )
-
-    const content = [header.join(','), ...rows].join('\n')
-
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = 'sales_ledger.csv'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // Always reset to page 1 on a new search
+    fetchLedger(1, pageSize)
   }
+
+  const handlePageChange = (page, size) => {
+    fetchLedger(page, size)
+  }
+
+  const handleDownload = async () => {
+    setDownloading(true)
+    try {
+      const payload = {}
+      if (vendorId?.id) payload.customer_id = vendorId.id
+      if (startDate && endDate) {
+        payload.startDate = startDate.toISOString().slice(0, 10)
+        payload.endDate = endDate.toISOString().slice(0, 10)
+      }
+
+      const response = await PrivateAxios.post(
+        '/sales/salesLedger/export',
+        payload,
+        { responseType: 'blob' }
+      )
+
+      const disposition = response.headers['content-disposition']
+      let filename = 'sales_ledger.csv'
+      if (disposition) {
+        const match = disposition.match(/filename="?([^";\n]+)"?/i)
+        if (match?.[1]) filename = match[1].trim()
+      }
+
+      const url = window.URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting ledger:', error)
+      ErrorMessage('Failed to export sales ledger')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const columns = [
+    {
+      title: 'Customer Name',
+      dataIndex: 'customer_name',
+      key: 'customer_name',
+      render: value => <div className='min-width-200'>{value}</div>,
+    },
+    {
+      title: 'Sale Order No',
+      dataIndex: 'reference_number',
+      key: 'reference_number',
+      render: value => <div className='min-width-100'>{value}</div>,
+    },
+    {
+      title: 'Order Date',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: value => (
+        <div className='min-width-100'>
+          {value ? dayjs(value).format('DD/MM/YYYY') : 'N/A'}
+        </div>
+      ),
+    },
+    {
+      title: 'Product',
+      key: 'product',
+      render: (_, item) => (
+        <div className='min-width-100'>
+          {`${item.product_name || ''} ${item.weight_per_unit ?? ''} ${item.label ?? ''}`.trim()}
+        </div>
+      ),
+    },
+    {
+      title: 'Order Qty',
+      dataIndex: 'qty',
+      key: 'qty',
+      render: value => <div className='min-width-100'>{value}</div>,
+    },
+    {
+      title: 'Received Qty',
+      dataIndex: 'total_received_qty',
+      key: 'total_received_qty',
+      render: value => <div className='min-width-100'>{value}</div>,
+    },
+    {
+      title: 'Returned Qty',
+      dataIndex: 'total_returned_qty',
+      key: 'total_returned_qty',
+      render: value => <div className='min-width-100'>{value}</div>,
+    },
+    {
+      title: 'Balance Qty',
+      key: 'balance_qty',
+      render: (_, item) => (
+        <div className='min-width-100'>
+          {Number(item.qty || 0) - Number(item.total_received_qty || 0)}
+        </div>
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'taxIncl',
+      key: 'taxIncl',
+      render: value => <div className='min-width-100'>{value}</div>,
+    },
+  ]
 
   return (
     <div className='p-4'>
@@ -101,21 +200,10 @@ function SalesLedger () {
                 <div className='form-group' id='vendorSelect'>
                   <label for='vendorSelect'>Customer</label>
                   <div className='custom-select-wrap'>
-                    <Select
-                      name='vendor_name'
-                      options={getCustomer}
-                      getOptionLabel={option => option.name}
-                      getOptionValue={option => option.id}
-                      theme={theme => ({
-                        ...theme,
-                        colors: {
-                          ...theme.colors,
-                          primary25: '#ddddff',
-                          primary: '#6161ff'
-                        }
-                      })}
+                    <CustomerSelect
+                      value={vendorId}
                       onChange={selected => setVendor(selected)}
-                      isClearable
+                      placeholder='Select...'
                     />
                   </div>
                 </div>
@@ -131,7 +219,10 @@ function SalesLedger () {
                     <DatePicker
                       className='form-control'
                       selected={startDate}
-                      onChange={date => setStartDate(date)}
+                      onChange={date => {
+                        setStartDate(date)
+                        if (dateError) setDateError('')
+                      }}
                       placeholderText='Start Date'
                       dateFormat='yyyy-MM-dd'
                       maxDate={new Date()}
@@ -148,14 +239,21 @@ function SalesLedger () {
                       <i className='fas fa-calendar-alt'></i>
                     </span>
                     <DatePicker
-                      className='form-control'
+                      className={`form-control ${dateError ? 'is-invalid' : ''}`}
                       selected={endDate}
-                      onChange={date => setEndDate(date)}
+                      onChange={date => {
+                        setEndDate(date)
+                        if (dateError) setDateError('')
+                      }}
                       placeholderText='End Date'
                       dateFormat='yyyy-MM-dd'
+                      minDate={startDate || undefined}
                       maxDate={new Date()}
                     />
                   </div>
+                  {dateError && (
+                    <small className='text-danger'>{dateError}</small>
+                  )}
                 </div>
               </div>
 
@@ -169,7 +267,7 @@ function SalesLedger () {
         </div>
       </div>
 
-      {ledgerData.length > 0 && (
+      {hasFetched && (
         <div className='card'>
           <div className='card-header d-flex justify-content-between align-items-center flex-wrap gap-2'>
             <h5 className='card-title'>Result</h5>
@@ -177,44 +275,33 @@ function SalesLedger () {
               variant='success'
               onClick={handleDownload}
               className='ms-auto'
+              disabled={!ledgerRows.length || downloading}
             >
-              Download as Text File
+              {downloading ? 'Downloading...' : 'Download as CSV file'}
             </Button>
           </div>
-          <div className='card-body p-0'>
-            <div className='table-responsive mb-0'>
-              <Table striped bordered hover>
-                <thead>
-                  <tr>
-                    <th>Customer Name</th>
-                    <th>Reference No</th>
-                    <th>Invoice No</th>
-                    <th>Invoice Date</th>
-                    <th>Product</th>
-
-                    <th>Qty</th>
-                    <th>Amount</th>
-                    <th>Production Number</th>
-                    <th>Dispatched Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledgerData.map((item, index) => (
-                    <tr key={index}>
-                      <td><div className='min-width-200'>{item.customer_name}</div></td>
-                      <td><div className='min-width-100'>{item.reference_number}</div></td>
-                      <td><div className='min-width-100'>{item.invoice_number}</div></td>
-                      <td><div className='min-width-100'>{item.invoice_date}</div></td>
-                      <td><div className='min-width-100'>{item.product_name}</div></td>
-
-                      <td><div className='min-width-100'>{item.qty}</div></td>
-                      <td><div className='min-width-100'>{item.taxIncl}</div></td>
-                      <td><div className='min-width-100'>{item.production_number}</div></td>
-                      <td><div className='min-width-100'>{item.is_dispatched == 1 ? 'Yes' : 'No'}</div></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+          <div className='card-body'>
+            <div className='bg_succes_table_head rounded_table'>
+              <Table
+                rowKey={(record, index) =>
+                  `${record.reference_number || 'row'}-${record.product_id || 'p'}-${index}`
+                }
+                dataSource={ledgerRows}
+                columns={columns}
+                loading={loading}
+                pagination={{
+                  current: currentPage,
+                  pageSize: pageSize,
+                  total: total,
+                  showSizeChanger: true,
+                  pageSizeOptions: [10, 15, 25, 50],
+                  showTotal: (totalCount, range) =>
+                    `${range[0]}-${range[1]} of ${totalCount} entries`,
+                  onChange: handlePageChange,
+                  onShowSizeChange: handlePageChange,
+                }}
+                scroll={{ x: 'max-content' }}
+              />
             </div>
           </div>
         </div>

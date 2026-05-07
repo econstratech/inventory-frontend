@@ -330,7 +330,7 @@ function PrivateRoutes() {
           <Route path="/modules" element={<Modulesdata />} />
           <Route path="/role" element={<RoleData />} />
           <Route path="/permission" element={<RolePermission />} />
-          <Route path="/settings/inventory/warehouses" element={<WarehousesPermission />} />
+          <Route path="/settings/inventory/stores" element={<WarehousesPermission />} />
           <Route path="/settings/inventory/barcode" element={<BarcodePermission />} />
           <Route path="/settings/inventory/master-uom" element={<UomPermission />} />
           <Route path="/settings/inventory/entry-into-store" element={<DocumentSetting />} />

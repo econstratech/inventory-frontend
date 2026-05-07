@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { Button, Form, Modal, OverlayTrigger, Table, } from 'react-bootstrap'
+import { Tooltip } from 'antd';
+
+import { UserAuth } from "../auth/Auth";
 import { PrivateAxios } from '../../environment/AxiosInstance'
 import Loader from '../landing/loder/Loader';
 import { SuccessMessage } from '../../environment/ToastMessage';
 import SettingsPageTopBar from './SettingsPageTopBar';
-import { Tooltip } from 'antd';
+
 
 
 function Modulesdata() {
+    const { user } = UserAuth();
+
     const [loading, setLoading] = useState(false);
     const [department, setDepartment] = useState([]);
     const [update, setUpdate] = useState(false)
@@ -55,8 +60,6 @@ function Modulesdata() {
     }
 
     const createDepartment = () => {
-        console.log(departmentInputValue);
-
         setLoading(true)
         PrivateAxios.post("/module/add", departmentInputValue)
             .then((res) => {
@@ -110,50 +113,55 @@ function Modulesdata() {
                     <SettingsPageTopBar />
                     <div className='p-4'>
                         <div className='card'>
-                            <div className='p-3 d-flex justify-content-end'>
-                                <button type='button' onClick={() => setCreate(true)} className='me-2 btn btn-sm btn-outline-primary ms-auto'>
-                                    <i className='fas fa-plus me-2'></i>
-                                    New
-                                </button>
-                            </div>
-                            <div className='compare_price_view_table'>
-                                <Table responsive className="table-bordered primary-table-head">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">SL.NO</th>
-                                            <th scope="col">Name</th>
-
-                                            <th scope="col">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {department.map((data, i) => (
+                            {user?.position === "Owner" && (
+                                <div className='p-3 d-flex justify-content-end'>
+                                    <button type='button' onClick={() => setCreate(true)} className='me-2 btn btn-sm btn-outline-primary ms-auto'>
+                                        <i className='fas fa-plus me-2'></i>
+                                        New
+                                    </button>
+                                </div>
+                            )}
+                            <div className='card-body'>
+                                <div className='compare_price_view_table'>
+                                    <Table responsive className="table-bordered primary-table-head">
+                                        <thead>
                                             <tr>
-                                                <td scope="row">{i + 1}</td>
-                                                <td>{data.name}</td>
+                                                <th scope="col">SL.NO</th>
+                                                <th scope="col">Name</th>
 
-                                                <td>
-                                                    <div className="d-flex">
-                                                        <Tooltip title='Edit'>
-                                                            <button type='button' onClick={() => { setDepartmentValue(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
-                                                                <i className='fas fa-pen d-flex'></i>
-                                                            </button>
-                                                        </Tooltip>
-
-                                                        <Tooltip title='Delete'>
-                                                            <button type='button' onClick={() => { setDeleteShow(true); setDeleteId(data.id) }} className="me-1 icon-btn" >
-                                                                <i className='fas fa-trash-alt text-danger'></i>
-                                                            </button>
-                                                        </Tooltip>
-
-
-                                                    </div>
-                                                </td>
+                                                <th scope="col">Action</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </thead>
+                                        <tbody>
+                                            {department.map((data, i) => (
+                                                <tr>
+                                                    <td scope="row">{i + 1}</td>
+                                                    <td>{data.name}</td>
+
+                                                    <td>
+                                                        {user?.position === "Owner" && (
+                                                            <div className="d-flex">
+                                                                <Tooltip title='Edit'>
+                                                                    <button type='button' onClick={() => { setDepartmentValue(data); setUpdate(true) }} to="#" className="me-1 icon-btn">
+                                                                        <i className='fas fa-pen d-flex'></i>
+                                                                    </button>
+                                                                </Tooltip>
+
+                                                                <Tooltip title='Delete'>
+                                                                    <button type='button' onClick={() => { setDeleteShow(true); setDeleteId(data.id) }} className="me-1 icon-btn" >
+                                                                        <i className='fas fa-trash-alt text-danger'></i>
+                                                                    </button>
+                                                                </Tooltip>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
                             </div>
+                         
                         </div>
                     </div>
                 </>
