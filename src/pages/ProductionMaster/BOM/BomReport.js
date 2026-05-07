@@ -94,23 +94,27 @@ function BomReport() {
 
       const rawMaterialProductIdArray = Array.from(rawMaterialProductIdSet);
       // Get inventory needed for all raw material products
-      const rawMaterialProductInventoryNeeded = await PrivateAxios.get(`bom/inventory-needed?rm_product_ids=${rawMaterialProductIdArray.join(",")}`);
-      const rawMaterialProductInventoryNeededData = rawMaterialProductInventoryNeeded.data.data;
+      const rmIds = rawMaterialProductIdArray.join(",").trim();
+      if (rmIds !== "") {
+        const rawMaterialProductInventoryNeeded = await PrivateAxios.get(`bom/inventory-needed?rm_product_ids=${rmIds}`);
+        const rawMaterialProductInventoryNeededData = rawMaterialProductInventoryNeeded.data.data;
 
-      rawMaterialProductInventoryNeededData.forEach(item => {
-        mappedData.forEach(mappedItem => {
-          if (mappedItem.rawMaterialProductId === item.product_id) {
-            const total_required_quantity = item.total_required_quantity || 0;
-            const difference = mappedItem.available_quantity - total_required_quantity;
+        rawMaterialProductInventoryNeededData.forEach(item => {
+          mappedData.forEach(mappedItem => {
+            if (mappedItem.rawMaterialProductId === item.product_id) {
+              const total_required_quantity = item.total_required_quantity || 0;
+              const difference = mappedItem.available_quantity - total_required_quantity;
 
-            mappedItem.total_required_quantity = total_required_quantity;
-            mappedItem.difference = difference;
+              mappedItem.total_required_quantity = total_required_quantity;
+              mappedItem.difference = difference;
 
-          }
+            }
+          });
         });
-      });
 
-      setFilteredData(mappedData);
+        setFilteredData(mappedData);
+      }
+
     } catch (err) {
       if (err.response?.status === 401) {
         // Logout(); // Ensure Logout function is correctly imported and used
