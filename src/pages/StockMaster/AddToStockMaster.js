@@ -21,6 +21,7 @@ function StockMaster() {
       isLoadingVariants: false,
       store: null,
       quantity: "",
+      master_pack_quantity: "",
       buffer_size: "",
     },
   ]);
@@ -33,6 +34,8 @@ function StockMaster() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const fileInputRef = useRef(null);
   const { user, isVariantBased } = UserAuth();
+
+  const hasMasterPack = user?.company?.generalSettings?.has_master_pack === 1 || false;
 
   // Set sample CSV URL based on company settings
   const SAMPLE_CSV_URL = isVariantBased ? "/sample-csv-files/sample_bulk_add_to_stock_with_variants.csv" : "/sample-csv-files/sample_bulk_add_to_stock.csv";
@@ -186,6 +189,7 @@ function StockMaster() {
       isLoadingVariants: false,
       store: null,
       quantity: "",
+      master_pack_quantity: "",
       buffer_size: "",
     };
     setRows([...rows, newRow]);
@@ -201,7 +205,7 @@ function StockMaster() {
     setRows((prevRows) =>
       prevRows.map((row) =>
         row.id === rowId
-          ? { ...row, isLoadingVariants: true, variant: null, variantOptions: [] }
+          ? { ...row, isLoadingVariants: true, variant: null, variantOptions: [], master_pack_quantity: "" }
           : row
       )
     );
@@ -217,11 +221,20 @@ function StockMaster() {
       }));
 
       setRows((prevRows) =>
-        prevRows.map((row) =>
-          row.id === rowId
-            ? { ...row, isLoadingVariants: false, variantOptions, variant: null }
-            : row
-        )
+        prevRows.map((row) => {
+          if (row.id !== rowId) return row;
+          // When master pack is on but the company is not variant-based, auto-pick the first variant
+          // so quantity_per_pack / weight_per_pack are available without exposing the variant selector.
+          const autoVariant = !isVariantBased && hasMasterPack && variantOptions.length > 0
+            ? variantOptions[0]
+            : null;
+          return {
+            ...row,
+            isLoadingVariants: false,
+            variantOptions,
+            variant: autoVariant,
+          };
+        })
       );
 
       if (variantOptions.length === 0) {
@@ -250,13 +263,16 @@ function StockMaster() {
               variant: null,
               variantOptions: [],
               isLoadingVariants: false,
+              quantity: "",
+              master_pack_quantity: "",
             }
           : row
       )
     );
 
-    // Show variant modal only if the company is set with variant based
-    if (selectedOption?.value && isVariantBased) {
+    // Fetch variants when the company is variant-based, or when master-pack is enabled
+    // (master pack needs quantity_per_pack / weight_per_pack which live on the variant).
+    if (selectedOption?.value && (isVariantBased || hasMasterPack)) {
       fetchProductVariants(selectedOption.value, rowId);
     }
   };
@@ -264,7 +280,9 @@ function StockMaster() {
   const handleVariantChange = (selectedOption, rowId) => {
     setRows((prevRows) =>
       prevRows.map((row) =>
-        row.id === rowId ? { ...row, variant: selectedOption } : row
+        row.id === rowId
+          ? { ...row, variant: selectedOption, quantity: "", master_pack_quantity: "" }
+          : row
       )
     );
   };
@@ -277,12 +295,42 @@ function StockMaster() {
     );
   };
 
+  const formatSyncedValue = (num) => {
+    if (Number.isNaN(num)) return "";
+    if (Number.isInteger(num)) return String(num);
+    // round to 2 decimals, drop trailing zeros
+    return String(parseFloat(num.toFixed(2)));
+  };
+
   const handleQuantityChange = (e, rowId) => {
     const value = e.target.value;
     setRows(
-      rows.map((row) =>
-        row.id === rowId ? { ...row, quantity: value } : row
-      )
+      rows.map((row) => {
+        if (row.id !== rowId) return row;
+        const qpp = Number(row.variant?.variantData?.quantity_per_pack) || 0;
+        let mpq = "";
+        if (qpp > 0 && value !== "") {
+          const num = parseFloat(value);
+          if (!Number.isNaN(num)) mpq = formatSyncedValue(num / qpp);
+        }
+        return { ...row, quantity: value, master_pack_quantity: mpq };
+      })
+    );
+  };
+
+  const handleMasterPackChange = (e, rowId) => {
+    const value = e.target.value;
+    setRows(
+      rows.map((row) => {
+        if (row.id !== rowId) return row;
+        const qpp = Number(row.variant?.variantData?.quantity_per_pack) || 0;
+        let qty = "";
+        if (qpp > 0 && value !== "") {
+          const num = parseFloat(value);
+          if (!Number.isNaN(num)) qty = formatSyncedValue(num * qpp);
+        }
+        return { ...row, master_pack_quantity: value, quantity: qty };
+      })
     );
   };
 
@@ -370,6 +418,7 @@ function StockMaster() {
             isLoadingVariants: false,
             store: null,
             quantity: "",
+            master_pack_quantity: "",
             buffer_size: "",
           },
         ]);
@@ -425,6 +474,7 @@ function StockMaster() {
             isLoadingVariants: false,
             store: null,
             quantity: "",
+            master_pack_quantity: "",
             buffer_size: "",
           },
         ]);
@@ -629,7 +679,7 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={isVariantBased ? 4 : 5} lg={isVariantBased ? 4 : 5}>
+                  <Col xs={24} sm={24} md={hasMasterPack ? 3 : (isVariantBased ? 4 : 5)} lg={hasMasterPack ? 3 : (isVariantBased ? 4 : 5)}>
                     <Form.Item
                       label="Enter Quantity"
                       required
@@ -655,7 +705,7 @@ function StockMaster() {
                         }}
                         min="0"
                         step="0.01"
-                        style={{ 
+                        style={{
                           height: "38px",
                           borderColor: rowErrors[row.id]?.quantity ? "#ff4d4f" : undefined,
                         }}
@@ -663,7 +713,34 @@ function StockMaster() {
                     </Form.Item>
                   </Col>
 
-                  <Col xs={24} sm={24} md={isVariantBased ? 4 : 5} lg={isVariantBased ? 4 : 5}>
+                  {hasMasterPack && (
+                    <Col xs={24} sm={24} md={3} lg={3}>
+                      <Form.Item
+                        label="Master Pack"
+                        style={{ marginBottom: 0 }}
+                        extra={
+                          row.variant?.variantData?.weight_per_pack ? (
+                            <span style={{ fontSize: "12px", color: "#888" }}>
+                              Pack: {row.variant.variantData.weight_per_pack}
+                            </span>
+                          ) : null
+                        }
+                      >
+                        <Input
+                          type="number"
+                          placeholder="Master Pack"
+                          value={row.master_pack_quantity}
+                          onChange={(e) => handleMasterPackChange(e, row.id)}
+                          min="0"
+                          step="0.01"
+                          disabled={!row.variant?.variantData?.quantity_per_pack}
+                          style={{ height: "38px" }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  )}
+
+                  <Col xs={24} sm={24} md={hasMasterPack ? 3 : (isVariantBased ? 4 : 5)} lg={hasMasterPack ? 3 : (isVariantBased ? 4 : 5)}>
                     <Form.Item
                       label="Buffer Size"
                       style={{ marginBottom: 0 }}
