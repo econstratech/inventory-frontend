@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Table, Input, Button, Modal, Form } from "antd";
 import { Link } from "react-router-dom";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
@@ -22,7 +22,7 @@ function BomMaster() {
     searchKey: ""
   });
 
-  const { setIsLoading, Logout } = UserAuth();
+  const { setIsLoading, Logout, isVariantBased } = UserAuth();
 
   const [filteredData, setFilteredData] = useState([]);
   const [searchKeyInput, setSearchKeyInput] = useState("");
@@ -36,7 +36,7 @@ function BomMaster() {
   const [updateBomFormData, setUpdateBomFormData] = useState(null);
 
   // Fetch products data
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const { page, rowsPerPage, searchKey, fg_product_id } = bomController;
@@ -74,11 +74,11 @@ function BomMaster() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [bomController, setIsLoading, Logout]);
 
   useEffect(() => {
     fetchData();
-  }, [bomController]);
+  }, [fetchData]);
 
   // Handle search button click
   const handleSearch = () => {
@@ -245,24 +245,24 @@ function BomMaster() {
       key: "FGProduct",
       width: 150,
     },
-    {
+    ...(isVariantBased ? [{
       title: "FG Variant",
       dataIndex: ["FGVariant"],
       key: "FGVariant",
       width: 150,
-    },
+    }] : []),
     {
       title: "RM Product",
       dataIndex: ["RMProduct"],
       key: "RMProduct",
       width: 150,
     },
-    {
+    ...(isVariantBased ? [{
       title: "RM Variant",
       dataIndex: ["RMVariant"],
       key: "RMVariant",
       width: 150,
-    },
+    }] : []),
     {
       title: "Quantity",
       dataIndex: ["quantity"],
