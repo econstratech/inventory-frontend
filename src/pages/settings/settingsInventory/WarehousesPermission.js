@@ -281,6 +281,12 @@ function WarehousesPermission() {
                                 <div className="p-3">
                                   <div className="d-flex align-items-center">
                                     <h5 className="my-1 fs-6">{item.name}</h5>
+                                    {Number(item.is_fg_store) === 1 && (
+                                      <span className="badge bg-success ms-2">FG Store</span>
+                                    )}
+                                    {Number(item.is_rm_store) === 1 && (
+                                      <span className="badge bg-info ms-2">RM Store</span>
+                                    )}
                                       {MatchPermission(["Manage Stores"]) && (
                                         <Dropdown align="end" className="ms-auto">
                                           <Dropdown.Toggle
@@ -593,7 +599,7 @@ function WarehousesPermission() {
           </div>
           <div className="col-12">
           <label class="custom-checkbox form-label" htmlFor="is_rm_store">
-            Set RMHFG store?
+            Set CWHRM store?
               <input
                 type="checkbox"
                 id="is_rm_store"
@@ -866,7 +872,7 @@ function WarehousesPermission() {
           </div>
           <div className="col-12">
           <label class="custom-checkbox form-label" htmlFor="update_is_rm_store">
-            Set RMHFG store?
+            Set CWHRM store?
               <input
                 type="checkbox"
                 id="update_is_rm_store"

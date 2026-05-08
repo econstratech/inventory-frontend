@@ -11,25 +11,66 @@ function Sidebar() {
 
   return (
     <aside className="main-sidebar sidebar-dark-primary elevation-1 exp-main-nav header-3">
-      <div className="brand-link d-flex justify-content-center">
-        <a href="/welcome" style={{ display: "none" }}>
-        <img
-          src={process.env.PUBLIC_URL + "/assets/images/web-logo-new.png"}
-          alt="Logo"
-          className="brand-image img-fluid"
-        />
-        <span className="brand-text" style={{ display: "none" }}>
+      <div className="brand-link" style={{ display: "none" }}>
+        <a href="/welcome">
           <img
-            src={process.env.PUBLIC_URL + "/assets/images/logo-navy.png"}
+            src={process.env.PUBLIC_URL + "/assets/images/web-logo-new.png"}
             alt="Logo"
-            className="img-fluid brand-name"
+            className="brand-image img-fluid"
           />
-        </span>
+          <span className="brand-text">
+            <img
+              src={process.env.PUBLIC_URL + "/assets/images/logo-navy.png"}
+              alt="Logo"
+              className="img-fluid brand-name"
+            />
+          </span>
         </a>
-
       </div>
 
-      <div className="sidebar">
+      <div className="sidebar" style={{ justifyContent: "flex-start" }}>
+        <div className="side_pro_info_wrap_2 w-100 px-2 pt-2 pb-2">
+          <div
+            className="side_pro_info d-flex align-items-center"
+            style={{ padding: "6px 10px" }}
+          >
+            <div
+              className="side_pro_info_logo flex-shrink-0 d-flex align-items-center justify-content-center"
+              style={{
+                width: "40px",
+                height: "40px",
+                padding: 0,
+                boxShadow: "none",
+                overflow: "hidden",
+              }}
+            >
+              {user?.company?.company_name === "EconStra Business Consultants LLP (Expand)" ? (
+                <img
+                  src="/assets/images/logo-econstra.png"
+                  alt="Logo"
+                  className="img-fluid"
+                  style={{ maxWidth: "100%", maxHeight: "100%" }}
+                />
+              ) : (
+                <span
+                  className="company-initial fw-bold d-flex align-items-center justify-content-center w-100 h-100"
+                  style={{ color: "#247297", fontSize: "18px" }}
+                >
+                  {user?.company?.company_name?.charAt(0)?.toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="ps-2 flex-grow-1">
+              <h5
+                className="comp_name_"
+                style={{ margin: 0, textAlign: "start", fontSize: "15px", lineHeight: "1.3" }}
+              >
+                {user?.company?.company_name}
+              </h5>
+            </div>
+          </div>
+        </div>
+
         <div className='side_menu'>
           <nav className="nav-customSidebar">
             <div className="accordion menu-accordian" id="menuAccordian">
@@ -1900,27 +1941,6 @@ function Sidebar() {
           </nav>
         </div>
         {/* /.sidebar-menu */}
-        {/* profile info */}
-        <div className="side_pro_info_wrap_2">
-          <div className="side_pro_info">
-            <div className="side_pro_info_logo">
-              <img
-                src="/assets/images/logo-econstra.png"
-                alt="Logo"
-                className="img-fluid"
-              />
-            </div>
-            <div className="ps-2">
-              <h5 className="comp_name_">EconStra Business Consultants LLP (Expand)</h5>
-              <div className="plan_name__">
-                <label>Current Plan</label>
-                <div>Basic Plans</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* profile info end*/}
       </div>
       {/* /.sidebar */}
     </aside>

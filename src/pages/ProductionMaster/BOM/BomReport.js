@@ -215,7 +215,7 @@ function BomReport() {
         key: "inventory_needed",
         width: 150,
         render: (_, record) => {
-          return record?.inventory_needed || "0";
+          return record?.inventory_needed ? parseFloat(record?.inventory_needed).toFixed(2) : "0";
         },
     },
     {
@@ -224,7 +224,7 @@ function BomReport() {
         key: "required_quantity",
         width: 150,
         render: (_, record) => {
-          return record?.required_quantity || "0";
+          return record?.required_quantity ? record?.required_quantity.toFixed(2) : "0";
         },
     },
     {
@@ -233,7 +233,7 @@ function BomReport() {
         key: "total_required_quantity",
         width: 150,
         render: (_, record) => {
-          return record?.total_required_quantity || "0";
+          return record?.total_required_quantity ? record?.total_required_quantity.toFixed(2) : "0";
         },
     },
     {
