@@ -168,6 +168,7 @@ function StockMaster() {
           id: item.id || "",
           productVariant: item?.productVariant || "",
           masterPack: item?.productVariant?.weight_per_pack,
+          availableMasterPack: item?.productVariant?.quantity_per_pack ? (parseFloat(item.quantity) / parseFloat(item.productVariant.quantity_per_pack)).toFixed(2) : null,
           product: {
             id: item.product.id || "",
             product_code: item.product.product_code || "",
@@ -580,12 +581,6 @@ function StockMaster() {
         return record?.product.productType || "N/A";
       },
     },
-    ...(hasMasterPack ? [{
-      title: "Master Pack",
-      dataIndex: ["masterPack"],
-      key: "masterPack",
-      width: 150,
-    }] : []),
     {
       title: "Store",
       dataIndex: ["warehouse", "name"],
@@ -685,6 +680,23 @@ function StockMaster() {
         return record?.total_weight.display || "";
       },
     },
+    ...(hasMasterPack ? [
+      {
+        title: "Master Pack",
+        dataIndex: ["masterPack"],
+        key: "masterPack",
+        width: 150,
+      },
+      {
+        title: "Available Master Pack",
+        dataIndex: ["availableMasterPack"],
+        key: "availableMasterPack",
+        width: 150,
+        onCell: () => ({
+          style: { backgroundColor: "#fff3cd" },
+        }),
+      }
+    ] : []),
     {
       title: "Sale Order Recieved",
       dataIndex: ["sale_order_recieved"],
@@ -722,15 +734,6 @@ function StockMaster() {
         return record?.product.buffer_size || "0";
       },
     },
-    // {
-    //   title: "Inventory at Production",
-    //   dataIndex: ["inventory_at_production"],
-    //   key: "inventory_at_production",
-    //   width: 150,
-    //   render: (_, record) => {
-    //     return record?.inventory_at_production || "0";
-    //   },
-    // },
     {
       title: "Actions",
       key: "actions",
