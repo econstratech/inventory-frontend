@@ -44,10 +44,18 @@ function StockMaster() {
     id: null,
     product: null,
     variant: null,
+    variantData: null,
     store: null,
     quantity: "",
+    master_pack_quantity: "",
     buffer_size: "",
   });
+
+  const formatSyncedValue = (num) => {
+    if (Number.isNaN(num)) return "";
+    if (Number.isInteger(num)) return String(num);
+    return String(parseFloat(num.toFixed(2)));
+  };
   const [productOptions, setProductOptions] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -270,7 +278,7 @@ function StockMaster() {
   }, []);
 
   // Fetch stock entry by ID
-  const fetchStockEntryById = async (id) => {
+  const fetchStockEntryById = async (id, rowVariant = null) => {
     try {
       const response = await PrivateAxios.get(`/product/stock-entries/${id}`);
       const data = response.data?.data;
@@ -313,12 +321,23 @@ function StockMaster() {
         //     }
         //   : null;
 
+        // Prefer the variant from the table row — it already carries the full
+        // quantity_per_pack / weight_per_pack fields (the detail endpoint may not).
+        const variantData = rowVariant || data.productVariant || null;
+        const qpp = Number(variantData?.quantity_per_pack) || 0;
+        const initialQty = data.quantity != null ? data.quantity.toString() : "";
+        const initialMasterPack = qpp > 0 && initialQty !== ""
+          ? formatSyncedValue(parseFloat(initialQty) / qpp)
+          : "";
+
         setUpdateFormData({
           id: data.id,
           product: productOption,
-          variant: data.productVariant ? `${data.productVariant.weight_per_unit} ${data.productVariant.masterUOM?.label || ""}` : "",
+          variant: variantData ? `${variantData.weight_per_unit} ${variantData.masterUOM?.label || ""}` : "",
+          variantData,
           store: storeOption,
-          quantity: data.quantity.toString(),
+          quantity: initialQty,
+          master_pack_quantity: initialMasterPack,
           buffer_size: data.buffer_size.toString()
         });
       }
@@ -332,11 +351,11 @@ function StockMaster() {
   const handleUpdateClick = async (record) => {
     setIsUpdateModalVisible(true);
     setUpdateErrors({});
-    
+
     // Load products first, then fetch stock entry data
     await loadProducts();
 
-    await fetchStockEntryById(record.id);
+    await fetchStockEntryById(record.id, record.productVariant);
   };
 
   // Handle update modal close
@@ -346,8 +365,11 @@ function StockMaster() {
       id: null,
       product: null,
       variant: null,
+      variantData: null,
       store: null,
       quantity: "",
+      master_pack_quantity: "",
+      buffer_size: "",
     });
     setUpdateErrors({});
   };
@@ -1120,10 +1142,16 @@ function StockMaster() {
               placeholder="Enter Quantity"
               value={updateFormData.quantity}
               onChange={(e) => {
-                setUpdateFormData((prev) => ({
-                  ...prev,
-                  quantity: e.target.value,
-                }));
+                const value = e.target.value;
+                setUpdateFormData((prev) => {
+                  const qpp = Number(prev.variantData?.quantity_per_pack) || 0;
+                  let mpq = "";
+                  if (qpp > 0 && value !== "") {
+                    const num = parseFloat(value);
+                    if (!Number.isNaN(num)) mpq = formatSyncedValue(num / qpp);
+                  }
+                  return { ...prev, quantity: value, master_pack_quantity: mpq };
+                });
                 if (updateErrors.quantity) {
                   setUpdateErrors((prev) => {
                     const newErrors = { ...prev };
@@ -1137,6 +1165,48 @@ function StockMaster() {
               style={{ height: "38px" }}
             />
           </Form.Item>
+
+          {hasMasterPack && (
+            <Form.Item
+              label="Master Pack"
+              extra={
+                updateFormData.variantData?.weight_per_pack ? (
+                  <span style={{ fontSize: "12px", color: "#888" }}>
+                    Pack: {updateFormData.variantData.weight_per_pack}
+                  </span>
+                ) : null
+              }
+            >
+              <Input
+                type="number"
+                placeholder="Master Pack"
+                value={updateFormData.master_pack_quantity}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setUpdateFormData((prev) => {
+                    const qpp = Number(prev.variantData?.quantity_per_pack) || 0;
+                    let qty = "";
+                    if (qpp > 0 && value !== "") {
+                      const num = parseFloat(value);
+                      if (!Number.isNaN(num)) qty = formatSyncedValue(num * qpp);
+                    }
+                    return { ...prev, master_pack_quantity: value, quantity: qty };
+                  });
+                  if (updateErrors.quantity) {
+                    setUpdateErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.quantity;
+                      return newErrors;
+                    });
+                  }
+                }}
+                min="0"
+                step="0.01"
+                disabled={!updateFormData.variantData?.quantity_per_pack}
+                style={{ height: "38px" }}
+              />
+            </Form.Item>
+          )}
 
           <Form.Item
             label={
