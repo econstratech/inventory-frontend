@@ -148,11 +148,18 @@ function SalesLedger () {
     {
       title: 'Product',
       key: 'product',
-      render: (_, item) => (
-        <div className='min-width-100'>
-          {`${item.product_name || ''} ${item.weight_per_unit ?? ''} ${item.label ?? ''}`.trim()}
-        </div>
-      ),
+      render: (_, item) => {
+        const variant = item.weight_per_unit
+          ? `${item.weight_per_unit} ${item.label || ''}`.trim()
+          : ''
+        return (
+          <div className='min-width-200'>
+            {variant
+              ? `${item.product_name || ''} (${variant})`
+              : item.product_name || ''}
+          </div>
+        )
+      },
     },
     {
       title: 'Order Qty',
@@ -181,12 +188,12 @@ function SalesLedger () {
         </div>
       ),
     },
-    {
-      title: 'Amount',
-      dataIndex: 'taxIncl',
-      key: 'taxIncl',
-      render: value => <div className='min-width-100'>{value}</div>,
-    },
+    // {
+    //   title: 'Amount',
+    //   dataIndex: 'taxIncl',
+    //   key: 'taxIncl',
+    //   render: value => <div className='min-width-100'>{value}</div>,
+    // },
   ]
 
   return (
