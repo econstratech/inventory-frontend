@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Form, Row, Col, Table, Collapse, Modal } from "react-bootstrap";
+import { Form, Col, Collapse } from "react-bootstrap";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./BOMPage.css";
-import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Tooltip } from "antd";
 import Select from "react-select";
 import AddAlternateItemModal from "./AddAlternateItemModal";
@@ -33,33 +33,7 @@ import { UserAuth } from "../../auth/Auth";
 import { DropDownList } from "@progress/kendo-react-dropdowns";
 const CreateBom = () => {
   const { userDetails } = UserAuth();
-  const [finishedGoods, setFinishedGoods] = useState([
-    {
-      id: "",
-      name: "",
-      category: "",
-      quantity: "",
-      unit: "",
-      costAllocation: "",
-      comment: "",
-    },
-  ]);
   const navigate = useNavigate();
-  const [rawMaterials, setRawMaterials] = useState([
-    { id: "", name: "", category: "", quantity: "", unit: "", comment: "" },
-  ]);
-
-  const [otherCharges, setOtherCharges] = useState([
-    { classification: "", amount: "", comment: "" },
-  ]);
-
-  const addRow = (setState, state) => setState([...state, {}]);
-
-  const removeRow = (index, state, setState) => {
-    const newState = [...state];
-    newState.splice(index, 1);
-    setState(newState);
-  };
 
   // const handleInputChange = (index, event, state, setState) => {
   //   const { name, value } = event.target;
@@ -241,13 +215,6 @@ const CreateBom = () => {
   //delete modal
   const [deleteShow, setDeleteShow] = useState(false);
   const deleteModalClose = () => setDeleteShow(false);
-  const deleteModalShow = () => setDeleteShow(true);
-
-  //table disable row show
-
-  const handleToggleDisableTableRow = () => {
-    setExpandedDisableTableRow(!expandedDisableTableRow);
-  };
 
   const handleRoutingCommentChange = (routeId, value) => {
     setRoutingComments((prev) => ({
@@ -312,12 +279,6 @@ const CreateBom = () => {
     setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
   //end files selected on change
-
-  // Create an array of 5 items
-  const routes = Array.from({ length: 5 }, (_, index) => ({
-    number: index + 1,
-    name: `Routing #${index + 1} : R${index + 1}`,
-  }));
 
   //======================Get Router=======================//
   const [routesAll, setRoutes] = useState([]);
@@ -700,8 +661,6 @@ const CreateBom = () => {
         company_id: userDetails.company_id,
         user_id: userDetails.id,
       };
-
-     // console.log("Payload Sent to API:", JSON.stringify(payload, null, 2));
 
       const response = await PrivateAxios.post(
         "/production/create-bom",

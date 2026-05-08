@@ -995,7 +995,8 @@ function Sidebar() {
                           <li className="sidebar-item">
                             <Link
                               to="/inventory/bom-master"
-                              className={`sidebar-nav-link ${location.pathname === "/inventory/bom-master" ? "active" : ""
+                              className={`sidebar-nav-link ${
+                                location.pathname === "/inventory/bom-master" || location.pathname === "/inventory/bom-master/create" ? "active" : ""
                                 }`}
                             >
                               <p>BOM Master</p>
