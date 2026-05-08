@@ -231,6 +231,21 @@ function Sidebar() {
                         >
                           <div className="accordion-body">
                             <ul className="sidebar-submenu">
+                              {MatchPermission(["Purchase Ledger"]) && (
+                                <li className="sidebar-item">
+                                  <Link
+                                    to="/operation/purchase_ledger"
+                                    className={`sidebar-nav-link ${
+                                      location.pathname === "/operation/purchase_ledger"
+                                      ? "active"
+                                      : ""
+                                      }`}
+                                  >
+                                    <p>Purchase Ledger</p>
+                                  </Link>
+                                </li>
+                              )}
+
                               {MatchPermission(["Create PO"]) ?
                                 <li className="sidebar-item">
                                   <Link

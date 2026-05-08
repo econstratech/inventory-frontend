@@ -197,7 +197,7 @@ function ReportsIndex() {
                                             <h6 className='text-start fw-bold'>PURCHASE REPORTS</h6>
                                             <ul className='mb-0 f-s-15 fw-medium'>
                                                 {/* <li><Link to="/report/purchase-order-summary">Purchase Order Summary</Link></li> */}
-                                                {/* <li><Link to="/report/purchase-register">Purchase Register</Link></li> */}
+                                                <li><Link to="/operation/purchase_ledger">Purchase Ledger Report</Link></li>
                                                 <li><Link to="/report/pending-po-report">Pending PO Report</Link></li>
                                                 {/* <li><Link to="/report/vendor-performance-report">Vendor Performance Report</Link></li> */}
                                                 {/* <li><Link to="/report/purchase-rate-comparison">Purchase Rate Comparison</Link></li> */}
@@ -218,6 +218,7 @@ function ReportsIndex() {
                                             <h6 className='text-start fw-bold'>SALES REPORTS</h6>
                                             <ul className='mb-0 f-s-15 fw-medium'>
                                                 {/* <li><Link to="/report/sale-register">Sales Register</Link></li> */}
+                                                <li><Link to="/operation/sales_ledger">Sales Ledger Report</Link></li>
                                                 <li><Link to="/report/customer-wise-sales-report">Customer Wise Sales Report</Link></li>
                                                 <li><Link to="/report/item-wise-sales-report">Item Wise Sales Report</Link></li>
                                                 {/* <li><Link to="/report/profitability-report">Profitability Report</Link></li> */}

@@ -49,7 +49,7 @@ const CustomerSelect = ({
       const queryParams = new URLSearchParams({
         page,
         limit,
-        ...(searchKey && searchKey.trim() !== "" && { search: searchKey.trim() }),
+        ...(searchKey && searchKey.trim() !== "" && { searchkey: searchKey.trim() }),
       }).toString();
       const response = await PrivateAxios.get(`customer/all-customers?${queryParams}`);
       const resData = response.data?.data;
