@@ -95,6 +95,20 @@ const StoreSelect = ({
     return value;
   }, [value, storeOptions]);
 
+  // Render the store name with FG/RM badges (matches the store-list card design).
+  const formatOptionLabel = (option) => {
+    const store = option?.storeData || {};
+    const isFg = Number(store.is_fg_store) === 1;
+    const isRm = Number(store.is_rm_store) === 1;
+    return (
+      <span className="d-inline-flex align-items-center flex-wrap" style={{ gap: 6 }}>
+        <span>{option.label}</span>
+        {isFg && <span className="badge bg-success">FG Store</span>}
+        {isRm && <span className="badge bg-info">RM Store</span>}
+      </span>
+    );
+  };
+
   // Default styles with error state support
   const defaultStyles = {
     control: (base, state) => ({
@@ -129,6 +143,7 @@ const StoreSelect = ({
       isClearable={isClearable}
       isSearchable={isSearchable}
       isDisabled={isDisabled}
+      formatOptionLabel={formatOptionLabel}
       filterOption={() => true} // Disable client-side filtering for server-side search
       noOptionsMessage={({ inputValue }) =>
         inputValue
