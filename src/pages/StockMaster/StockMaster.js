@@ -60,6 +60,12 @@ function StockMaster() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateErrors, setUpdateErrors] = useState({});
+
+  // Bulk-selection state for the first-column checkbox + bulk delete action.
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const { isVariantBased, user, MatchPermission } = UserAuth();
 
   const hasMasterPack = user.company?.generalSettings.has_master_pack === 1;
@@ -182,7 +188,7 @@ function StockMaster() {
             product_code: item.product.product_code || "",
             product_name: item.product.product_name || "",
             sku_product: item.product.sku_product || "",
-            buffer_size: item.buffer_size || "",
+            buffer_size: buffer_size || "",
             productType: item.product?.masterProductType?.name || "",
             masterBrand: item.product?.masterBrand || "",
           },
@@ -192,7 +198,7 @@ function StockMaster() {
           },
           productCategory: item.product.productCategory || "",
           quantity: item.quantity || "",
-          quantityColour: quantityColour(item.buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
+          quantityColour: quantityColour(buffer_size || 0, item.inventory_at_transit || 0, item.quantity || 0),
           inventory_at_transit: item.inventory_at_transit || 0,
           inventory_needed: inventory_needed,
           sale_order_recieved: item.sale_order_recieved || 0,
@@ -213,6 +219,13 @@ function StockMaster() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Reset bulk selection whenever filters or pagination change so users don't
+  // unintentionally delete rows hidden by the current filter/page view.
+  useEffect(() => {
+    setSelectedRowKeys([]);
+    setSelectedRows([]);
+  }, [productController]);
 
 
   // Handle search button click
@@ -490,6 +503,73 @@ function StockMaster() {
       onOk() {
         handleDelete(record.id);
       },
+      width: 500,
+    });
+  };
+
+  // Permanently delete stock entries for the selected product variants.
+  const handleBulkDelete = async () => {
+    const variantIds = Array.from(
+      new Set(
+        selectedRows
+          .map((row) => row?.productVariant?.id)
+          .filter((id) => id != null && id !== "")
+      )
+    );
+
+    if (variantIds.length === 0) {
+      ErrorMessage("No variant-based stock entries selected.");
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      const response = await PrivateAxios.post(
+        "/product/stock-entries/bulk-delete",
+        { product_variant_ids: variantIds }
+      );
+
+      if (response.status === 200) {
+        SuccessMessage(
+          response.data?.message ||
+            `${variantIds.length} stock entries deleted successfully`
+        );
+        setSelectedRowKeys([]);
+        setSelectedRows([]);
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Bulk delete stock entries error:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to delete stock entries. Please try again.";
+      ErrorMessage(errorMessage);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteClick = () => {
+    const count = selectedRows.length;
+    Modal.confirm({
+      title: "Delete Selected Stock Entries",
+      icon: <DeleteOutlined style={{ color: "#ff4d4f" }} />,
+      content: (
+        <div>
+          <p>
+            Are you sure you want to delete {count} stock {count === 1 ? "entry" : "entries"}?
+          </p>
+          <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>
+            Warning: This will permanently remove the selected records from
+            product stock. Deleted entries cannot be recovered.
+          </p>
+        </div>
+      ),
+      okText: `Yes, Delete ${count}`,
+      okType: "danger",
+      cancelText: "Cancel",
+      onOk: handleBulkDelete,
       width: 500,
     });
   };
@@ -954,9 +1034,115 @@ function StockMaster() {
                             </div>
                           </div>
                         </div>
+                        {isVariantBased &&
+                          MatchPermission(["Manage Stock Master"]) &&
+                          selectedRowKeys.length > 0 && (
+                            <div
+                              className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom"
+                              style={{ backgroundColor: "#fff7f7" }}
+                            >
+                              <span>
+                                <strong>{selectedRowKeys.length}</strong>{" "}
+                                {selectedRowKeys.length === 1 ? "entry" : "entries"} selected
+                              </span>
+                              <Button
+                                type="primary"
+                                danger
+                                icon={<DeleteOutlined />}
+                                loading={isBulkDeleting}
+                                onClick={handleBulkDeleteClick}
+                              >
+                                Delete Selected
+                              </Button>
+                            </div>
+                          )}
                         <div className="p-0">
                           <div className="table-responsive mb-0">
                             <Table
+                              rowKey="id"
+                              rowSelection={
+                                isVariantBased && MatchPermission(["Manage Stock Master"])
+                                  ? {
+                                      selectedRowKeys,
+                                      onChange: (keys, rows) => {
+                                        setSelectedRowKeys(keys);
+                                        setSelectedRows(rows);
+                                      },
+                                      getCheckboxProps: (record) => ({
+                                        disabled: !record?.productVariant?.id,
+                                      }),
+                                      // Custom checkbox markup matching the `custom-checkbox`
+                                      // design used elsewhere in the app (e.g. MyNewsale.js).
+                                      renderCell: (checked, record) => {
+                                        const disabled = !record?.productVariant?.id;
+                                        return (
+                                          <label
+                                            className="custom-checkbox mb-0"
+                                            style={{
+                                              opacity: disabled ? 0.4 : 1,
+                                              cursor: disabled ? "not-allowed" : "pointer",
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={!!checked}
+                                              disabled={disabled}
+                                              onChange={(e) => {
+                                                const isChecked = e.target.checked;
+                                                setSelectedRowKeys((prev) =>
+                                                  isChecked
+                                                    ? [...prev, record.id]
+                                                    : prev.filter((k) => k !== record.id)
+                                                );
+                                                setSelectedRows((prev) =>
+                                                  isChecked
+                                                    ? [...prev, record]
+                                                    : prev.filter((r) => r.id !== record.id)
+                                                );
+                                              }}
+                                            />
+                                            <span className="checkmark"></span>
+                                          </label>
+                                        );
+                                      },
+                                      columnTitle: (() => {
+                                        const selectable = filteredData.filter(
+                                          (r) => r?.productVariant?.id
+                                        );
+                                        const allSelected =
+                                          selectable.length > 0 &&
+                                          selectable.every((r) =>
+                                            selectedRowKeys.includes(r.id)
+                                          );
+                                        return (
+                                          <label
+                                            className="custom-checkbox mb-0"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={allSelected}
+                                              disabled={selectable.length === 0}
+                                              onChange={(e) => {
+                                                if (e.target.checked) {
+                                                  setSelectedRowKeys(
+                                                    selectable.map((r) => r.id)
+                                                  );
+                                                  setSelectedRows(selectable);
+                                                } else {
+                                                  setSelectedRowKeys([]);
+                                                  setSelectedRows([]);
+                                                }
+                                              }}
+                                            />
+                                            <span className="checkmark"></span>
+                                          </label>
+                                        );
+                                      })(),
+                                    }
+                                  : undefined
+                              }
                               columns={columns}
                               dataSource={filteredData}
                               pagination={{

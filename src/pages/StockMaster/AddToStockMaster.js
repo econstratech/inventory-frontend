@@ -38,7 +38,14 @@ function StockMaster() {
   const hasMasterPack = user?.company?.generalSettings?.has_master_pack === 1 || false;
 
   // Set sample CSV URL based on company settings
-  const SAMPLE_CSV_URL = isVariantBased ? "/sample-csv-files/sample_bulk_add_to_stock_with_variants.csv" : "/sample-csv-files/sample_bulk_add_to_stock.csv";
+  let SAMPLE_CSV_URL = "";
+  if (isVariantBased && hasMasterPack) {
+    SAMPLE_CSV_URL = "/sample-csv-files/sample_bulk_add_to_stock_with_variants_and_master_pack.csv";
+  } else if (isVariantBased) {
+    SAMPLE_CSV_URL = "/sample-csv-files/sample_bulk_add_to_stock_with_variants.csv";
+  } else {
+    SAMPLE_CSV_URL = "/sample-csv-files/sample_bulk_add_to_stock.csv";
+  }
 
   const [pagination, setPagination] = useState({
     currentPage: 1,

@@ -1,0 +1,5 @@
+Product Code,Store Name,UOM,Weight Per Unit,Quantity,Buffer Size,Master Pack Quantity
+RM001,Mohan Co-operative Industrial estate,kg,5,150,20,10
+RM001,M/s Suburb Residency Pvt. Ltd,kg,1,300,50,20
+FG0003,M/s Suburb Residency Pvt. Ltd,g,500,200,50,5
+FG0003,Mohan Co-operative Industrial estate,g,250,350,80,20

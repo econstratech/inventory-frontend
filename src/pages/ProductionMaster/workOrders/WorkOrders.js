@@ -32,7 +32,8 @@ function WorkOrders() {
   const { user, isVariantBased, MatchPermission } = UserAuth();
   const companyId = user?.company_id ?? user?.company?.id ?? null;
   const companySettings = user?.company?.generalSettings || null;
-  const productionwithoutBOM = companySettings.production_without_bom === 1;
+  const hasMasterPack = user?.company?.generalSettings?.has_master_pack === 1 || false;
+  const productionwithoutBOM = companySettings.production_without_bom === 1 || false;
 
   const [rows, setRows] = useState([]);
   const [listLoading, setListLoading] = useState(false);
@@ -68,6 +69,11 @@ function WorkOrders() {
   const [materialIssueSubmittingId, setMaterialIssueSubmittingId] = useState(null);
   const [deletingMaterialIssueId, setDeletingMaterialIssueId] = useState(null);
   const [materialIssueCompleting, setMaterialIssueCompleting] = useState(false);
+  // Bulk material-issue form state (used only when productionwithoutBOM = true).
+  const [cwhrmStores, setCwhrmStores] = useState([]);
+  const [bulkItems, setBulkItems] = useState([]);
+  const [bulkIsComplete, setBulkIsComplete] = useState(false);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [completingProduction, setCompletingProduction] = useState(false);
   const [productionFlowDrafts, setProductionFlowDrafts] = useState({});
   const [productionFlowSavingId, setProductionFlowSavingId] = useState(null);
@@ -829,6 +835,9 @@ function WorkOrders() {
     setEditingMaterialIssueRowId(null);
     setMaterialIssueDraftQty("");
     setMaterialIssueSubmittingId(null);
+    setBulkItems([]);
+    setBulkIsComplete(false);
+    setBulkSubmitting(false);
   };
 
   const openMaterialIssueModal = async (record) => {
@@ -837,6 +846,20 @@ function WorkOrders() {
     setMaterialIssueLoading(true);
     setMaterialIssueWorkOrder(record);
     setEditingInProgressStepId(null);
+    // Seed the bulk-issue form with one empty row when productionwithoutBOM is on.
+    if (productionwithoutBOM) {
+      setBulkItems([buildEmptyBulkItem()]);
+      setBulkIsComplete(false);
+      // Fetch CWHRM stores lazily on first modal open (cached across opens).
+      if (cwhrmStores.length === 0) {
+        try {
+          const res = await PrivateAxios.get("/warehouse?cwhrm=true");
+          setCwhrmStores(Array.isArray(res?.data?.data) ? res.data.data : []);
+        } catch (err) {
+          console.error("Error fetching CWHRM stores:", err);
+        }
+      }
+    }
 
     try {
       const apiPath = productionwithoutBOM
@@ -931,6 +954,7 @@ function WorkOrders() {
                 label: label || "Default",
                 weightPerUnit: Number(variant?.weight_per_unit) || 0,
                 unitLabel,
+                quantityPerPack: Number(variant?.quantity_per_pack) || 0,
                 stockQty: Number(entry?.quantity) || 0,
                 issuedQty: variantIssuedQty,
                 materialIssueId: matchingIssue?.id ?? null,
@@ -1025,6 +1049,38 @@ function WorkOrders() {
           0,
       }));
       setProductionFlowDrafts(buildProductionStepDrafts(record?.workOrderSteps));
+
+      // Prefill the bulk-issue form with existing material issues. Variant
+      // quantity_per_pack is looked up so Master Pack Qty pre-populates too.
+      // A blank row is always appended so the user can add more entries.
+      if (productionwithoutBOM) {
+        const variantPackMap = new Map();
+        for (const item of (Array.isArray(payload?.materialList) ? payload.materialList : [])) {
+          for (const entry of (item?.rmProduct?.productStockEntries || [])) {
+            const v = entry?.productVariant;
+            if (v?.id != null && !variantPackMap.has(v.id)) {
+              variantPackMap.set(v.id, Number(v.quantity_per_pack) || 0);
+            }
+          }
+        }
+        const prefilledItems = materialIssues.map((issue) => {
+          const qpp = variantPackMap.get(issue?.rm_product_variant_id) || 0;
+          const issuedQty = Number(issue?.issued_qty) || 0;
+          return {
+            _id: `existing_${issue?.id ?? Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: issue?.id ?? null, // server-side material-issue id; backend uses this to update
+            rm_product_id: issue?.rm_product_id ?? null,
+            rm_product_variant_id: issue?.rm_product_variant_id ?? null,
+            warehouse_id: issue?.warehouse_id ?? null,
+            issued_qty: issuedQty ? String(issuedQty) : "",
+            master_pack: qpp > 0 && issuedQty > 0
+              ? formatSyncedValue(issuedQty / qpp)
+              : "",
+            batch_id: issue?.batch_id != null ? String(issue.batch_id) : "",
+          };
+        });
+        setBulkItems([...prefilledItems, buildEmptyBulkItem()]);
+      }
 
     } catch (error) {
       setMaterialIssueRows([]);
@@ -1202,6 +1258,179 @@ function WorkOrders() {
       ErrorMessage(error?.response?.data?.message || "Failed to complete material issue.");
     } finally {
       setMaterialIssueCompleting(false);
+    }
+  };
+
+  /* ---------------------------------------------------------------------------
+   * Bulk material-issue helpers (productionwithoutBOM = true).
+   * The user picks RM → Variant → CWHRM store → qty → optional batch, with
+   * "Add More" to register multiple rows in a single submit.
+   * ------------------------------------------------------------------------- */
+
+  // Unique RM options derived from the already-fetched material list. Variants
+  // are merged from every warehouse-grouped row that shares the same rmProductId.
+  const bulkRmOptions = useMemo(() => {
+    const seen = new Map();
+    for (const row of materialIssueRows) {
+      const rmId = row?.rmProductId;
+      if (!rmId) continue;
+      if (!seen.has(rmId)) {
+        seen.set(rmId, {
+          value: rmId,
+          label: `${row.material || "N/A"}${row.code ? ` (${row.code})` : ""}`,
+          variants: [],
+        });
+      }
+      const bucket = seen.get(rmId);
+      for (const v of row.availableVariants || []) {
+        if (v?.value != null && !bucket.variants.some((x) => x.value === v.value)) {
+          bucket.variants.push({
+            value: v.value,
+            label: v.label,
+            weightPerUnit: v.weightPerUnit,
+            unitLabel: v.unitLabel,
+            quantityPerPack: v.quantityPerPack || 0,
+          });
+        }
+      }
+    }
+    return [...seen.values()];
+  }, [materialIssueRows]);
+
+  const getBulkVariantOptions = (rmId) => {
+    if (!rmId) return [];
+    const rm = bulkRmOptions.find((o) => o.value === rmId);
+    return rm?.variants || [];
+  };
+
+  // Look up the selected variant within the picked RM (used for the
+  // Master Pack ↔ Issued Qty sync and to know when to disable the pack input).
+  const getBulkVariant = (rmId, variantId) => {
+    if (!rmId || !variantId) return null;
+    return getBulkVariantOptions(rmId).find((v) => v.value === variantId) || null;
+  };
+
+  // Trim noisy decimals from values derived via division/multiplication.
+  const formatSyncedValue = (num) => {
+    if (!Number.isFinite(num)) return "";
+    if (Number.isInteger(num)) return String(num);
+    return String(Number(num.toFixed(3)));
+  };
+
+  const buildEmptyBulkItem = () => ({
+    _id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: null, // server-side work_order_material_issue id; null for new rows
+    rm_product_id: null,
+    rm_product_variant_id: null,
+    warehouse_id: null,
+    issued_qty: "",
+    master_pack: "",
+    batch_id: "",
+  });
+
+  const addBulkItem = () =>
+    setBulkItems((prev) => [...prev, buildEmptyBulkItem()]);
+
+  const removeBulkItem = (rowId) =>
+    setBulkItems((prev) =>
+      prev.length > 1 ? prev.filter((r) => r._id !== rowId) : prev
+    );
+
+  const updateBulkItem = (rowId, field, value) => {
+    setBulkItems((prev) =>
+      prev.map((row) => {
+        if (row._id !== rowId) return row;
+        const next = { ...row, [field]: value };
+        if (field === "rm_product_id") {
+          // Reset variant + pack whenever the RM changes — variants belong to one RM.
+          next.rm_product_variant_id = null;
+          next.master_pack = "";
+        }
+        if (field === "rm_product_variant_id") {
+          // Clear pack when variant changes — pack depends on the variant's quantity_per_pack.
+          next.master_pack = "";
+        }
+        // Bidirectional sync between Issued Qty and Master Pack Qty using the
+        // selected variant's quantity_per_pack.
+        if (field === "issued_qty" || field === "master_pack") {
+          const variant = getBulkVariant(next.rm_product_id, next.rm_product_variant_id);
+          const qpp = Number(variant?.quantityPerPack) || 0;
+          if (qpp > 0 && value !== "") {
+            const num = parseFloat(value);
+            if (!Number.isNaN(num)) {
+              if (field === "issued_qty") {
+                next.master_pack = formatSyncedValue(num / qpp);
+              } else {
+                next.issued_qty = formatSyncedValue(num * qpp);
+              }
+            }
+          } else if (value === "") {
+            // Clearing one side clears the other so they don't desync.
+            if (field === "issued_qty") next.master_pack = "";
+            else next.issued_qty = "";
+          }
+        }
+        return next;
+      })
+    );
+  };
+
+  const submitBulkMaterialIssue = async () => {
+    const woId = materialIssueWorkOrder?.id;
+    if (!woId) {
+      ErrorMessage("Work order id is missing.");
+      return;
+    }
+    if (materialIssueWorkOrder?.workOrderStatus === 3 && !bulkIsComplete) {
+      // Already material-issued. Allow only if user explicitly re-toggles complete.
+      ErrorMessage("Material issue is already completed for this work order.");
+      return;
+    }
+
+    const validItems = bulkItems.filter((row) => {
+      const qty = Number(row.issued_qty);
+      return (
+        row.rm_product_id != null &&
+        (!isVariantBased || row.rm_product_variant_id != null) &&
+        Number.isFinite(qty) &&
+        qty > 0
+      );
+    });
+    if (validItems.length === 0) {
+      ErrorMessage("Add at least one raw material with quantity greater than 0.");
+      return;
+    }
+
+    setBulkSubmitting(true);
+    try {
+      const payload = {
+        wo_id: woId,
+        is_complete: !!bulkIsComplete,
+        raw_materials: validItems.map((r) => ({
+          id: r.id ?? null, // null = new row, non-null = update existing
+          rm_product_id: r.rm_product_id,
+          rm_product_variant_id: r.rm_product_variant_id || null,
+          issued_qty: Number(r.issued_qty),
+          batch_id: r.batch_id ? Number(r.batch_id) : null,
+          warehouse_id: r.warehouse_id || null,
+        })),
+      };
+      const res = await PrivateAxios.post(
+        "/production/work-order/bulk-material-issue",
+        payload
+      );
+      SuccessMessage(
+        res?.data?.message || "Material issue registered successfully."
+      );
+      closeMaterialIssueModal();
+      fetchWorkOrders(pageState, filters);
+    } catch (error) {
+      ErrorMessage(
+        error?.response?.data?.message ||
+          "Failed to register bulk material issue."
+      );
+    } finally {
+      setBulkSubmitting(false);
     }
   };
 
@@ -2383,6 +2612,14 @@ function WorkOrders() {
                 ? "Work order material details"
                 : "Work order BOM details"}
             </div>
+            {materialIssueWorkOrder?.finishedGood && (
+              <div className="small text-primary">
+                Finished Good: <strong>{materialIssueWorkOrder.finishedGood}</strong>
+                {materialIssueWorkOrder?.finishedGoodVariant
+                  ? ` — ${materialIssueWorkOrder.finishedGoodVariant}`
+                  : ""}
+              </div>
+            )}
             {(() => {
               const plannedQty = Number(materialIssueWorkOrder?.plannedQty) || 0;
               if (plannedQty <= 0) return null;
@@ -2427,6 +2664,262 @@ function WorkOrders() {
         ]}
         width={1080}
       >
+        {productionwithoutBOM ? (
+          <div className="bulk-material-issue-form">
+            {materialIssueLoading ? (
+              <div className="text-center py-4 text-muted">
+                Loading raw materials...
+              </div>
+            ) : bulkRmOptions.length === 0 ? (
+              <div className="text-center py-4 text-muted">
+                No raw materials are mapped for this work order.
+              </div>
+            ) : (
+              <>
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <h6 className="mb-0 fw-semibold">Register Raw Materials</h6>
+                  <Button
+                    size="small"
+                    type="dashed"
+                    onClick={addBulkItem}
+                    disabled={bulkSubmitting}
+                  >
+                    <i className="fas fa-plus me-1" />
+                    Add More
+                  </Button>
+                </div>
+
+                <div className="d-flex flex-column gap-2">
+                  {bulkItems.map((row) => {
+                    const variantOptions = getBulkVariantOptions(row.rm_product_id);
+                    const selectedVariant = getBulkVariant(
+                      row.rm_product_id,
+                      row.rm_product_variant_id
+                    );
+                    const qpp = Number(selectedVariant?.quantityPerPack) || 0;
+                    const masterPackDisabled = bulkSubmitting || qpp <= 0;
+                    // Tighten the Raw Material and Batch columns when the Master Pack
+                    // input is added so the row still fits 12 Bootstrap grid columns.
+                    const rmColClass = hasMasterPack
+                      ? (isVariantBased ? "col-md-2" : "col-md-3")
+                      : (isVariantBased ? "col-md-3" : "col-md-4");
+                    const batchColClass = hasMasterPack ? "col-md-1" : "col-md-2";
+                    return (
+                      <div
+                        key={row._id}
+                        className="border rounded p-2"
+                        style={{ background: "#fafafa" }}
+                      >
+                        <div className="row g-2 align-items-end">
+                          <div className={rmColClass}>
+                            <label className="small fw-semibold mb-1">
+                              Raw Material <span className="text-danger">*</span>
+                            </label>
+                            <Select
+                              showSearch
+                              placeholder="Select RM"
+                              style={{ width: "100%" }}
+                              value={row.rm_product_id}
+                              options={bulkRmOptions.map((o) => ({
+                                value: o.value,
+                                label: o.label,
+                              }))}
+                              filterOption={(input, option) =>
+                                String(option?.label || "")
+                                  .toLowerCase()
+                                  .includes(input.toLowerCase())
+                              }
+                              onChange={(val) =>
+                                updateBulkItem(row._id, "rm_product_id", val)
+                              }
+                              disabled={bulkSubmitting}
+                            />
+                          </div>
+                          {isVariantBased && (
+                            <div className="col-md-2">
+                              <label className="small fw-semibold mb-1">
+                                Variant <span className="text-danger">*</span>
+                              </label>
+                              <Select
+                                placeholder="Select"
+                                style={{ width: "100%" }}
+                                value={row.rm_product_variant_id}
+                                options={variantOptions.map((v) => ({
+                                  value: v.value,
+                                  label: v.label,
+                                }))}
+                                onChange={(val) =>
+                                  updateBulkItem(
+                                    row._id,
+                                    "rm_product_variant_id",
+                                    val
+                                  )
+                                }
+                                disabled={bulkSubmitting || !row.rm_product_id}
+                                notFoundContent="No variants"
+                              />
+                            </div>
+                          )}
+                          <div className="col-md-2">
+                            <label className="small fw-semibold mb-1">
+                              CWHRM Store
+                            </label>
+                            <Select
+                              placeholder="Select store"
+                              style={{ width: "100%" }}
+                              value={row.warehouse_id}
+                              options={cwhrmStores.map((s) => ({
+                                value: s.id,
+                                label: s.name,
+                              }))}
+                              onChange={(val) =>
+                                updateBulkItem(row._id, "warehouse_id", val)
+                              }
+                              disabled={bulkSubmitting}
+                              allowClear
+                            />
+                          </div>
+                          <div className="col-md-2">
+                            <label className="small fw-semibold mb-1">
+                              Issued Qty <span className="text-danger">*</span>
+                            </label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={row.issued_qty}
+                              onChange={(e) =>
+                                updateBulkItem(
+                                  row._id,
+                                  "issued_qty",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="0"
+                              disabled={bulkSubmitting}
+                            />
+                          </div>
+                          {hasMasterPack && (
+                            <div className="col-md-2">
+                              <label className="small fw-semibold mb-1">
+                                Master Pack Qty
+                                {qpp > 0 && (
+                                  <span
+                                    className="text-muted ms-1"
+                                    style={{ fontWeight: 400, fontSize: 11 }}
+                                  >
+                                    (×{qpp})
+                                  </span>
+                                )}
+                              </label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={row.master_pack}
+                                onChange={(e) =>
+                                  updateBulkItem(
+                                    row._id,
+                                    "master_pack",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder={qpp > 0 ? "0" : "N/A"}
+                                disabled={masterPackDisabled}
+                              />
+                            </div>
+                          )}
+                          <div className={batchColClass}>
+                            <label className="small fw-semibold mb-1">
+                              Batch Number
+                            </label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={row.batch_id}
+                              onChange={(e) =>
+                                updateBulkItem(
+                                  row._id,
+                                  "batch_id",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Optional"
+                              disabled={bulkSubmitting}
+                            />
+                          </div>
+                          <div className="col-md-1 text-end">
+                            <button
+                              type="button"
+                              className="border-0"
+                              title="Remove row"
+                              onClick={() => removeBulkItem(row._id)}
+                              disabled={
+                                bulkSubmitting || bulkItems.length === 1
+                              }
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: "50%",
+                                background: "#fff1f2",
+                                color: "#ef4444",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: bulkItems.length === 1 ? 0.4 : 1,
+                                cursor:
+                                  bulkItems.length === 1
+                                    ? "not-allowed"
+                                    : "pointer",
+                              }}
+                            >
+                              <i
+                                className="far fa-trash-alt"
+                                style={{ fontSize: 13 }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                  <label
+                    className="d-flex align-items-center gap-2 mb-0"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={bulkIsComplete}
+                      onChange={(e) => setBulkIsComplete(e.target.checked)}
+                      disabled={bulkSubmitting}
+                    />
+                    <span className="fw-semibold">Complete Material Issue</span>
+                    <span className="text-muted small">
+                      (check this box if you want to mark material issue as completed)
+                    </span>
+                  </label>
+                  <Button
+                    type="primary"
+                    onClick={submitBulkMaterialIssue}
+                    loading={bulkSubmitting}
+                    disabled={
+                      materialIssueLoading ||
+                      materialIssueWorkOrder?.workOrderStatus === 3 ||
+                      materialIssueWorkOrder?.workOrderStatus === 4 ||
+                      bulkRmOptions.length === 0
+                    }
+                  >
+                    {bulkIsComplete
+                      ? "Register & Complete"
+                      : "Register Raw Materials"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+        <>
         <div className="bg_succes_table_head rounded_table">
           <Table
             rowKey="id"
@@ -2695,6 +3188,8 @@ function WorkOrders() {
             Complete Material Issue
           </Button>
         </div>
+        </>
+        )}
 
         <div className="mt-4">
           <h6 className="mb-1 fw-semibold">Manage Production</h6>
