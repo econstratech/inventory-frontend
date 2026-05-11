@@ -170,41 +170,57 @@ function WorkOrders() {
       ? materialIssueWorkOrder.workOrderSteps
       : [];
 
-    return steps
+    const sorted = steps
       .slice()
-      .sort((a, b) => Number(a?.sequence) - Number(b?.sequence))
-      .map((step, index) => {
-        const inputQty = step?.inputQty ?? step?.input_qty ?? null;
-        const outputQty = step?.outputQty ?? step?.output_qty ?? null;
-        const wasteQty = step?.wasteQty ?? step?.waste_qty ?? null;
-        const yieldPercent = step?.yieldPercent ?? step?.yield_percent ?? null;
-        const rowId = String(step?.id ?? `${step?.stepId ?? step?.step_id}-${index}`);
-        const draft = productionFlowDrafts?.[rowId] || {};
-        const mappedStepId = step?.stepId ?? step?.step_id;
-        const status = Number(
-          draft.status ??
-            step?.status ??
-            1
-        );
-        const isCurrentStep =
-          String(mappedStepId) === String(materialIssueWorkOrder?.currentStep);
+      .sort((a, b) => Number(a?.sequence) - Number(b?.sequence));
 
-        return {
-          id: rowId,
-          woStepId: step?.id,
-          stepId: mappedStepId,
-          sequence: Number(step?.sequence) || index + 1,
-          processName: step?.processName || step?.step?.name || "N/A",
-          inputQty: draft.inputQty ?? (inputQty ?? ""),
-          outputQty: draft.outputQty ?? (outputQty ?? ""),
-          uomId: draft.uomId ?? null,
-          wasteQty,
-          yieldPercent,
-          status,
-          statusLabel: getProductionStepStatusLabel(status),
-          isCurrentStep,
-        };
-      });
+    // Pre-compute each step's effective status (draft overrides server value)
+    // so the next step can react to the previous step's status without a second
+    // pass through the steps array.
+    const effectiveStatuses = sorted.map((step, idx) => {
+      const rowId = String(step?.id ?? `${step?.stepId ?? step?.step_id}-${idx}`);
+      const draft = productionFlowDrafts?.[rowId] || {};
+      return Number(draft.status ?? step?.status ?? 1);
+    });
+
+    return sorted.map((step, index) => {
+      const inputQty = step?.inputQty ?? step?.input_qty ?? null;
+      const outputQty = step?.outputQty ?? step?.output_qty ?? null;
+      const wasteQty = step?.wasteQty ?? step?.waste_qty ?? null;
+      const yieldPercent = step?.yieldPercent ?? step?.yield_percent ?? null;
+      const rowId = String(step?.id ?? `${step?.stepId ?? step?.step_id}-${index}`);
+      const draft = productionFlowDrafts?.[rowId] || {};
+      const mappedStepId = step?.stepId ?? step?.step_id;
+      const status = effectiveStatuses[index];
+      const isCurrentStep =
+        String(mappedStepId) === String(materialIssueWorkOrder?.currentStep);
+
+      // A pending step (status 1) becomes editable as soon as the immediately
+      // preceding step is In-Progress (2) or Completed (3). This lets users
+      // start filling the next step without having to wait for the previous
+      // one to be fully completed.
+      const previousStatus = index > 0 ? effectiveStatuses[index - 1] : null;
+      const unlockedByPrevious =
+        status === 1 && (previousStatus === 2 || previousStatus === 3);
+      const isEditable = isCurrentStep || unlockedByPrevious;
+
+      return {
+        id: rowId,
+        woStepId: step?.id,
+        stepId: mappedStepId,
+        sequence: Number(step?.sequence) || index + 1,
+        processName: step?.processName || step?.step?.name || "N/A",
+        inputQty: draft.inputQty ?? (inputQty ?? ""),
+        outputQty: draft.outputQty ?? (outputQty ?? ""),
+        uomId: draft.uomId ?? null,
+        wasteQty,
+        yieldPercent,
+        status,
+        statusLabel: getProductionStepStatusLabel(status),
+        isCurrentStep,
+        isEditable,
+      };
+    });
   }, [materialIssueWorkOrder?.workOrderSteps, materialIssueWorkOrder?.currentStep, productionFlowDrafts]);
 
   const fetchCompanyFlow = async () => {
@@ -3226,7 +3242,7 @@ function WorkOrders() {
                   key: "statusLabel",
                   width: 170,
                   render: (value, record) =>
-                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                    record.isEditable || String(editingInProgressStepId) === String(record.id) ? (
                       <Select
                         value={Number(record?.status) || 1}
                         onChange={(nextStatus) =>
@@ -3262,7 +3278,7 @@ function WorkOrders() {
                   key: "uomId",
                   width: 170,
                   render: (value, record) => {
-                    const isEditing = record.isCurrentStep || String(editingInProgressStepId) === String(record.id);
+                    const isEditing = record.isEditable || String(editingInProgressStepId) === String(record.id);
                     if (isEditing) {
                       return (
                         <Select
@@ -3288,7 +3304,7 @@ function WorkOrders() {
                   key: "inputQty",
                   width: 150,
                   render: (value, record) =>
-                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                    record.isEditable || String(editingInProgressStepId) === String(record.id) ? (
                       <Input
                         type="number"
                         min={0}
@@ -3308,7 +3324,7 @@ function WorkOrders() {
                   key: "outputQty",
                   width: 150,
                   render: (value, record) =>
-                    record.isCurrentStep || String(editingInProgressStepId) === String(record.id) ? (
+                    record.isEditable || String(editingInProgressStepId) === String(record.id) ? (
                       <Input
                         type="number"
                         min={0}
@@ -3346,7 +3362,7 @@ function WorkOrders() {
                   key: "action",
                   width: 170,
                   render: (_, record) =>
-                    record.isCurrentStep ? (
+                    record.isEditable ? (
                       <button
                         type="button"
                         className="btn btn-warning btn-sm"
