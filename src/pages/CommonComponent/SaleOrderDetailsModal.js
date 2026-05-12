@@ -29,6 +29,7 @@ const SaleOrderDetailsModal = ({
   onProductReceive,
   currencySymbol = "₹",
   isVariantBased = false,
+  hasMasterPack = false,
   getStatusLabel = (status) => {
     const statusLabel = {
       10: "Dispatched",
@@ -151,9 +152,19 @@ const SaleOrderDetailsModal = ({
           );
           let availableQty = Math.max((Number(product.qty) || 0) - historicalReceivedQty, 0);
 
-          initial[key] = Number(product.received_now) || 0;
+          const initialReceivedNow = Number(product.received_now) || 0;
+          const initialVariantData =
+            product.variantData || product.productVariant || null;
+          const initialQpp = parseFloat(initialVariantData?.quantity_per_pack);
+          const initialReceivedMasterPack =
+            Number.isFinite(initialQpp) && initialQpp > 0 && initialReceivedNow > 0
+              ? String(Number((initialReceivedNow / initialQpp).toFixed(3)))
+              : "";
+
+          initial[key] = initialReceivedNow;
           initial[`store_${key}`] = product?.warehouse || purchase?.warehouse || null;
           initial[`available_qty_${key}`] = availableQty;
+          initial[`received_master_pack_${key}`] = initialReceivedMasterPack;
           initial[`is_dispatched_fully_${key}`] = availableQty === 0;
           initial[`is_dispatched_partially_${key}`] =
             availableQty > 0 && receivedHistory.length > 0;
@@ -480,11 +491,12 @@ const SaleOrderDetailsModal = ({
     }
   };
 
-  // Handler for quantity (received_now) change; available_qty = quantity - received_now
+  // Handler for quantity (received_now) change; available_qty = quantity - received_now.
+  // Also handles received_master_pack input — converts via quantity_per_pack so the two
+  // inputs stay in sync (master_pack * qpp = received_now).
   const handleProductQuantityChange = (purchaseId, productId, field, value) => {
-    if (field !== "received_now") return;
+    if (field !== "received_now" && field !== "received_master_pack") return;
     const key = `${purchaseId}-${productId}`;
-    const num = Math.max(0, Number(value) || 0);
     const purchase = productCompare.find((p) => p.id === purchaseId);
     const product = purchase?.products?.find((p) => p.id === productId);
     const editedQty = editedProducts[productId]?.qty;
@@ -495,10 +507,36 @@ const SaleOrderDetailsModal = ({
     ).reduce((sum, r) => sum + (Number(r.received_quantity) || 0), 0);
     const baseAvailable = Math.max(effectiveQty - historicalReceivedQty, 0);
 
+    const variantData =
+      editedProducts[productId]?.variantData ||
+      product?.variantData ||
+      product?.productVariant ||
+      null;
+    const qpp = parseFloat(variantData?.quantity_per_pack);
+
+    let nextReceivedNow;
+    let nextMasterPack;
+    if (field === "received_now") {
+      nextReceivedNow = Math.max(0, Number(value) || 0);
+      nextMasterPack =
+        Number.isFinite(qpp) && qpp > 0 && nextReceivedNow > 0
+          ? String(Number((nextReceivedNow / qpp).toFixed(3)))
+          : "";
+    } else {
+      const cleaned = String(value).replace(/[^0-9.]/g, "");
+      nextMasterPack = cleaned;
+      const mp = parseFloat(cleaned);
+      nextReceivedNow =
+        Number.isFinite(mp) && Number.isFinite(qpp) && qpp > 0
+          ? Math.max(0, Number((mp * qpp).toFixed(2)))
+          : 0;
+    }
+
     setReceivedNowMap((prev) => ({
       ...prev,
-      [key]: num,
-      [`available_qty_${key}`]: Math.max(baseAvailable - num, 0),
+      [key]: nextReceivedNow,
+      [`available_qty_${key}`]: Math.max(baseAvailable - nextReceivedNow, 0),
+      [`received_master_pack_${key}`]: nextMasterPack,
     }));
     setError((prev) => {
       const next = { ...prev };
@@ -588,6 +626,7 @@ const SaleOrderDetailsModal = ({
         ...prev,
         [key]: 0,
         [`available_qty_${key}`]: newBalance,
+        [`received_master_pack_${key}`]: "",
         [`is_dispatched_fully_${key}`]: newBalance === 0,
         [`is_dispatched_partially_${key}`]: newBalance > 0 && receivedNow > 0,
       }));
@@ -683,6 +722,7 @@ const SaleOrderDetailsModal = ({
                   <th>Store</th>
                   <th>Balance Quantity</th>
                   <th>Dispatch Quantity</th>
+                  {hasAnyMasterPack && <th>Dispatch Master Pack Qty</th>}
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -1078,6 +1118,37 @@ const SaleOrderDetailsModal = ({
                             </div>
                           )}
                         </td>
+                        {hasAnyMasterPack && (
+                          <td style={{ minWidth: "160px" }}>
+                            {Number(row.productData?.has_master_pack) === 1 &&
+                            Number(row.variantData?.quantity_per_pack) > 0 ? (
+                              <div className="input-group input-group-sm">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.001"
+                                  placeholder="0"
+                                  value={
+                                    receivedNowMap[`received_master_pack_${rowKey}`] ?? ""
+                                  }
+                                  disabled={isFullyDispatched}
+                                  onChange={(e) =>
+                                    handleProductQuantityChange(
+                                      purchase.id,
+                                      product.id,
+                                      "received_master_pack",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="form-control form-control-sm"
+                                />
+                                <span className="input-group-text">unit</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
+                          </td>
+                        )}
                         <td>
                           {isFullyDispatched ? (
                             <span className="badge bg-success text-white">Fully Dispatched</span>
@@ -1117,7 +1188,7 @@ const SaleOrderDetailsModal = ({
                 )}
                 <tr>
                   <td
-                    colSpan={15 + (hasAnyMasterPack ? 1 : 0)}
+                    colSpan={15 + (hasAnyMasterPack ? 2 : 0)}
                     align="right"
                   >
                     <h6 className="mb-0 text-muted">

@@ -32,7 +32,9 @@ function MypurchaseList() {
   const [totalCount, setTotalCount] = useState(0);
   const [referenceNumberFilter, setReferenceNumberFilter] = useState("");
   const [dateRangeFilter, setDateRangeFilter] = useState([null, null]);
-  const { isVariantBased } = UserAuth();
+  const { isVariantBased, user } = UserAuth();
+
+  const hasMasterPack = user?.company?.generalSettings?.has_master_pack === 1 || false;
 
   const ReferenceCell = (dataItem) => {
     return (
@@ -545,6 +547,7 @@ function MypurchaseList() {
         onProductReceive={handleReceiveSalesProduct}
         getStatusLabel={getStatusLabel}
         isVariantBased={isVariantBased}
+        hasMasterPack={hasMasterPack}
         // currencySymbol={getGeneralSettingssymbol}
       />
       <SaleOrderRemarksModal
