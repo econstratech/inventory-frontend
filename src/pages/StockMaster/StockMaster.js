@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Table, Input, Button, Modal, Form } from "antd";
 import Select from "react-select";
 import { Link } from "react-router-dom";
-import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, FilterOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
 // import moment from "moment";
 
 import { UserAuth } from "../auth/Auth";
@@ -37,6 +37,7 @@ function StockMaster() {
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [searchKeyInput, setSearchKeyInput] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
   
   // Update modal state
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
@@ -70,6 +71,19 @@ function StockMaster() {
 
   const hasMasterPack = user.company?.generalSettings.has_master_pack === 1;
 
+  const formatStoreOptionLabel = (option) => {
+    const store = option?.storeData || {};
+    const isFg = Number(store.is_fg_store) === 1;
+    const isRm = Number(store.is_rm_store) === 1;
+    return (
+      <span className="d-inline-flex align-items-center flex-wrap" style={{ gap: 6 }}>
+        <span>{option.label}</span>
+        {isFg && <span className="badge bg-success">FG Store</span>}
+        {isRm && <span className="badge bg-info">RM Store</span>}
+      </span>
+    );
+  };
+
   // Fetch warehouses for dropdown
   const fetchStores = async () => {
     try {
@@ -80,6 +94,7 @@ function StockMaster() {
         const options = storeData.map((item) => ({
           value: item.id,
           label: `${item.name || "N/A"} (${item.city || "N/A"})`,
+          storeData: item,
         }));
         setStoreOptions(options);
       } else {
@@ -909,7 +924,24 @@ function StockMaster() {
                       <div className="border rounded-10 bg-white" style={{ overflow: "visible" }}>
                         {/* Filter Section */}
                         <div className="p-3 border-bottom" style={{ position: "relative", zIndex: 1 }}>
-                          <div className="row g-3 align-items-end">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex align-items-center" style={{ gap: 8, fontWeight: 600 }}>
+                              <FilterOutlined />
+                              <span>Filters</span>
+                            </div>
+                            <Button
+                              type="text"
+                              size="small"
+                              onClick={() => setIsFiltersCollapsed((prev) => !prev)}
+                              icon={isFiltersCollapsed ? <DownOutlined /> : <UpOutlined />}
+                            >
+                              {isFiltersCollapsed ? "Show" : "Hide"}
+                            </Button>
+                          </div>
+                          <div
+                            className="row g-3 align-items-end"
+                            style={{ display: isFiltersCollapsed ? "none" : undefined }}
+                          >
 
                             <div className="col-md-3">
                               <label className="form-label mb-2">Search</label>
@@ -918,7 +950,7 @@ function StockMaster() {
                                 value={searchKeyInput}
                                 onChange={(e) => setSearchKeyInput(e.target.value)}
                                 onPressEnter={handleSearch}
-                                style={{ height: "38px" }}
+                                style={{ height: "38px", borderRadius: "20px" }}
                               />
                             </div>
 
@@ -934,12 +966,14 @@ function StockMaster() {
                                 options={storeOptions}
                                 isClearable
                                 isSearchable
+                                formatOptionLabel={formatStoreOptionLabel}
                                 menuPortalTarget={document.body}
                                 menuPosition="fixed"
                                 styles={{
                                   control: (base) => ({
                                     ...base,
                                     minHeight: "38px",
+                                    borderRadius: "20px",
                                   }),
                                   menuPortal: (base) => ({
                                     ...base,
@@ -970,6 +1004,7 @@ function StockMaster() {
                                   control: (base) => ({
                                     ...base,
                                     minHeight: "38px",
+                                    borderRadius: "20px",
                                   }),
                                   menuPortal: (base) => ({
                                     ...base,
@@ -1002,6 +1037,7 @@ function StockMaster() {
                                   control: (base) => ({
                                     ...base,
                                     minHeight: "38px",
+                                    borderRadius: "20px",
                                   }),
                                   menuPortal: (base) => ({
                                     ...base,
@@ -1276,6 +1312,7 @@ function StockMaster() {
               options={storeOptions}
               isClearable
               isSearchable
+              formatOptionLabel={formatStoreOptionLabel}
               menuPortalTarget={document.body}
               menuPosition="fixed"
               isDisabled={true}
