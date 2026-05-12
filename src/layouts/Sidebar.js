@@ -1798,6 +1798,23 @@ function Sidebar() {
                             </button>
                           </div>
                           : ""} */}
+
+                          <ul className="sidebar-submenu">
+                            <li className="sidebar-item">
+                              <Link
+                                to="https://ewaybillgst.gov.in/Login.aspx" 
+                                target="_blank"
+                                className={`sidebar-nav-link ${location.pathname === "/settings/gst/eway-bill-api-account"
+                                  ? "active"
+                                  : ""
+                                  }`}
+                              >
+                                <p>E-Way Bill Portal</p>
+                              </Link>
+                            </li>
+                          </ul>
+
+                          
                         {MatchPermission(["GST API Settings"]) ?
                           <div
                             id="GST"
