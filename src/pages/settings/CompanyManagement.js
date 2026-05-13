@@ -31,6 +31,7 @@ const initialEditData = {
     min_sale_amount: "",
     is_production_planning: "",
     production_without_bom: "",
+    is_gst_enabled: "1",
     allowed_modules: [],
 }
 
@@ -208,6 +209,8 @@ function CompanyManagement() {
                         gs.is_production_planning != null ? String(gs.is_production_planning) : "",
                     production_without_bom:
                         gs.production_without_bom != null ? String(gs.production_without_bom) : "",
+                    is_gst_enabled:
+                        gs.is_gst_enabled != null ? String(gs.is_gst_enabled) : "1",
                     allowed_modules: parseAllowedModules(cd.allowed_modules),
                 })
             })
@@ -240,7 +243,11 @@ function CompanyManagement() {
         setEditSaving(true)
         // console.log("companyEditData", companyEditData);
         // return;
-        PrivateAxios.put(`company/update/${permissionEditId}`, companyEditData)
+        const payload = {
+            ...companyEditData,
+            is_gst_enabled: String(companyEditData.is_gst_enabled) === "1" ? 1 : 0,
+        }
+        PrivateAxios.put(`company/update/${permissionEditId}`, payload)
             .then((res) => {
                 SuccessMessage(res.data.message);
                 EditpermissionHide();
@@ -447,7 +454,6 @@ function CompanyManagement() {
     const [viewModelData, setViewModelData] = useState('');
     const ShowModel = (data) => {
         setViewModel(true)
-        console.log("data", data);
         setViewModelData(data)
     }
     const HideModel = () => {
@@ -800,8 +806,9 @@ function CompanyManagement() {
                         {viewField("Renew Date", formatViewDate(viewModelData?.renew_date))}
                         {viewField("Minimum Purchase Amount", formatAmountDisplay(viewModelData?.generalSettings?.min_purchase_amount))}
                         {viewField("Minimum Sale Amount", formatAmountDisplay(viewModelData?.generalSettings?.min_sale_amount))}
-                        {viewField("Has Production Planning", yesNoLabel(viewModelData?.generalSettings?.is_production_planning))}
+                        {viewField("Has Production Planning?", yesNoLabel(viewModelData?.generalSettings?.is_production_planning))}
                         {viewField("Has BOM", hasBomLabel(viewModelData?.generalSettings?.production_without_bom))}
+                        {viewField("Is GST Enabled?", yesNoLabel(viewModelData?.generalSettings?.is_gst_enabled))}
                         <div className="col-12">
                             <div className="company-view-field border rounded-3 p-3 bg-light">
                                 <div className="text-muted small fw-semibold mb-1">Address</div>
@@ -996,6 +1003,16 @@ function CompanyManagement() {
                                             onChange={(e) => setCompanyEditData({ ...companyEditData, production_without_bom: e.target.value })}
                                             yesValue="0"
                                             noValue="1"
+                                        />
+                                    </div>
+                                </div>
+                                <div className='col-md-6'>
+                                    <div className="form-group">
+                                        <label className="form-label">Is GST Enabled?</label>
+                                        <YesNoRadioGroup
+                                            name="edit_is_gst_enabled"
+                                            value={companyEditData.is_gst_enabled}
+                                            onChange={(e) => setCompanyEditData({ ...companyEditData, is_gst_enabled: e.target.value })}
                                         />
                                     </div>
                                 </div>

@@ -43,7 +43,7 @@ function MyNewpurchase() {
       description: "",
       qty: 1,
       unit_price: 0,
-      tax: 18,
+      tax: 0,
       taxExcl: 0,
       customer_id: "",
       productData: null,
@@ -88,12 +88,6 @@ function MyNewpurchase() {
   useEffect(() => {
     setProductData([]);
   }, []);
-
-  // useEffect(() => {
-  //   if (user) {
-  //     setGetGeneralSettingssymbol(user.company.generalSettings.symbol);
-  //   }
-  // }, [user]);
 
   const calculateTotal = () => {
     let untaxedAmount = 0;

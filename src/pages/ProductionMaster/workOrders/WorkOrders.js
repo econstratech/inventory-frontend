@@ -204,17 +204,31 @@ function WorkOrders() {
         status === 1 && (previousStatus === 2 || previousStatus === 3);
       const isEditable = isCurrentStep || unlockedByPrevious;
 
+      const effectiveOutput = draft.outputQty ?? (outputQty ?? "");
+      const effectiveWaste = draft.wasteQty ?? (wasteQty ?? "");
+      const outputNum = Number(effectiveOutput);
+      const wasteNum =
+        effectiveWaste === "" || effectiveWaste === null || effectiveWaste === undefined
+          ? 0
+          : Number(effectiveWaste);
+      const hasOutput = effectiveOutput !== "" && Number.isFinite(outputNum);
+      const computedInput = hasOutput && Number.isFinite(wasteNum) ? outputNum + wasteNum : null;
+      const computedYield =
+        hasOutput && Number.isFinite(wasteNum) && computedInput > 0
+          ? Number(((outputNum / computedInput) * 100).toFixed(2))
+          : null;
+
       return {
         id: rowId,
         woStepId: step?.id,
         stepId: mappedStepId,
         sequence: Number(step?.sequence) || index + 1,
         processName: step?.processName || step?.step?.name || "N/A",
-        inputQty: draft.inputQty ?? (inputQty ?? ""),
-        outputQty: draft.outputQty ?? (outputQty ?? ""),
+        inputQty: computedInput !== null ? computedInput : (draft.inputQty ?? (inputQty ?? "")),
+        outputQty: effectiveOutput,
         uomId: draft.uomId ?? null,
-        wasteQty,
-        yieldPercent,
+        wasteQty: effectiveWaste,
+        yieldPercent: computedYield !== null ? computedYield : yieldPercent,
         status,
         statusLabel: getProductionStepStatusLabel(status),
         isCurrentStep,
@@ -1068,7 +1082,8 @@ function WorkOrders() {
 
       // Prefill the bulk-issue form with existing material issues. Variant
       // quantity_per_pack is looked up so Master Pack Qty pre-populates too.
-      // A blank row is always appended so the user can add more entries.
+      // A blank row is appended for new entries, but only while the material
+      // issue is still open (status < 3).
       if (productionwithoutBOM) {
         const variantPackMap = new Map();
         for (const item of (Array.isArray(payload?.materialList) ? payload.materialList : [])) {
@@ -1095,7 +1110,11 @@ function WorkOrders() {
             batch_id: issue?.batch_id != null ? String(issue.batch_id) : "",
           };
         });
-        setBulkItems([...prefilledItems, buildEmptyBulkItem()]);
+        const issueCompleted = parseInt(workOrder?.status) >= 3;
+        setBulkItems(
+          issueCompleted ? prefilledItems : [...prefilledItems, buildEmptyBulkItem()]
+        );
+        setBulkIsComplete(issueCompleted);
       }
 
     } catch (error) {
@@ -1473,6 +1492,7 @@ function WorkOrders() {
         ...(prev?.[draftKey] || {}),
         inputQty: stepRow?.inputQty ?? "",
         outputQty: stepRow?.outputQty ?? "",
+        wasteQty: stepRow?.wasteQty ?? "",
         uomId: stepRow?.uomId ?? prev?.[draftKey]?.uomId ?? null,
         status: Number(stepRow?.status) || 2,
       },
@@ -1491,18 +1511,22 @@ function WorkOrders() {
 
     const draftKey = String(stepRow?.id);
     const latestDraft = productionFlowDrafts?.[draftKey] || {};
-    const inputQty = Number(latestDraft?.inputQty ?? stepRow?.inputQty);
     const outputQty = Number(latestDraft?.outputQty ?? stepRow?.outputQty);
+    const rawWaste = latestDraft?.wasteQty ?? stepRow?.wasteQty ?? 0;
+    const wasteQty = rawWaste === "" || rawWaste === null || rawWaste === undefined
+      ? 0
+      : Number(rawWaste);
     const uomId = latestDraft?.uomId ?? null;
     const status = Number(latestDraft?.status ?? stepRow?.status);
-    if (!Number.isFinite(inputQty) || inputQty < 0) {
-      ErrorMessage("Input quantity must be 0 or greater.");
-      return;
-    }
     if (!Number.isFinite(outputQty) || outputQty < 0) {
       ErrorMessage("Output quantity must be 0 or greater.");
       return;
     }
+    if (!Number.isFinite(wasteQty) || wasteQty < 0) {
+      ErrorMessage("Waste must be 0 or greater.");
+      return;
+    }
+    const inputQty = Number((outputQty + wasteQty).toFixed(3));
     if (![1, 2, 3, 4].includes(status)) {
       ErrorMessage("Invalid production status.");
       return;
@@ -1513,6 +1537,7 @@ function WorkOrders() {
       wo_step_id: stepRow.woStepId,
       input_qty: inputQty,
       output_qty: outputQty,
+      waste_qty: wasteQty,
       uom_id: uomId,
       status,
     };
@@ -1606,6 +1631,7 @@ function WorkOrders() {
 
   const [completeProductionModalOpen, setCompleteProductionModalOpen] = useState(false);
   const [finalQty, setFinalQty] = useState("");
+  const [finalWasteQty, setFinalWasteQty] = useState("");
 
   const openCompleteProductionModal = () => {
     const woId = materialIssueWorkOrder?.id;
@@ -1614,12 +1640,14 @@ function WorkOrders() {
       return;
     }
     setFinalQty("");
+    setFinalWasteQty("");
     setCompleteProductionModalOpen(true);
   };
 
   const closeCompleteProductionModal = () => {
     setCompleteProductionModalOpen(false);
     setFinalQty("");
+    setFinalWasteQty("");
   };
 
   const handleCompleteProduction = async () => {
@@ -1633,6 +1661,14 @@ function WorkOrders() {
       ErrorMessage("Final quantity must be a positive number.");
       return;
     }
+    const wasteQty =
+      finalWasteQty === "" || finalWasteQty === null || finalWasteQty === undefined
+        ? 0
+        : Number(finalWasteQty);
+    if (!Number.isFinite(wasteQty) || wasteQty < 0) {
+      ErrorMessage("Final waste quantity must be 0 or greater.");
+      return;
+    }
     const plannedQty = Number(materialIssueWorkOrder?.plannedQty) || 0;
     if (plannedQty > 0 && qty > plannedQty) {
       ErrorMessage(`Final quantity cannot exceed planned quantity (${plannedQty}).`);
@@ -1643,6 +1679,7 @@ function WorkOrders() {
       const res = await PrivateAxios.post("/production/work-order/complete-production", {
         wo_id: woId,
         final_qty: qty,
+        final_waste_qty: wasteQty,
       });
       SuccessMessage(res?.data?.message || "Production completed successfully.");
       closeCompleteProductionModal();
@@ -2661,19 +2698,28 @@ function WorkOrders() {
         open={materialIssueOpen}
         onCancel={closeMaterialIssueModal}
         footer={[
-          <Button
-            key="complete-production"
-            type="primary"
-            onClick={openCompleteProductionModal}
-            disabled={
-              !materialIssueWorkOrder?.id ||
-              materialIssueWorkOrder?.status === 4 ||
-              materialIssueLoading ||
-              completingProduction
-            }
-          >
-            Complete Production
-          </Button>,
+          ...(Number(materialIssueWorkOrder?.status) >= 3
+            ? [
+                <Button
+                  key="complete-production"
+                  type="primary"
+                  onClick={openCompleteProductionModal}
+                  disabled={
+                    !materialIssueWorkOrder?.id ||
+                    materialIssueWorkOrder?.status === 4 ||
+                    materialIssueLoading ||
+                    completingProduction ||
+                    productionFlowRows.length === 0 ||
+                    productionFlowRows.some((r) => {
+                      const s = Number(r?.status);
+                      return s === 1 || s === 2;
+                    })
+                  }
+                >
+                  Complete Production
+                </Button>,
+              ]
+            : []),
           <Button key="close" onClick={closeMaterialIssueModal}>
             Close
           </Button>,
@@ -2694,15 +2740,17 @@ function WorkOrders() {
               <>
                 <div className="d-flex align-items-center justify-content-between mb-2">
                   <h6 className="mb-0 fw-semibold">Register Raw Materials</h6>
-                  <Button
-                    size="small"
-                    type="dashed"
-                    onClick={addBulkItem}
-                    disabled={bulkSubmitting}
-                  >
-                    <i className="fas fa-plus me-1" />
-                    Add More
-                  </Button>
+                  {Number(materialIssueWorkOrder?.status) < 3 && (
+                    <Button
+                      size="small"
+                      type="dashed"
+                      onClick={addBulkItem}
+                      disabled={bulkSubmitting}
+                    >
+                      <i className="fas fa-plus me-1" />
+                      Add More
+                    </Button>
+                  )}
                 </div>
 
                 <div className="d-flex flex-column gap-2">
@@ -2908,7 +2956,10 @@ function WorkOrders() {
                       type="checkbox"
                       checked={bulkIsComplete}
                       onChange={(e) => setBulkIsComplete(e.target.checked)}
-                      disabled={bulkSubmitting}
+                      disabled={
+                        bulkSubmitting ||
+                        Number(materialIssueWorkOrder?.status) >= 3
+                      }
                     />
                     <span className="fw-semibold">Complete Material Issue</span>
                     <span className="text-muted small">
@@ -3207,6 +3258,7 @@ function WorkOrders() {
         </>
         )}
 
+        {Number(materialIssueWorkOrder?.status) >= 3 && (
         <div className="mt-4">
           <h6 className="mb-1 fw-semibold">Manage Production</h6>
           <div className="small text-muted mb-2">
@@ -3299,26 +3351,6 @@ function WorkOrders() {
                   },
                 },
                 {
-                  title: "Input Qty",
-                  dataIndex: "inputQty",
-                  key: "inputQty",
-                  width: 150,
-                  render: (value, record) =>
-                    record.isEditable || String(editingInProgressStepId) === String(record.id) ? (
-                      <Input
-                        type="number"
-                        min={0}
-                        value={value}
-                        onChange={(e) => handleProductionStepDraftChange(record.id, "inputQty", e.target.value)}
-                        placeholder="Enter qty"
-                      />
-                    ) : value === null || value === undefined || value === "" ? (
-                      "-"
-                    ) : (
-                      value
-                    ),
-                },
-                {
                   title: "Output Qty",
                   dataIndex: "outputQty",
                   key: "outputQty",
@@ -3342,8 +3374,21 @@ function WorkOrders() {
                   title: "Waste",
                   dataIndex: "wasteQty",
                   key: "wasteQty",
-                  width: 100,
-                  render: (value) => (value === null || value === undefined ? "-" : value),
+                  width: 120,
+                  render: (value, record) =>
+                    record.isEditable || String(editingInProgressStepId) === String(record.id) ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={value}
+                        onChange={(e) => handleProductionStepDraftChange(record.id, "wasteQty", e.target.value)}
+                        placeholder="0"
+                      />
+                    ) : value === null || value === undefined || value === "" ? (
+                      "-"
+                    ) : (
+                      value
+                    ),
                 },
                 {
                   title: "Yield %",
@@ -3408,6 +3453,7 @@ function WorkOrders() {
             />
           </div>
         </div>
+        )}
       </Modal>
 
       <DeleteModal
@@ -3447,6 +3493,18 @@ function WorkOrders() {
             value={finalQty}
             onChange={(e) => setFinalQty(e.target.value)}
             placeholder="Enter final quantity"
+            style={{ height: 42 }}
+          />
+
+          <label className="form-label fw-semibold mt-3">
+            Final Waste Qty
+          </label>
+          <Input
+            type="number"
+            min={0}
+            value={finalWasteQty}
+            onChange={(e) => setFinalWasteQty(e.target.value)}
+            placeholder="Enter final waste quantity"
             style={{ height: 42 }}
           />
         </div>

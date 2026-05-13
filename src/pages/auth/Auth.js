@@ -38,6 +38,7 @@ export const AuthProvider = ({ children }) => {
         setToken(authData.token);
         setUser(authData.user);
     };
+
     const MatchPermission = (permission) => {
 
         // check if user is owner, then allow all permissions
