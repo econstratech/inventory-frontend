@@ -1378,7 +1378,7 @@ function Sidebar() {
               {/* Payments end  */}
 
               {/* pos start */}
-              {MatchPermission(["POS"]) ?
+              {/* {MatchPermission(["POS"]) ? */}
                 <div className="accordion-item">
                   <div className="accordion-header sidebar-item">
                     <button
@@ -1434,7 +1434,7 @@ function Sidebar() {
                     </div>
                   </div>
                 </div>
-                : ""}
+                {/* : ""} */}
               {/* pos end  */}
 
               {/* Reports start */}
