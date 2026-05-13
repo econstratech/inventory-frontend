@@ -1,10 +1,69 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Modal } from 'react-bootstrap';
 import PhoneInput from 'react-phone-input-2';
 import { ErrorMessage, SuccessMessage } from '../../environment/ToastMessage';
 import { PrivateAxios } from '../../environment/AxiosInstance';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const RadioCard = ({ name, id, value, checked, onChange, label, activeColor = "#1d4ed8", activeBg = "#eff6ff" }) => (
+    <label
+        htmlFor={id}
+        className="mb-0"
+        style={{
+            cursor: "pointer",
+            flex: 1,
+            padding: "10px 14px",
+            border: checked ? `2px solid ${activeColor}` : "1px solid #e2e8f0",
+            borderRadius: 8,
+            background: checked ? activeBg : "#fff",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            transition: "all .15s",
+            userSelect: "none",
+        }}
+    >
+        <input
+            type="radio"
+            className="form-check-input m-0"
+            name={name}
+            id={id}
+            value={value}
+            checked={checked}
+            onChange={onChange}
+            style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }}
+        />
+        <span className="fw-semibold" style={{ fontSize: 14, color: checked ? activeColor : "#475569" }}>
+            {label}
+        </span>
+    </label>
+)
+
+const YesNoRadioGroup = ({ name, value, onChange, yesValue = "1", noValue = "0" }) => (
+    <div className="d-flex align-items-stretch gap-2 mt-2">
+        <RadioCard
+            name={name}
+            id={`${name}_yes`}
+            value={yesValue}
+            checked={String(value) === String(yesValue)}
+            onChange={onChange}
+            label="Yes"
+            activeColor="#16a34a"
+            activeBg="#f0fdf4"
+        />
+        <RadioCard
+            name={name}
+            id={`${name}_no`}
+            value={noValue}
+            checked={String(value) === String(noValue)}
+            onChange={onChange}
+            label="No"
+            activeColor="#64748b"
+            activeBg="#f1f5f9"
+        />
+    </div>
+)
 
 function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
     const [company, setCompany] = useState({
@@ -14,6 +73,7 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
         "isd": "",
         "address": "",
         "is_variant_based": "",
+        "is_gst_enabled": "1",
         // "whatsapp_no": "",
         "w_isd": "91",
         "renew_date": "",
@@ -28,9 +88,46 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
         "password": "",
         "owner_name": "",
         "owner_email": "",
+        "allowed_modules": [],
     })
 
     const [errors, setErrors] = useState({});
+    const [availableModules, setAvailableModules] = useState([]);
+
+    useEffect(() => {
+        if (!editUserShow) return;
+        PrivateAxios.get('/module/all-modules')
+            .then((res) => {
+                const list = res.data?.data ?? res.data ?? [];
+                setAvailableModules(Array.isArray(list) ? list : []);
+            })
+            .catch(() => setAvailableModules([]));
+    }, [editUserShow]);
+
+    const toggleModule = (moduleId, checked) => {
+        clearFieldError("allowed_modules");
+        setCompany((prev) => {
+            const current = Array.isArray(prev.allowed_modules) ? prev.allowed_modules : [];
+            const next = checked
+                ? Array.from(new Set([...current, Number(moduleId)]))
+                : current.filter((id) => Number(id) !== Number(moduleId));
+            return { ...prev, allowed_modules: next };
+        });
+    };
+
+    const toggleAllModules = (checked) => {
+        clearFieldError("allowed_modules");
+        setCompany((prev) => ({
+            ...prev,
+            allowed_modules: checked ? availableModules.map((m) => Number(m.id)) : [],
+        }));
+    };
+
+    const allModulesSelected =
+        availableModules.length > 0 &&
+        availableModules.every((m) =>
+            (company.allowed_modules || []).map(Number).includes(Number(m.id))
+        );
 
     const clearFieldError = (field) => {
         setErrors((prev) => {
@@ -74,6 +171,9 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
         if (!company.address?.trim()) {
             next.address = "Address is required.";
         }
+        if (!Array.isArray(company.allowed_modules) || company.allowed_modules.length === 0) {
+            next.allowed_modules = "Please select at least one module.";
+        }
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -91,7 +191,12 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
         // console.log("company", company);
         // return;
 
-        PrivateAxios.post('company/create-company', company)
+        const payload = {
+            ...company,
+            is_gst_enabled: String(company.is_gst_enabled) === "1" ? 1 : 0,
+            allowed_modules: (company.allowed_modules || []).map((id) => Number(id)),
+        }
+        PrivateAxios.post('company/create-company', payload)
             .then((res) => {
                 SuccessMessage(res.data.message)
                 GetCompany();
@@ -102,6 +207,7 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
                     "isd": "",
                     "address": "",
                     "is_variant_based": "",
+                    "is_gst_enabled": "1",
                     "whatsapp_number": "",
                     "w_isd": "",
                     "renew_date": "",
@@ -113,6 +219,7 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
                     "password": "",
                     "owner_name": "",
                     "owner_email": "",
+                    "allowed_modules": [],
                 })
                 setErrors({});
                 editUserModalClose();
@@ -131,6 +238,7 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
             "isd": "",
             "address": "",
             "is_variant_based": "",
+            "is_gst_enabled": "1",
             "whatsapp_no": "",
             "w_isd": "",
             "contact_name": "",
@@ -143,6 +251,7 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
             "renew_date": '',
             "owner_name": "",
             "owner_email": "",
+            "allowed_modules": [],
         })
     }
 
@@ -204,40 +313,59 @@ function AddCompany({ editUserShow, editUserModalClose, GetCompany }) {
                         <div className='col-md-6'>
                             <div className="form-group">
                                 <label className="form-label">Is Variant Based? <span className="text-exp-red">*</span></label>
-                                <div className="d-flex align-items-center gap-4 mt-2">
-                                    <div className="form-check">
-                                        <input
-                                            className="form-check-input"
-                                            type="radio"
-                                            name="is_variant_based"
-                                            id="is_variant_based_yes"
-                                            value="1"
-                                            checked={String(company.is_variant_based) === "1"}
-                                            onChange={(e) => { clearFieldError("is_variant_based"); setCompany({ ...company, is_variant_based: e.target.value }); }}
-                                        />
-                                        <label className="form-check-label" htmlFor="is_variant_based_yes">
-                                            Yes
-                                        </label>
-                                    </div>
-                                    <div className="form-check">
-                                        <input
-                                            className="form-check-input"
-                                            type="radio"
-                                            name="is_variant_based"
-                                            id="is_variant_based_no"
-                                            value="0"
-                                            checked={String(company.is_variant_based) === "0"}
-                                            onChange={(e) => { clearFieldError("is_variant_based"); setCompany({ ...company, is_variant_based: e.target.value }); }}
-                                        />
-                                        <label className="form-check-label" htmlFor="is_variant_based_no">
-                                            No
-                                        </label>
-                                    </div>
-                                </div>
+                                <YesNoRadioGroup
+                                    name="add_is_variant_based"
+                                    value={company.is_variant_based}
+                                    onChange={(e) => { clearFieldError("is_variant_based"); setCompany({ ...company, is_variant_based: e.target.value }); }}
+                                />
                                 {errors.is_variant_based && <span className="error-message text-danger small d-block mt-1">{errors.is_variant_based}</span>}
                             </div>
                         </div>
-                        
+
+                        <div className='col-md-6'>
+                            <div className="form-group">
+                                <label className="form-label">Is GST Enabled?</label>
+                                <YesNoRadioGroup
+                                    name="add_is_gst_enabled"
+                                    value={company.is_gst_enabled}
+                                    onChange={(e) => setCompany({ ...company, is_gst_enabled: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className='col-12'>
+                            <div className="form-group">
+                                <label className="form-label">Modules <span className="text-exp-red">*</span></label>
+                                {availableModules.length === 0 ? (
+                                    <div className="text-muted small">No modules available.</div>
+                                ) : (
+                                    <div className="d-flex flex-wrap">
+                                        <label className="custom-checkbox me-3 mb-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={allModulesSelected}
+                                                onChange={(e) => toggleAllModules(e.target.checked)}
+                                            />
+                                            <span className="checkmark" />
+                                            <span className="text-">All</span>
+                                        </label>
+                                        {availableModules.map((m) => (
+                                            <label key={m.id} className="custom-checkbox me-3 mb-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(company.allowed_modules || []).map(Number).includes(Number(m.id))}
+                                                    onChange={(e) => toggleModule(m.id, e.target.checked)}
+                                                />
+                                                <span className="checkmark" />
+                                                <span className="text-">{m.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                                {errors.allowed_modules && <span className="error-message text-danger small d-block mt-1">{errors.allowed_modules}</span>}
+                            </div>
+                        </div>
+
                         <div className='col-md-6'>
                             <div className="form-group">
                                 <label className="form-label">Company Whatsapp Number</label>

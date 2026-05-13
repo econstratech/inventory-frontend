@@ -469,6 +469,7 @@ function InventoryMaster() {
           is_batch_applicable: item.is_batch_applicable,
           has_master_pack: item.has_master_pack,
           markup_percentage: item.markup_percentage || "0",
+          product_price: item.product_price,
           masterBrand: item.masterBrand,
           uom: item?.masterUOM?.name || "",
           itemCategory: item.Categories?.title || "",
@@ -736,6 +737,16 @@ function InventoryMaster() {
       key: "markup_percentage",
       width: 120,
       render: (_, record) => record.markup_percentage || "-",
+    },
+    {
+      title: "Sale Amount",
+      dataIndex: "product_price",
+      key: "product_price",
+      width: 140,
+      render: (_, record) =>
+        record.product_price !== null && record.product_price !== undefined && record.product_price !== ""
+          ? record.product_price
+          : "-",
     },
     {
       title: `${isVariantBased ? "Variants & Attributes" : "Attributes"}`,

@@ -44,6 +44,18 @@ function MyNewpurchase() {
     return baseValue / to.factor;
   };
 
+  const handleClick = () => {
+    ErrorMessage("Please add primary vendor data first.");
+  };
+
+  const { MatchPermission, user } = UserAuth();
+  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
+  const [isVariantBased, setIsVariantBased] = useState(false);
+
+  const isGSTEnabled = user?.company?.generalSettings?.is_gst_enabled === 1 || false;
+
+  console.log("GST Enabled:", isGSTEnabled);
+
   const calculateTotal = () => {
     let untaxedAmount = 0;
     let totalTaxAmount = 0;
@@ -51,13 +63,15 @@ function MyNewpurchase() {
     products.forEach((product) => {
       const qty = parseFloat(product.qty) || 0;
       const unitPrice = parseFloat(product.unit_price) || 0;
-      const taxRate = parseFloat(product.tax) || 0;
+      const taxRate = product.tax ? parseFloat(product.tax) : 0;
 
       const lineSubtotal = qty * unitPrice;
       const lineTax = (lineSubtotal * taxRate) / 100;
 
       untaxedAmount += lineSubtotal;
-      totalTaxAmount += lineTax;
+      if (taxRate > 0) {
+        totalTaxAmount += lineTax;
+      }
     });
 
     const sgst = totalTaxAmount / 2;
@@ -70,13 +84,6 @@ function MyNewpurchase() {
       totalAmount,
     };
   };
-
-  const handleClick = () => {
-    ErrorMessage("Please add primary vendor data first.");
-  };
-  const { MatchPermission, user } = UserAuth();
-  const [getGeneralSettingssymbol, setGetGeneralSettingssymbol] = useState(null);
-  const [isVariantBased, setIsVariantBased] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -97,7 +104,7 @@ function MyNewpurchase() {
       description: "",
       qty: 1,
       unit_price: 0,
-      tax: 18,
+      tax: 0,
       taxExcl: 0,
       vendor_id: "",
       productData: null,
@@ -1074,11 +1081,17 @@ function MyNewpurchase() {
                         <div className="col-12 text-right">
                           <p className="mb-1"><span className="f-s-16 fw-medium text-primary-grey-2">Subtotal : </span>
                             <span className="fw-semibold f-s-16 text-primary-grey-1">{getGeneralSettingssymbol}
-                              {calculateTotal().untaxedAmount.toFixed(2)}</span></p>
+                              {calculateTotal().untaxedAmount.toFixed(2)}
+                            </span>
+                          </p>
+
                           <p className="mb-1"><span className="f-s-16 fw-medium text-primary-grey-2">SGST : </span>
-                            <span className="fw-semibold f-s-16 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().taxAmount.toFixed(2)}</span></p>
+                            <span className="fw-semibold f-s-16 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().taxAmount.toFixed(2)}</span>
+                          </p>
                           <p className="mb-1"><span className="f-s-16 fw-medium text-primary-grey-2">CGST : </span>
-                            <span className="fw-semibold f-s-16 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().taxAmount.toFixed(2)}</span></p>
+                            <span className="fw-semibold f-s-16 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().taxAmount.toFixed(2)}</span>
+                          </p>
+
                           <p className="border-top pt-2"><span className="f-s-20 fw-bold text-primary-grey-2">Total : </span>
                             <span className="fw-bold f-s-20 text-primary-grey-1"> {getGeneralSettingssymbol} {calculateTotal().totalAmount.toFixed(2)}</span>
                           </p>

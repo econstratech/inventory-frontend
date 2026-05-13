@@ -61,6 +61,7 @@ function InventoryMasterEditItemDetails() {
     masterUOM: null,
     masterProductType: null,
     masterProductCategory: null,
+    product_price: null,
   });
   // const [message, setMessage] = useState("");
   const [error, setError] = useState({});
@@ -396,7 +397,16 @@ function InventoryMasterEditItemDetails() {
     const found = productCategories?.find(
       (opt) => Number(opt.id) === Number(catId)
     );
-    setSelectedProductCategory(found ?? null);
+    if (found) {
+      setSelectedProductCategory(found);
+      return;
+    }
+    const embedded = formData?.productCategory;
+    if (embedded && Number(embedded.id) === Number(catId)) {
+      setSelectedProductCategory({ id: embedded.id, title: embedded.title });
+      return;
+    }
+    setSelectedProductCategory(null);
   }, [productCategories, formData]);
 
   useEffect(() => {
@@ -555,6 +565,7 @@ function InventoryMasterEditItemDetails() {
       product_name: formData.product_name,
       product_type_id: formData.product_type_id,
       product_category_id: formData.product_category_id,
+      product_price: formData.product_price || 0,
       is_batch_applicable: formData.is_batch_applicable,
       brand_id: formData.brand_id,
       uom_id: formData.uom_id,
@@ -562,15 +573,13 @@ function InventoryMasterEditItemDetails() {
       // product_variants: variantsData
     };
 
-    // console.log("productData", productData);
-
     try {
       const response = await PrivateAxios.post(`product/update/${id}`, productData);
       if (response.status === 200) {
         setIsEditing(false);
         setIsEditingVariants(false);
         fetchData();
-        SuccessMessage("Data saved successfully");
+        SuccessMessage("Product details has been updated successfully");
       } else {
         ErrorMessage("Failed to save data");
       }
@@ -984,6 +993,26 @@ function InventoryMasterEditItemDetails() {
                             <option value="1">Yes</option>
                             <option value="0">No</option>
                           </select>
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="form-group">
+                          <label className="form-label">
+                            Sale Amount
+                          </label>
+                          <input
+                            type="number"
+                            id="product_price"
+                            name="product_price"
+                            placeholder="Enter Sale Amount"
+                            className="form-control css-olqui2-singleValue"
+                            value={formData.product_price ?? 0}
+                            onChange={handleAddItemFormChange}
+                            disabled={!isEditing}
+                          />
+                          {errorMessage?.product_price && (
+                            <span className="error-message">{errorMessage.product_price}</span>
+                          )}
                         </div>
                       </div>
                       {formData.dynamic_attributes.map((attr) => (
