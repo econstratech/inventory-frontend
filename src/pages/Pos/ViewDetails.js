@@ -35,7 +35,7 @@ const ViewDetails = () => {
     fetchCustomers();
   }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async ({ autoSelectId, autoSelectMatch } = {}) => {
     setIsLoading(true);
     try {
       const res = await PrivateAxios.get("customer/all-customers");
@@ -44,6 +44,25 @@ const ViewDetails = () => {
       }));
 
       setData(customerList);
+
+      if (autoSelectId || autoSelectMatch) {
+        const newCustomer =
+          (autoSelectId && customerList.find((c) => c.id === autoSelectId)) ||
+          (autoSelectMatch &&
+            customerList.find(
+              (c) =>
+                (autoSelectMatch.email && c.email === autoSelectMatch.email) ||
+                (autoSelectMatch.phone && c.phone === autoSelectMatch.phone)
+            ));
+        if (newCustomer) {
+          setVendor((prev) => ({ ...prev, customer_id: newCustomer.id }));
+          setSelectedCustomer(newCustomer);
+          if (sameAsBilling) {
+            const fullAddress = `${newCustomer.address}, ${newCustomer.city} - ${newCustomer.zip}, ${newCustomer.state}, ${newCustomer.country}`;
+            setShippingAddress(fullAddress);
+          }
+        }
+      }
     } catch (err) {
       if (err.response?.status === 401) {
         Logout();
@@ -245,7 +264,8 @@ const ViewDetails = () => {
     const { name, phone, email, address, city,
       state,
       zip,
-      country, } = addCustomerForm;
+      country
+    } = addCustomerForm;
     const formData = new FormData();
     formData.append("name", name);
     formData.append("phone", phone);
@@ -261,7 +281,12 @@ const ViewDetails = () => {
       if (res.status === 200) {
         SuccessMessage("Customer added successfully!");
         setShowAddCustomerDetails(false);
-        fetchCustomers();
+        const newCustomerId =
+          res.data?.data?.id ?? res.data?.data?.customer?.id ?? res.data?.id ?? null;
+        fetchCustomers({
+          autoSelectId: newCustomerId,
+          autoSelectMatch: { email, phone },
+        });
       }
     } catch (error) {
       ErrorMessage(error.response?.data?.message || "Customer creation failed!");
@@ -622,7 +647,7 @@ const ViewDetails = () => {
                                   :{" "}
                                   <span>
                                     {getGeneralSettingssymbol}
-                                    {(cart[product.id]?.quantity || 0) * product.product_price}
+                                    {product.product_price ?? '-'}
                                   </span>
                                 </p>
                               </div>

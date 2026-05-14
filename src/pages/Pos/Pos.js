@@ -341,7 +341,6 @@ const Pos = () => {
                     <th className='text-end'>Quantity</th>
                     <th>UOM</th>
                     <th className='text-end'>Amount</th>
-                    <th className='text-end'>Sale Amount</th>
                     <th >Action</th>
                   </tr>
                 </thead>
@@ -361,7 +360,6 @@ const Pos = () => {
                         <td><div className='min-width-200'>{warehouse.name || '-'}</div></td>
                         <td>{entry.quantity ?? '-'}</td>
                         <td className="text-end">{variant.masterUOM?.name || '-'}</td>
-                        <td className="text-end">{getGeneralSettingssymbol} {product.product_price ?? 0}</td>
                         <td className="text-end">{getGeneralSettingssymbol} {product.product_price ?? '-'}</td>
                         <td>
                           {quantity === 0 ? (

@@ -74,7 +74,11 @@ function BomMaster() {
     } finally {
       setIsLoading(false);
     }
-  }, [bomController, setIsLoading, Logout]);
+    // Logout and setIsLoading are intentionally omitted: Logout is recreated on every
+    // Auth provider render and would retrigger this effect on every render of any
+    // ancestor that touches the auth context.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bomController]);
 
   useEffect(() => {
     fetchData();
