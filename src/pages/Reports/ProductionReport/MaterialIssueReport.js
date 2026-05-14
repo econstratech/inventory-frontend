@@ -22,7 +22,10 @@ const formatDisplayDate = (dateStr) => {
 };
 
 function MaterialIssueReport() {
-  const { isVariantBased } = UserAuth();
+  const { isVariantBased, user } = UserAuth();
+  const companySettings = user?.company?.generalSettings || null;
+  const productionwithoutBOM = companySettings?.production_without_bom === 1 || false;
+
 
   const [selectedRange, setSelectedRange] = useState("3m");
   const [fmsData, setFmsData] = useState({ startDate: null, endDate: null });
@@ -238,37 +241,47 @@ function MaterialIssueReport() {
       key: "rm_code",
       render: (_, row) => row.rawMaterialProduct?.product_code || "N/A",
     },
-    {
-      title: "BOM Qty/Unit",
-      dataIndex: "bom_qty_per_unit",
-      key: "bom_qty",
-      // align: "right",
-    },
-    {
-      title: "Required Qty",
-      dataIndex: "required_qty",
-      key: "required_qty",
-      // align: "right",
-      render: (val) => <span className="fw-semibold">{val}</span>,
-    },
+    ...(!productionwithoutBOM
+      ? [
+          {
+            title: "BOM Qty/Unit",
+            dataIndex: "bom_qty_per_unit",
+            key: "bom_qty",
+          },
+          {
+            title: "Required Qty",
+            dataIndex: "required_qty",
+            key: "required_qty",
+            render: (val) => <span className="fw-semibold">{val}</span>,
+          },
+        ]
+      : []),
     {
       title: "Issued Qty",
       dataIndex: "issued_qty",
       key: "issued_qty",
-      // align: "right",
       render: (val) => <span style={{ color: val > 0 ? "#10b981" : "#64748b", fontWeight: 600 }}>{val}</span>,
     },
     {
-      title: "Variance",
-      dataIndex: "variance",
-      key: "variance",
-      // align: "right",
-      render: (val) => (
-        <Tag color={val >= 0 ? "green" : "red"} style={{ fontWeight: 600 }}>
-          {val >= 0 ? `+${val}` : val}
-        </Tag>
-      ),
+      title: "Store",
+      dataIndex: ["warehouses", 0, "warehouse_name"],
+      key: "warehouse_name",
+      render: (val) => val || "N/A",
     },
+    ...(!productionwithoutBOM
+      ? [
+          {
+            title: "Variance",
+            dataIndex: "variance",
+            key: "variance",
+            render: (val) => (
+              <Tag color={val >= 0 ? "green" : "red"} style={{ fontWeight: 600 }}>
+                {val >= 0 ? `+${val}` : val}
+              </Tag>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -413,9 +426,11 @@ function MaterialIssueReport() {
                     <th>Customer Name</th>
                     <th>FG Name</th>
                     {isVariantBased && <th>Variant</th>}
+                    <th>Created Date</th>
                     <th>Due Date</th>
                     <th>Planned Qty</th>
                     <th>Final Qty</th>
+                    {productionwithoutBOM && <th>Waste Qty</th>}
                     <th style={{ width: 50, textAlign: "center" }}>Details</th>
                   </tr>
                 </thead>
@@ -447,9 +462,11 @@ function MaterialIssueReport() {
                             )}
                           </td>
                         )}
+                        <td>{formatDisplayDate(row.created_at)}</td>
                         <td>{formatDisplayDate(row.due_date)}</td>
                         <td>{row.planned_qty}</td>
                         <td>{row.final_qty ?? "N/A"}</td>
+                        {productionwithoutBOM && <td>{row.final_waste_qty ?? "N/A"}</td>}
                         <td>
                           <button
                             type="button"
@@ -541,6 +558,12 @@ function MaterialIssueReport() {
                 <div className="text-muted small">Final Qty</div>
                 <div className="fw-semibold">{selectedWO.final_qty ?? "N/A"}</div>
               </div>
+              {productionwithoutBOM && (
+                <div className="col-md-3">
+                  <div className="text-muted small">Waste Qty</div>
+                  <div className="fw-semibold">{selectedWO.final_waste_qty ?? "N/A"}</div>
+                </div>
+              )}
               <div className="col-md-3">
                 <div className="text-muted small">Due Date</div>
                 <div className="fw-semibold">{formatDisplayDate(selectedWO.due_date)}</div>

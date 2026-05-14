@@ -639,6 +639,45 @@ function WorkOrders() {
     );
   };
 
+  // Total Weight = quantity * variant.weight_per_unit, converted to the
+  // currently-selected Total Weight unit. Triggered from the Quantity input;
+  // ignored when no variant is chosen or variant has no weight_per_unit.
+  const handleQuantityChange = (index, value) => {
+    setFormEntries((prev) =>
+      prev.map((entry, i) => {
+        if (i !== index) return entry;
+        const next = { ...entry, quantity: value };
+        const variants = variantsByIndex[index] || [];
+        const selectedVariant = variants.find(
+          (v) => String(v.value) === String(entry.finishedGoodVariantId)
+        );
+        if (!selectedVariant) return next;
+
+        const variantWeightPerUnit = parseFloat(selectedVariant.weight_per_unit) || 0;
+        const variantUnit = selectedVariant.uomLabel || "kg";
+        const totalWeightUnit = entry.totalWeightUnit || "kg";
+        const quantity = parseFloat(value);
+
+        if (
+          Number.isFinite(quantity) &&
+          quantity >= 0 &&
+          variantWeightPerUnit > 0
+        ) {
+          const totalInVariantUnit = quantity * variantWeightPerUnit;
+          const converted = convertUnitValue(
+            totalInVariantUnit,
+            variantUnit,
+            totalWeightUnit
+          );
+          if (converted !== null) {
+            next.totalWeightValue = String(Number(converted.toFixed(3)));
+          }
+        }
+        return next;
+      })
+    );
+  };
+
   // Validate a single entry. Returns null on success, else an error message
   // prefixed with the work-order position when there are multiple entries.
   const validateEntry = (entry, index, total) => {
@@ -2501,7 +2540,7 @@ function WorkOrders() {
                       type="number"
                       min={0}
                       value={entry.quantity}
-                      onChange={(e) => updateEntry(entryIndex, { quantity: e.target.value })}
+                      onChange={(e) => handleQuantityChange(entryIndex, e.target.value)}
                       placeholder="Enter quantity"
                       style={{ height: "42px" }}
                     />
@@ -2782,7 +2821,7 @@ function WorkOrders() {
                             <Select
                               showSearch
                               placeholder="Select RM"
-                              style={{ width: "100%" }}
+                              style={{ width: "100%", height: "38px" }}
                               value={row.rm_product_id}
                               options={bulkRmOptions.map((o) => ({
                                 value: o.value,
@@ -2806,7 +2845,7 @@ function WorkOrders() {
                               </label>
                               <Select
                                 placeholder="Select"
-                                style={{ width: "100%" }}
+                                style={{ width: "100%", height: "38px" }}
                                 value={row.rm_product_variant_id}
                                 options={variantOptions.map((v) => ({
                                   value: v.value,
@@ -2830,7 +2869,7 @@ function WorkOrders() {
                             </label>
                             <Select
                               placeholder="Select store"
-                              style={{ width: "100%" }}
+                              style={{ width: "100%", height: "38px" }}
                               value={row.warehouse_id}
                               options={cwhrmStores.map((s) => ({
                                 value: s.id,
@@ -2860,6 +2899,7 @@ function WorkOrders() {
                               }
                               placeholder="0"
                               disabled={bulkSubmitting}
+                              style={{ height: "38px" }}
                             />
                           </div>
                           {hasMasterPack && (
@@ -2888,6 +2928,7 @@ function WorkOrders() {
                                 }
                                 placeholder={qpp > 0 ? "0" : "N/A"}
                                 disabled={masterPackDisabled}
+                                style={{ height: "38px" }}
                               />
                             </div>
                           )}
@@ -2908,6 +2949,7 @@ function WorkOrders() {
                               }
                               placeholder="Optional"
                               disabled={bulkSubmitting}
+                              style={{ height: "38px" }}
                             />
                           </div>
                           <div className="col-md-1 text-end">
@@ -2948,10 +2990,7 @@ function WorkOrders() {
                 </div>
 
                 <div className="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
-                  <label
-                    className="d-flex align-items-center gap-2 mb-0"
-                    style={{ cursor: "pointer" }}
-                  >
+                  <label className="custom-checkbox mb-0">
                     <input
                       type="checkbox"
                       checked={bulkIsComplete}
@@ -2961,8 +3000,9 @@ function WorkOrders() {
                         Number(materialIssueWorkOrder?.status) >= 3
                       }
                     />
-                    <span className="fw-semibold">Complete Material Issue</span>
-                    <span className="text-muted small">
+                    <span className="checkmark"></span>
+                    <span className="fw-semibold ms-1">Complete Material Issue</span>
+                    <span className="text-muted small ms-1">
                       (check this box if you want to mark material issue as completed)
                     </span>
                   </label>
