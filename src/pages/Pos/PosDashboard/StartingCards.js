@@ -64,7 +64,7 @@ function StartingCards() {
                             </div>
                             <div className='icon_desc'>
                                 <h5>Sale Amount</h5>
-                                <p>₹{summary.total_order_amount?.toFixed(2)}</p>
+                                <p>₹{Number(summary.total_order_amount || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </div>

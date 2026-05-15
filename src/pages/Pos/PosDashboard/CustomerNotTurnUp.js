@@ -1,54 +1,62 @@
 import React, { useEffect, useState } from 'react';
-import { Grid, GridColumn } from '@progress/kendo-react-grid';
-import { process } from '@progress/kendo-data-query';
-
+import { Table } from 'antd';
 import moment from 'moment';
 import { PrivateAxios } from '../../../environment/AxiosInstance';
 
 function CustomerNotTurnUp() {
-    const [selectedMonth, setSelectedMonth] = useState(new Date());
-    const [dataState, setDataState] = useState({
-        skip: 0,
-        take: 6,
-    });
-
     const [tableData, setTableData] = useState([]);
+    const [pagination, setPagination] = useState({ current: 1, pageSize: 6, total: 0 });
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        PrivateAxios.get("/pos/getAllOrdersWithItems")
+        setLoading(true);
+        PrivateAxios.get("/pos/customer-not-turn-up", {
+            params: {
+                page: pagination.current,
+                limit: pagination.pageSize,
+            },
+        })
             .then((res) => {
-                const orders = res.data;
-                const grouped = {};
-
-                orders.forEach(order => {
-                    const custId = order.customer_id;
-                    const existing = grouped[custId];
-
-                    if (!existing || new Date(order.created_at) > new Date(existing.lastPurchaseDate)) {
-                        grouped[custId] = {
-                            customerName: order.customer_name,
-                            lastPurchaseDate: order.created_at,
-                            phone: order.customer_phone,
-                            email: order.customer_email || "", // fallback if missing
-                        };
-                    }
-                });
-
-                const finalData = Object.values(grouped).map(item => ({
-                    ...item,
-                    lastPurchaseDate: moment(item.lastPurchaseDate).format("DD/MM/YYYY"),
+                const data = res.data?.data || {};
+                const rows = (data.rows || []).map((item, idx) => ({
+                    _key: item.customer_id ?? idx,
+                    customerName: item.customer_name,
+                    phone: item.customer_phone,
+                    email: item.customer_email || '',
+                    lastPurchaseDate: item.last_purchase_date
+                        ? moment(item.last_purchase_date).format("DD/MM/YYYY")
+                        : '-',
                 }));
-
-                setTableData(finalData);
+                setTableData(rows);
+                setPagination((prev) => ({
+                    ...prev,
+                    total: data.pagination?.total_records || 0,
+                }));
             })
-            .catch((err) => {
-                console.error("Error fetching customer data:", err);
-            });
-    }, []);
+            .catch((err) => console.error("Error fetching customer data:", err))
+            .finally(() => setLoading(false));
+    }, [pagination.current, pagination.pageSize]);
 
-    const handleDataStateChange = (e) => {
-        setDataState(e.dataState);
-    };
+    const columns = [
+        {
+            title: 'Customer Name',
+            dataIndex: 'customerName',
+            key: 'customerName',
+            width: 200,
+        },
+        {
+            title: 'Last Purchase Date',
+            dataIndex: 'lastPurchaseDate',
+            key: 'lastPurchaseDate',
+            width: 180,
+        },
+        {
+            title: 'Phone',
+            dataIndex: 'phone',
+            key: 'phone',
+            width: 150,
+        },
+    ];
 
     return (
         <div className='card'>
@@ -62,36 +70,28 @@ function CustomerNotTurnUp() {
                 <div className='row'>
                     <div className='col-lg-12'>
                         <div className='table-responsive mb-0'>
-                            <Grid
-                                data={process(tableData, dataState)}
-                                {...dataState}
-                                onDataStateChange={handleDataStateChange}
-                                pageable={{ pageSizes: [5, 10, 20], buttonCount: 6 }}
-                                sortable={true}
-                                filterable={true}
-                                style={{ width: '100%' }}
-                            >
-                                <GridColumn field="customerName" title="Customer Name" width="200px" headerClassName="fw-bold" />
-                                <GridColumn
-                                    field="lastPurchaseDate"
-                                    title="Last Purchase Date"
-                                    width="180px"
-                                    headerClassName="fw-bold"
-                                    cell={(props) => (
-                                        <td><div>{props.dataItem.lastPurchaseDate}</div></td>
-                                    )}
-                                />
-                                <GridColumn
-                                    field="phone"
-                                    title="Phone"
-                                    width="150px"
-                                    headerClassName="fw-bold"
-                                    cell={(props) => (
-                                        <td><div>{props.dataItem.phone}</div></td>
-                                    )}
-                                />
-                               
-                            </Grid>
+                            <Table
+                                rowKey={(record) => record._key}
+                                columns={columns}
+                                dataSource={tableData}
+                                loading={loading}
+                                pagination={{
+                                    current: pagination.current,
+                                    pageSize: pagination.pageSize,
+                                    total: pagination.total,
+                                    pageSizeOptions: ['5', '10', '20', '50'],
+                                    showSizeChanger: true,
+                                    showTotal: (total) => `Total ${total} customers`,
+                                }}
+                                onChange={(p) =>
+                                    setPagination((prev) => ({
+                                        ...prev,
+                                        current: p.current,
+                                        pageSize: p.pageSize,
+                                    }))
+                                }
+                                scroll={{ x: 'max-content' }}
+                            />
                         </div>
                     </div>
                 </div>

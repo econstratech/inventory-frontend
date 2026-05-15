@@ -57,8 +57,8 @@ const OrderStatus = () => {
       .catch((err) => console.error("Cancellation failed", err));
   };
   useEffect(() => {
-    PrivateAxios.get("/pos/getAllOrdersWithItems")
-      .then((res) => setOrders(res.data))
+    PrivateAxios.get("/pos/getAllOrdersWithItems", { params: { limit: 'all' } })
+      .then((res) => setOrders(res.data?.data?.rows || []))
       .catch((err) => console.error(err));
   }, []);
 

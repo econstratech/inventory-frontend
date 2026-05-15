@@ -210,7 +210,7 @@ function PosThankYouPage() {
                                             <circle id="blue-dot-2" className="cls-1 dot" cx="79.3" cy="54.29" r={2} />
                                         </svg>
                                     </div>
-                                    <h5 className='fs-6 fw-bold text-center text-primary'><span>An Email confirmation has been sent to you.</span></h5>
+                                    {/* <h5 className='fs-6 fw-bold text-center text-primary'><span>An Email confirmation has been sent to you.</span></h5> */}
                                     <hr className=' my-3' />
                                     <h5 className='fs-6 fw-medium '>Order No: <span className='fw-bold'>{order.order.custom_order_id}</span></h5>
                                     <h5 className='fs-6 fw-medium '>Payment ID: <span className='fw-bold'>{order.order.payment_id}</span></h5>
@@ -225,27 +225,27 @@ function PosThankYouPage() {
                                     <hr className='my-3' />
                                     {/* <h4 className="mt-4">Products Ordered</h4> */}
                                     {/* <table className="table table-bordered mt-2">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Code</th>
-            <th>Qty</th>
-            <th>Price</th>
-            <th>Remarks</th>
-          </tr>
-        </thead>
-        <tbody>
-          {order.products.map((item) => (
-            <tr key={item.product_id}>
-              <td>{item.product_name}</td>
-              <td>{item.product_code}</td>
-              <td>{item.quantity}</td>
-              <td>₹{item.ordered_price}</td>
-              <td>{item.remarks || '-'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table> */}
+                                        <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Code</th>
+                                            <th>Qty</th>
+                                            <th>Price</th>
+                                            <th>Remarks</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {order.products.map((item) => (
+                                            <tr key={item.product_id}>
+                                            <td>{item.product_name}</td>
+                                            <td>{item.product_code}</td>
+                                            <td>{item.quantity}</td>
+                                            <td>₹{item.ordered_price}</td>
+                                            <td>{item.remarks || '-'}</td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table> */}
                                     <div>
                                         <p className='mb-1'>Shipping Address</p>
                                         <h5 className='fs-6 fw-medium'>

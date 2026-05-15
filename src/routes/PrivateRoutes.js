@@ -246,7 +246,15 @@ const IndentRequirementReport  = React.lazy(() => import( "../pages/Reports/Purc
 const BatchExpiryReport  = React.lazy(() => import( "../pages/Reports/BatchExpiryReport.js"));
 
 function PrivateRoutes() {
-  const { isLoggedIn } = UserAuth();
+  const { isLoggedIn, authStatus } = UserAuth();
+
+  // While the initial /user/me round-trip is in flight, isLoggedIn is false
+  // because authStatus === 'checking'. Without this guard, a hard refresh
+  // on an authed page would briefly redirect through the login screen.
+  if (authStatus === 'checking') {
+    return <Loader />;
+  }
+
   return (
     <Suspense fallback={<Loader />}>
       <Routes>

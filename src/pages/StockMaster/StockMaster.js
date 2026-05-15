@@ -192,6 +192,9 @@ function StockMaster() {
         if (inventory_needed < 0) {
           inventory_needed = 0;
         }
+
+        // const percentage = ((buffer_size + safety_factor - item.inventory_at_transit - item.quantity) / buffer_size) * 100;
+        // console.log(`Percentage for ${item.product.product_name} & store ${item.warehouse.name}: ${percentage.toFixed(2)}`);
         return {
           key: index + 1,
           id: item.id || "",
