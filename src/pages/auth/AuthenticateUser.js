@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Axios } from "../../environment/AxiosInstance";
-import { ErrorMessage, SuccessMessage } from "../../environment/ToastMessage";
+import { SuccessMessage } from "../../environment/ToastMessage";
 import { UserAuth } from "./Auth";
 
 function AuthenticateUser() {
@@ -13,7 +13,6 @@ function AuthenticateUser() {
   const [isFetchingUser, setIsFetchingUser] = useState(false);
   const [userFetchError, setUserFetchError] = useState("");
   const [erpUserData, setErpUserData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   const token = useMemo(() => searchParams.get("token") || "", [searchParams]);
   const hasToken = token.trim().length > 0;
@@ -29,11 +28,10 @@ function AuthenticateUser() {
       navigate("/welcome");
       return;
     }
-  }, [])
+  }, [navigate, token])
 
   useEffect(() => {
     const fetchUserFromErp = async () => {
-      setIsLoading(true);
       if (!hasToken || !erpBaseUrl) return;
 
       setIsFetchingUser(true);
@@ -47,9 +45,6 @@ function AuthenticateUser() {
           },
         });
         setErpUserData(response.data?.data || response.data || null);
-        // Save third party token in local storage, to prevent multiple requests
-        // localStorage.setItem("third_party_token", token);
-        setIsLoading(false);
       } catch (err) {
         const message =
           err?.response?.data?.message ||
@@ -58,7 +53,6 @@ function AuthenticateUser() {
         setUserFetchError(message);
       } finally {
         setIsFetchingUser(false);
-        setIsLoading(false);
       }
     };
 

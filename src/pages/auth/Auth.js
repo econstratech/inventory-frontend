@@ -67,10 +67,17 @@ export const AuthProvider = ({ children }) => {
         return false;
     };
 
-    const Logout = () => {
-        // Fire-and-forget — the server clears the cookie, but we don't want to
-        // block UI on a network call. logoutAndRedirect handles local cleanup.
-        PrivateAxios.post('user/logout').catch(() => {});
+    const Logout = async () => {
+        // MUST await: logoutAndRedirect() triggers a full page reload, which
+        // cancels in-flight requests. If the cookie-clearing POST hasn't been
+        // processed by the server yet, the next /user/me on app reload still
+        // succeeds and the user is bounced back to /welcome.
+        try {
+            await PrivateAxios.post('user/logout');
+        } catch (_err) {
+            // Best-effort: even if the server call fails, clear local state
+            // and force a redirect. The user can re-login from there.
+        }
         setUser(null);
         setUserPermissions([]);
         setUserDetails({});

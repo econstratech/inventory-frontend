@@ -42,10 +42,10 @@ function StartingCards() {
 
     return (
         <>
-            <div className='row'>
-                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6'>
-                    <div className='card warning-gredient text-center starter_card'>
-                        <div className='card-body'>
+            <div className='row h-100'>
+                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 d-flex'>
+                    <div className='card warning-gredient text-center starter_card h-100 w-100 justify-content-center mb-0'>
+                        <div className='card-body d-flex flex-column justify-content-center'>
                             <div className='icon_box text-bg-warning rounded-4 mx-auto'>
                                 <Item className='text-white' width={40} height={40} />
                             </div>
@@ -56,9 +56,9 @@ function StartingCards() {
                         </div>
                     </div>
                 </div>
-                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6'>
-                    <div className='card danger-gredient text-center starter_card'>
-                        <div className='card-body'>
+                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 d-flex'>
+                    <div className='card danger-gredient text-center starter_card h-100 w-100 justify-content-center mb-0'>
+                        <div className='card-body d-flex flex-column justify-content-center'>
                             <div className='icon_box text-bg-danger rounded-4 mx-auto'>
                                 <Sale className='text-white' width={40} height={40} />
                             </div>
@@ -69,9 +69,9 @@ function StartingCards() {
                         </div>
                     </div>
                 </div>
-                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6'>
-                    <div className='card success-gredient text-center starter_card'>
-                        <div className='card-body'>
+                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 d-flex'>
+                    <div className='card success-gredient text-center starter_card h-100 w-100 justify-content-center mb-0'>
+                        <div className='card-body d-flex flex-column justify-content-center'>
                             <div className='icon_box text-bg-success rounded-4 mx-auto'>
                                 <Quantity className='text-white' width={40} height={40} />
                             </div>
@@ -82,9 +82,9 @@ function StartingCards() {
                         </div>
                     </div>
                 </div>
-                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6'>
-                    <div className='card info-gredient text-center starter_card'>
-                        <div className='card-body'>
+                <div className='col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 d-flex'>
+                    <div className='card info-gredient text-center starter_card h-100 w-100 justify-content-center mb-0'>
+                        <div className='card-body d-flex flex-column justify-content-center'>
                             <div className='icon_box text-bg-info rounded-4 mx-auto'>
                                 <Customer className='text-white' width={40} height={40} />
                             </div>
