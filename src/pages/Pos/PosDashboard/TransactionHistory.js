@@ -1,48 +1,47 @@
 import { useEffect, useState } from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Grid, GridColumn } from '@progress/kendo-react-grid';
-import { process } from '@progress/kendo-data-query';
+import { Table } from 'antd';
 import { PrivateAxios } from '../../../environment/AxiosInstance';
+
+const getStatusLabel = (status) => {
+    switch (status) {
+        case 0: return 'In Progress';
+        case 1: return 'Delivered';
+        case 2: return 'Cancelled';
+        default: return 'Unknown';
+    }
+};
 
 function TransactionHistory() {
     const [selectedMonth, setSelectedMonth] = useState(new Date());
-    const [filter, setFilter] = useState(null);
     const [tableData, setTableData] = useState([]);
-    const [gridData, setGridData] = useState([]);
-    const [page, setPage] = useState({ skip: 0, take: 10 });
+    const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+    const [loading, setLoading] = useState(false);
 
-    // Status mapper function
-    const getStatusLabel = (status) => {
-        switch (status) {
-            case 0:
-                return 'In Progress';
-            case 1:
-                return 'Delivered';
-            case 2:
-                return 'Cancelled';
-            default:
-                return 'Unknown';
-        }
-    };
-
-    // Fetch data on mount
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await PrivateAxios.get("/pos/getAllOrdersWithItems");
-                const rawData = response.data;
+        const month = selectedMonth.getMonth() + 1; // JS months are 0-indexed
+        const year = selectedMonth.getFullYear();
 
-                const formattedData = rawData.map((item) => ({
+        setLoading(true);
+        PrivateAxios.get("/pos/getAllOrdersWithItems", {
+            params: {
+                page: pagination.current,
+                limit: pagination.pageSize,
+                month,
+                year,
+            },
+        })
+            .then((res) => {
+                const data = res.data?.data || {};
+                const rows = (data.rows || []).map((item, idx) => ({
+                    _key: `${item.order_item_id ?? item.id ?? idx}-${idx}`,
                     customerName: item.customer_name || 'N/A',
                     item: item.product_name || 'N/A',
                     code: item.product_code || 'N/A',
                     bookingOrderDate: item.created_at
                         ? new Date(item.created_at).toLocaleDateString()
                         : 'N/A',
-                    bookingOrderMonthYear: item.created_at
-                        ? new Date(item.created_at)
-                        : null,
                     itemQuantity: item.quantity || 0,
                     orderId: item.custom_order_id || 'N/A',
                     orderAmount: item.item_total || 0,
@@ -51,33 +50,97 @@ function TransactionHistory() {
                     paymentAmount: item.item_total || 0,
                     deliveryStatus: getStatusLabel(item.item_status),
                 }));
+                setTableData(rows);
+                setPagination((prev) => ({
+                    ...prev,
+                    total: data.pagination?.total_records || 0,
+                }));
+            })
+            .catch((error) => console.error("Error fetching transaction data:", error))
+            .finally(() => setLoading(false));
+    }, [selectedMonth, pagination.current, pagination.pageSize]);
 
-                setTableData(formattedData);
-            } catch (error) {
-                console.error("Error fetching transaction data:", error);
-            }
-        };
-
-        fetchData();
-    }, []);
-
-    // Filter tableData by selected month & year from date picker
-    const filteredByMonth = tableData.filter(item => {
-        if (!item.bookingOrderMonthYear) return false;
-
-        const selYear = selectedMonth.getFullYear();
-        const selMonth = selectedMonth.getMonth();
-
-        return (
-            item.bookingOrderMonthYear.getFullYear() === selYear &&
-            item.bookingOrderMonthYear.getMonth() === selMonth
-        );
-    });
-
-    // Update grid data whenever data, filter, page or selectedMonth changes
-    useEffect(() => {
-        setGridData(process(filteredByMonth, { filter, skip: page.skip, take: page.take }));
-    }, [filteredByMonth, filter, page]);
+    const columns = [
+        {
+            title: 'Customer Name',
+            dataIndex: 'customerName',
+            key: 'customerName',
+            width: 200,
+        },
+        {
+            title: 'Item Details',
+            dataIndex: 'item',
+            key: 'item',
+            width: 250,
+            render: (_, record) => (
+                <>
+                    <div>Item: <span className='fw-bold'>{record.item}</span></div>
+                    <div>Code: <span className='fw-bold'>{record.code}</span></div>
+                </>
+            ),
+        },
+        {
+            title: 'Booking Date',
+            dataIndex: 'bookingOrderDate',
+            key: 'bookingOrderDate',
+            width: 140,
+        },
+        {
+            title: 'Quantity',
+            dataIndex: 'itemQuantity',
+            key: 'itemQuantity',
+            width: 100,
+        },
+        {
+            title: 'Order ID',
+            dataIndex: 'orderId',
+            key: 'orderId',
+            width: 150,
+        },
+        {
+            title: 'Order Amount',
+            dataIndex: 'orderAmount',
+            key: 'orderAmount',
+            width: 140,
+            align: 'right',
+            render: (val) => `₹ ${Number(val || 0).toFixed(2)}`,
+        },
+        {
+            title: 'Transaction ID',
+            dataIndex: 'transationID',
+            key: 'transationID',
+            width: 150,
+            render: (val) => <span className='badge badge-light'>{val}</span>,
+        },
+        {
+            title: 'Payment Details',
+            dataIndex: 'paymentDetails',
+            key: 'paymentDetails',
+            width: 140,
+        },
+        {
+            title: 'Payment Amount',
+            dataIndex: 'paymentAmount',
+            key: 'paymentAmount',
+            width: 150,
+            align: 'right',
+            render: (val) => `₹ ${Number(val || 0).toFixed(2)}`,
+        },
+        {
+            title: 'Delivery Status',
+            dataIndex: 'deliveryStatus',
+            key: 'deliveryStatus',
+            width: 140,
+            render: (status) => {
+                const badgeClass =
+                    status === "Delivered" ? "badge badge-success"
+                        : status === "In Progress" ? "badge badge-warning"
+                            : status === "Cancelled" ? "badge badge-danger"
+                                : "badge badge-secondary";
+                return <span className={badgeClass}>{status}</span>;
+            },
+        },
+    ];
 
     return (
         <div className='card mb-0'>
@@ -89,7 +152,7 @@ function TransactionHistory() {
                         selected={selectedMonth}
                         onChange={(date) => {
                             setSelectedMonth(date);
-                            setPage({ skip: 0, take: page.take }); // reset to first page on month change
+                            setPagination((prev) => ({ ...prev, current: 1 }));
                         }}
                         dateFormat="MM/yyyy"
                         showMonthYearPicker
@@ -101,91 +164,28 @@ function TransactionHistory() {
                 <div className='row'>
                     <div className='col-lg-12'>
                         <div className='table-responsive mb-0'>
-                            <Grid
-                                data={gridData}
-                                filterable={true}
-                                filter={filter}
-                                onFilterChange={(e) => {
-                                    setFilter(e.filter);
-                                    setPage({ skip: 0, take: page.take }); // reset page on filter change
+                            <Table
+                                rowKey={(record) => record._key}
+                                columns={columns}
+                                dataSource={tableData}
+                                loading={loading}
+                                pagination={{
+                                    current: pagination.current,
+                                    pageSize: pagination.pageSize,
+                                    total: pagination.total,
+                                    pageSizeOptions: ['5', '10', '20', '50'],
+                                    showSizeChanger: true,
+                                    showTotal: (total) => `Total ${total} items`,
                                 }}
-                                pageable={{
-                                    pageSizes: [5, 10, 20],
-                                    buttonCount: 5,
-                                    info: true,
-                                }}
-                                skip={page.skip}
-                                take={page.take}
-                                total={process(filteredByMonth, { filter }).data.length}
-                                onPageChange={(e) => setPage({ skip: e.page.skip, take: e.page.take })}
-                                sortable={true}
-                                style={{ width: '100%' }}
-                            >
-                                <GridColumn field="customerName" title="Customer Name" width="200px" headerClassName="fw-bold" />
-                                <GridColumn
-                                    field="item"
-                                    title="Item Details"
-                                    width="250px"
-                                    headerClassName="fw-bold"
-                                    cell={(props) => (
-                                        <td>
-                                            <div>Item: <span className='fw-bold'>{props.dataItem.item}</span></div>
-                                            <div>Code: <span className='fw-bold'>{props.dataItem.code}</span></div>
-                                        </td>
-                                    )}
-                                />
-                                <GridColumn field="bookingOrderDate" title="Booking Date" width="140px" headerClassName="fw-bold" />
-                                <GridColumn field="itemQuantity" title="Quantity" width="100px" headerClassName="fw-bold" />
-                                <GridColumn field="orderId" title="Order ID" width="150px" headerClassName="fw-bold" />
-                                <GridColumn
-                                    field="orderAmount"
-                                    title="Order Amount"
-                                    width="140px"
-                                    headerClassName="fw-bold justify-content-end"
-                                    cell={(props) => (
-                                        <td className="text-end">₹ {props.dataItem.orderAmount}</td>
-                                    )}
-                                />
-                                <GridColumn
-                                    field="transationID"
-                                    title="Transaction ID"
-                                    width="150px"
-                                    headerClassName="fw-bold"
-                                    cell={(props) => (
-                                        <td><span className='badge badge-light'>{props.dataItem.transationID}</span></td>
-                                    )}
-                                />
-                                <GridColumn field="paymentDetails" title="Payment Details" width="140px" headerClassName="fw-bold" />
-                                <GridColumn
-                                    field="paymentAmount"
-                                    title="Payment Amount"
-                                    width="150px"
-                                    headerClassName="fw-bold justify-content-end"
-                                    cell={(props) => (
-                                        <td className="text-end">₹ {props.dataItem.paymentAmount}</td>
-                                    )}
-                                />
-                                <GridColumn
-                                    field="deliveryStatus"
-                                    title="Delivery Status"
-                                    width="140px"
-                                    headerClassName="fw-bold"
-                                    cell={(props) => {
-                                        const status = props.dataItem.deliveryStatus;
-                                        const badgeClass =
-                                            status === "Delivered"
-                                                ? "badge badge-success"
-                                                : status === "In Progress"
-                                                    ? "badge badge-warning"
-                                                    : status === "Cancelled"
-                                                        ? "badge badge-danger"
-                                                        : "badge badge-secondary";
-                                        return (
-                                            <td><span className={badgeClass}>{status}</span></td>
-                                        );
-                                    }}
-                                />
-                            </Grid>
+                                onChange={(p) =>
+                                    setPagination((prev) => ({
+                                        ...prev,
+                                        current: p.current,
+                                        pageSize: p.pageSize,
+                                    }))
+                                }
+                                scroll={{ x: 'max-content' }}
+                            />
                         </div>
                     </div>
                 </div>

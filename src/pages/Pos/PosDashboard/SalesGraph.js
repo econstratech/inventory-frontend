@@ -38,12 +38,17 @@ const SalesGraph = () => {
     const [graphData, setGraphData] = useState([]);
 
     useEffect(() => {
-        PrivateAxios.get("/pos/getAllOrdersWithItems")
+        const sixMonthsAgo = moment().subtract(6, 'months');
+        PrivateAxios.get("/pos/getAllOrdersWithItems", {
+            params: {
+                limit: 'all',
+                date_from: sixMonthsAgo.format('YYYY-MM-DD HH:mm:ss'),
+            },
+        })
             .then((res) => {
-                const allOrders = res.data;
-
-                // Filter orders from the last 6 months
-                const sixMonthsAgo = moment().subtract(6, 'months');
+                const allOrders = res.data?.data?.rows || [];
+                // Server already filters by date_from, but keep the client guard so this
+                // component still works if the backend response shape ever broadens.
                 const recentOrders = allOrders.filter(order =>
                     moment(order.created_at).isAfter(sixMonthsAgo)
                 );

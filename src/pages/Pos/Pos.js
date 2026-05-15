@@ -43,7 +43,20 @@ const Pos = () => {
   const [count, setCount] = useState(1);
   const [cart, setCart] = useState(() => {
     const savedCart = sessionStorage.getItem('cart');
-    return savedCart ? JSON.parse(savedCart) : {};
+    if (!savedCart) return {};
+    try {
+      const parsed = JSON.parse(savedCart);
+      // Cart is keyed by stock-entry id and each value must include entry_id.
+      // Drop any legacy entries from the previous schema (keyed by product.id)
+      // so they don't poison totals / order placement.
+      const cleaned = {};
+      for (const [key, value] of Object.entries(parsed || {})) {
+        if (value && value.entry_id != null) cleaned[key] = value;
+      }
+      return cleaned;
+    } catch {
+      return {};
+    }
   });
 
   useEffect(() => {
@@ -147,8 +160,11 @@ const Pos = () => {
 
   const handleAddToCart = (entryId) => {
   const entry = stockEntries.find(e => e.id === entryId);
-  const product = entry?.product;
-  const storeId = entry?.warehouse?.id || null;
+  if (!entry) return;
+  const product = entry.product;
+  const productVariant = entry.productVariant;
+  const warehouse = entry.warehouse;
+  const storeId = warehouse?.id || null;
 
   if (!product) return;
 
@@ -160,10 +176,15 @@ const Pos = () => {
   setCart((prevCart) => {
     const updatedCart = {
       ...prevCart,
-      [product.id]: {
+      // Key by stock-entry id so multiple variants / warehouses of the same
+      // product stay distinct in the cart.
+      [entry.id]: {
+        entry_id: entry.id,
         quantity: 1,
         store_id: storeId,
         product,
+        productVariant,
+        warehouse,
       }
     };
     sessionStorage.setItem("cart", JSON.stringify(updatedCart));
@@ -336,10 +357,10 @@ const Pos = () => {
                   <tr>
                     <th className=' text-nowrap'>Item Id</th>
                     <th>Item Name</th>
+                    <th>Variant</th>
                     <th>Item Category</th>
-                    <th>Location</th>
+                    <th>Store</th>
                     <th className='text-end'>Quantity</th>
-                    <th>UOM</th>
                     <th className='text-end'>Amount</th>
                     <th >Action</th>
                   </tr>
@@ -350,16 +371,16 @@ const Pos = () => {
                     const product = entry.product || {};
                     const variant = entry.productVariant || {};
                     const warehouse = entry.warehouse || {};
-                    const quantity = cart[product.id]?.quantity || 0;
+                    const quantity = cart[entry.id]?.quantity || 0;
 
                     return (
                       <tr key={entry.id}>
                         <td>{product.product_code || '-'}</td>
-                        <td><div className='min-width-200'>{product.product_name || '-'}</div></td>
-                        <td><div className='min-width-100'>{product.productCategory?.title || '-'}</div></td>
-                        <td><div className='min-width-200'>{warehouse.name || '-'}</div></td>
+                        <td><div className='min-width-150'>{product.product_name || '-'}</div></td>
+                        <td>{variant.weight_per_unit} {variant.masterUOM?.label || '-'}</td>
+                        <td><div className='min-width-150'>{product.productCategory?.title || '-'}</div></td>
+                        <td><div className='min-width-120'>{warehouse.name || '-'}</div></td>
                         <td>{entry.quantity ?? '-'}</td>
-                        <td className="text-end">{variant.masterUOM?.name || '-'}</td>
                         <td className="text-end">{getGeneralSettingssymbol} {product.product_price ?? '-'}</td>
                         <td>
                           {quantity === 0 ? (
@@ -377,7 +398,7 @@ const Pos = () => {
                           ) : (
                             <div className="count_btn d-flex align-items-center">
                               <button
-                                onClick={() => handleQuantityChange(product.id, -1)}
+                                onClick={() => handleQuantityChange(entry.id, -1)}
                                 className="table-btn"
                               >
                                 <i className="fas fa-minus f-s-10" />
@@ -390,7 +411,7 @@ const Pos = () => {
                                 style={{ width: "50px" }}
                               />
                               <button
-                                onClick={() => handleQuantityChange(product.id, 1)}
+                                onClick={() => handleQuantityChange(entry.id, 1)}
                                 className="table-btn"
                               >
                                 <i className="fas fa-plus f-s-10" />

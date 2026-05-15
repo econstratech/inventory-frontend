@@ -1,54 +1,114 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Grid, GridColumn } from '@progress/kendo-react-grid';
-import { process } from '@progress/kendo-data-query';
+import { Table } from 'antd';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { PrivateAxios } from '../../../environment/AxiosInstance';
 dayjs.extend(isoWeek);
 
+const getDateRange = (filter) => {
+  const now = dayjs();
+  switch (filter) {
+    case "1":
+      return { date_from: now.startOf('day'), date_to: now.endOf('day') };
+    case "2":
+      return { date_from: now.startOf('isoWeek'), date_to: now.endOf('isoWeek') };
+    case "3":
+      return { date_from: now.startOf('month'), date_to: now.endOf('month') };
+    case "4":
+      return { date_from: now.startOf('year'), date_to: now.endOf('year') };
+    default:
+      return { date_from: null, date_to: null };
+  }
+};
+
+const fmt = (d) => (d ? d.format('YYYY-MM-DD HH:mm:ss') : null);
+
 function CancelReport() {
   const [selectedFilter, setSelectedFilter] = useState("3"); // Default: This Month
-  const [dataState, setDataState] = useState({ skip: 0, take: 5, sort: [] });
   const [tableData, setTableData] = useState([]);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+    total: 0,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const queryParams = useMemo(() => {
+    const { date_from, date_to } = getDateRange(selectedFilter);
+    return {
+      page: pagination.current,
+      limit: pagination.pageSize,
+      status: 2, // Cancelled
+      date_from: fmt(date_from),
+      date_to: fmt(date_to),
+    };
+  }, [selectedFilter, pagination.current, pagination.pageSize]);
 
   useEffect(() => {
-    PrivateAxios.get("/pos/getAllOrdersWithItems")
-      .then(res => setTableData(res.data))
-      .catch(err => console.error(err));
-  }, []);
+    setLoading(true);
+    PrivateAxios.get("/pos/getAllOrdersWithItems", { params: queryParams })
+      .then((res) => {
+        const data = res.data?.data || {};
+        const rows = (data.rows || []).map((item, idx) => ({
+          ...item,
+          _key: `${item.order_item_id ?? item.id ?? idx}-${idx}`,
+        }));
+        setTableData(rows);
+        setPagination((prev) => ({
+          ...prev,
+          total: data.pagination?.total_records || 0,
+        }));
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, [queryParams]);
 
-  // Filter items with item_status === 2 and by selected date filter
-  const filteredData = useMemo(() => {
-    if (!tableData.length) return [];
+  // Reset to page 1 whenever the date filter changes.
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  }, [selectedFilter]);
 
-    const now = dayjs();
-
-    return tableData.filter(item => {
-      // Filter only items with item_status === 2
-      if (item.item_status !== 2) return false;
-
-      const orderDate = dayjs(item.created_at);
-
-      switch (selectedFilter) {
-        case "1": // Today
-          return orderDate.isSame(now, 'day');
-        case "2": // This Week (ISO week)
-          return orderDate.isoWeek() === now.isoWeek() && orderDate.isSame(now, 'year');
-        case "3": // This Month
-          return orderDate.isSame(now, 'month');
-        case "4": // This Year
-          return orderDate.isSame(now, 'year');
-        default:
-          return true;
-      }
-    });
-  }, [tableData, selectedFilter]);
-
-  const processedData = process(filteredData, dataState);
-
-  const handleDataStateChange = (e) => {
-    setDataState(e.dataState);
-  };
+  const columns = [
+    {
+      title: 'Customer Name',
+      dataIndex: 'customer_name',
+      key: 'customer_name',
+      width: 200,
+    },
+    {
+      title: 'Item',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      width: 200,
+      render: (_, record) => (
+        <>
+          <div>Item: <span className='fw-bold'>{record.product_name}</span></div>
+          <div>Code: <span className='fw-bold'>{record.product_code}</span></div>
+        </>
+      ),
+    },
+    {
+      title: 'Order Date',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 120,
+      render: (val) => (val ? new Date(val).toLocaleDateString() : '-'),
+    },
+    {
+      title: 'Quantity',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 100,
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'item_total',
+      key: 'item_total',
+      width: 100,
+      align: 'right',
+      render: (val) => `₹ ${Number(val || 0).toFixed(2)}`,
+    },
+  ];
 
   return (
     <div className='card'>
@@ -70,58 +130,28 @@ function CancelReport() {
         <div className='row'>
           <div className='col-lg-12'>
             <div className='table-responsive mb-0'>
-              <Grid
-                data={processedData}
-                {...dataState}
-                onDataStateChange={handleDataStateChange}
-                pageable={{ pageSizes: [5, 10, 20], buttonCount: 5 }}
-                sortable={true}
-                filterable={true}
-                style={{ width: '100%' }}
-              >
-                <GridColumn
-                  field="customer_name"
-                  title="Customer Name"
-                  width="200px"
-                  headerClassName="fw-bold"
-                />
-                <GridColumn
-                  field="product_name"
-                  title="Item"
-                  width="200px"
-                  headerClassName="fw-bold"
-                  cell={(props) => (
-                    <td>
-                      <div>Item: <span className='fw-bold'>{props.dataItem.product_name}</span></div>
-                      <div>Code: <span className='fw-bold'>{props.dataItem.product_code}</span></div>
-                    </td>
-                  )}
-                />
-                <GridColumn
-                  field="created_at"
-                  title="Order Date"
-                  width="120px"
-                  headerClassName="fw-bold"
-                  cell={(props) => (
-                    <td>{new Date(props.dataItem.created_at).toLocaleDateString()}</td>
-                  )}
-                />
-                <GridColumn
-                  field="quantity"
-                  title="Quantity"
-                  width="100px"
-                  headerClassName="fw-bold"
-                />
-                <GridColumn
-                  field="item_total"
-                  title="Amount"
-                  width="100px"
-                  headerClassName="fw-bold text-end"
-                  cell={(props) => (
-                    <td className="text-end">₹ {props.dataItem.item_total?.toFixed(2)}</td>
-                  )}
-                />
-              </Grid>
+              <Table
+                rowKey={(record) => record._key}
+                columns={columns}
+                dataSource={tableData}
+                loading={loading}
+                pagination={{
+                  current: pagination.current,
+                  pageSize: pagination.pageSize,
+                  total: pagination.total,
+                  pageSizeOptions: ['5', '10', '20', '50'],
+                  showSizeChanger: true,
+                  showTotal: (total) => `Total ${total} items`,
+                }}
+                onChange={(p) =>
+                  setPagination((prev) => ({
+                    ...prev,
+                    current: p.current,
+                    pageSize: p.pageSize,
+                  }))
+                }
+                scroll={{ x: 'max-content' }}
+              />
             </div>
           </div>
         </div>

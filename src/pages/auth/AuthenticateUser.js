@@ -78,12 +78,12 @@ function AuthenticateUser() {
       }
       const res = await Axios.post("/user/validate-third-party-user", payload);
       if (res.status === 200 && res.data.status) {
-        const authData = {
-          token: res.data.data.tokenData,
+        // Backend has already set the HttpOnly auth cookie on this response;
+        // we just hand the user + permissions to the auth context.
+        setAuthUser({
           user: res.data.data.user,
           permissions: res.data.data.permissions,
-        }
-        setAuthUser(authData);
+        });
         localStorage.setItem("third_party_token", token);
         SuccessMessage(res.data.message);
         navigate("/welcome");

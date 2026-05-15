@@ -1,206 +1,141 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { jwtDecode } from "jwt-decode";
-// import { GeneralSettings} from '../../environment/GlobalApi';
-// import { PrivateAxios } from '../../environment/AxiosInstance';
+import { PrivateAxios } from '../../environment/AxiosInstance';
 import { logoutAndRedirect } from "../../utils/logout";
 
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(sessionStorage.getItem("token") || '');
-    const [userDetails, setUserDetails] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
-    const [user, setUser] = useState(null);
-    const [isVariantBased, setIsVariantBased] = useState(false);
+// Build the flat userDetails shape that consumers across the app expect.
+// Historically this was jwtDecode(token); now we derive the same fields
+// from the /user/me payload so existing call sites keep working.
+const buildUserDetails = (user) => {
+    if (!user) return {};
+    const settings = user.company?.generalSettings || {};
+    return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        company_id: user.company_id,
+        timezone: settings.timezone,
+        currency_symbol: settings.symbol,
+        currency_name: settings.currency_name,
+        currency_code: settings.currency_code,
+        is_variant_based: settings.is_variant_based === 1,
+        min_purchase_amount: settings.min_purchase_amount,
+        min_sale_amount: settings.min_sale_amount,
+        position: user.position,
+        is_production_planning: settings.is_production_planning,
+        production_without_bom: settings.production_without_bom,
+        has_master_pack: settings.has_master_pack,
+    };
+};
 
-    // const [getCustomer, setCustomer] = useState([]);
-    // const [getUomData , setUomData] = useState([]);
-    // const [productData, setProduct] = useState([]);
+export const AuthProvider = ({ children }) => {
+    // 'checking' until the initial /user/me round-trip resolves; protected
+    // routes must wait on this before redirecting to /login, otherwise a
+    // hard refresh on an authed page flashes the login screen.
+    const [authStatus, setAuthStatus] = useState('checking');
+    const [user, setUser] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('auth_user')) || null; } catch { return null; }
+    });
+    const [userDetails, setUserDetails] = useState({});
+    const [userPermissions, setUserPermissions] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('permissions')) || []; } catch { return []; }
+    });
+    const [isLoading, setIsLoading] = useState(false);
+    const [isVariantBased, setIsVariantBased] = useState(false);
     const [getGeneralSettingssymbol, setGeneralSettingssymbol] = useState(false);
-    // const [getGeneralSettingsDAddress, setGeneralSettingsDAddress] = useState(false);
-    // const [getGeneralSettingsCAddress, setGeneralSettingsCAddress] = useState(false);
-    // const [getGeneralSettingsSignature, setGeneralSettingsSignature] = useState(false);
-    // const [getGeneralSettingsBatch, setGeneralSettingsBatch] = useState(false);
-    // const [category, setCategory] = useState([]);
-    // const [mode, setMode] = useState([]);
-    // const [status, setStatus] = useState([]);
-    // const [holidayList, setHolidayList] = useState([]); 
-    // const [companysettings, setCompanysettings] = useState([]);
-    // const [officeTimeList, setOfficeTimeList] = useState([]);
-    const [userPermissions, setUserPermissions] = useState([]);
-    //Login Store in localstorage
+
+    // Called by Login.js + AuthenticateUser.js after a successful auth response.
+    // The backend has already set the HttpOnly cookie; we just hydrate React state.
     const setAuthUser = (authData) => {
-        // console.log("After login", authData);
-        sessionStorage.setItem("token", authData.token);
         localStorage.setItem('auth_user', JSON.stringify(authData.user));
-        localStorage.setItem('permissions', JSON.stringify(authData.permissions));
-        setToken(authData.token);
+        localStorage.setItem('permissions', JSON.stringify(authData.permissions || []));
         setUser(authData.user);
+        setUserPermissions(authData.permissions || []);
+        setUserDetails(buildUserDetails(authData.user));
+        setAuthStatus('authed');
     };
 
     const MatchPermission = (permission) => {
-
-        // check if user is owner, then allow all permissions
         if (user?.position === "Owner") {
             return true;
         }
-       
         if (userPermissions.length > 0) {
-            const hasPermission = permission.some(permission =>
-                userPermissions.includes(permission)
-            );
-            return hasPermission;
-        } else {
-            return false;
+            return permission.some(p => userPermissions.includes(p));
         }
-    }
-    //Logout from Dashboard
+        return false;
+    };
+
     const Logout = () => {
-        setToken(""); // Clear token state
+        // Fire-and-forget — the server clears the cookie, but we don't want to
+        // block UI on a network call. logoutAndRedirect handles local cleanup.
+        PrivateAxios.post('user/logout').catch(() => {});
         setUser(null);
+        setUserPermissions([]);
+        setUserDetails({});
+        setAuthStatus('anon');
         logoutAndRedirect();
-    }
-    const getPermission = () => {
-        const permissions = JSON.parse(localStorage.getItem('permissions')) || [];
-        setUserPermissions(permissions);
-    }
+    };
 
-    // const OfficeTiming = async () => {
-    //     PrivateAxios.get("office-time")
-    //         .then((res) => {
-    //             setOfficeTimeList(JSON.parse(res.data.data.working_days));
-    //         }).catch((err) => {
-    //             if (err.response.status == 401) {
-    //                 Logout();
-    //             }
-    //         })
-    // }   
-
-    // const customer = async () => {
-    //     PrivateAxios.get("customer/all-customers")
-    //         .then((res) => {
-    //             if(res.data.data){
-    //                 setCustomer(res.data.data.rows);
-    //             }
-    //         }).catch((err) => {
-    //             if (err.response.status == 401) {
-    //                 Logout();
-    //             }
-    //         })
-    // }
-    // const productdata = async () => {
-    //     PrivateAxios.get("product/list")
-    //         .then((res) => {
-    //             setProduct(res.data.data);
-    //         }).catch((err) => {
-    //             if (err.response.status == 401) {
-    //                 Logout();
-    //             }
-    //         })
-    // }
-    
+    // Bootstrap: ask the server who we are. If the cookie is valid we get back
+    // user+permissions; if not, we land in 'anon' and protected routes will
+    // redirect to /login.
     useEffect(() => {
-        // const fetchGeneralSettings = async () => {
-        // try {
-        //     const result = await GeneralSettings();
+        let cancelled = false;
+        PrivateAxios.get('user/me')
+            .then((res) => {
+                if (cancelled) return;
+                const me = res.data;
+                setUser(me.user);
+                setUserPermissions(me.permissions || []);
+                setUserDetails(buildUserDetails(me.user));
+                localStorage.setItem('auth_user', JSON.stringify(me.user));
+                localStorage.setItem('permissions', JSON.stringify(me.permissions || []));
+                setAuthStatus('authed');
+            })
+            .catch(() => {
+                if (cancelled) return;
+                localStorage.removeItem('auth_user');
+                localStorage.removeItem('permissions');
+                setUser(null);
+                setUserPermissions([]);
+                setUserDetails({});
+                setAuthStatus('anon');
+            });
+        return () => { cancelled = true; };
+    }, []);
 
-        //     //check if data is not null
-        //     if (result.data) {
-        //         setCompanysettings(result.data);
-        //     }
-        //     setGeneralSettingssymbol(result.data.currency ? result.data.currency.symbol : '');
-        //     setGeneralSettingsDAddress(result.data && result.data.deliveryAddress);
-        //     setGeneralSettingsCAddress(result.data && result.data.companyAddress);
-        //     setGeneralSettingsSignature(result.data && result.data.signature);
-        //     setGeneralSettingsBatch(result.data && result.data.enableBatchNumber);
-
-        // } catch (error) {
-        //     console.error("Error fetching general settings:", error);
-        //     // Optionally, set an error state or show an error message
-        // }
-        // };
-        // const AllCategories= async () => {
-        //     try {
-        //         const response = await PrivateAxios.get("product-category")
-        //         setCategory(response.data.data);
-        
-        //     } catch (error) {
-        //         if (error.response.status == 401) {
-        //             Logout();
-        //         }
-        //     }
-        // }
-       
-        // const uomdata = () => {
-        //     PrivateAxios.get('/master/uom/list')
-        //         .then((res) => {
-        //             const responseData = Array.isArray(res.data.data) ? res.data.data : [res.data.data];
-        //             setUomData(responseData);
-        //         })
-        //         .catch((err) => {
-        //             console.error(err);
-        //         });
-        // };
-        if (token) {
-            getPermission();
-            setUserDetails(jwtDecode(token));
-            setUser(JSON.parse(localStorage.getItem("auth_user")) || null);
-
-            // OfficeTiming();
-            // productdata();
-            // customer();
-            // fetchGeneralSettings();
-            // AllCategories();
-            // uomdata();
-        }
-    }, [token])
-
-    // Check if the company is variant based
     useEffect(() => {
         if (user) {
-            setIsVariantBased(user.company.generalSettings.is_variant_based === 1);
+            setIsVariantBased(user.company?.generalSettings?.is_variant_based === 1);
             setGeneralSettingssymbol(user?.company?.generalSettings?.symbol);
         }
-    }, [user])
+    }, [user]);
 
+    const isLoggedIn = authStatus === 'authed';
 
-    let isLoggedIn = !!token; //return true false
-
-    return <AuthContext.Provider value={{ 
+    return <AuthContext.Provider value={{
         user,
         isVariantBased,
-        setAuthUser, 
-        MatchPermission, 
-        token,
-        // getCustomer, 
+        setAuthUser,
+        MatchPermission,
         userDetails,
-        getGeneralSettingssymbol, 
-        // getGeneralSettingsBatch, 
-        // getGeneralSettingsDAddress,
-        // getGeneralSettingsCAddress,
-        // getGeneralSettingsSignature, 
-        isLoading, 
-        setIsLoading, 
-        // productData, 
-        // holidayList, 
-        // officeTimeList, 
-        Logout, 
-        isLoggedIn, 
-        // mode, 
-        // status,
-        // category, 
-        // getUomData, 
-        // companysettings,
-        }}>
+        getGeneralSettingssymbol,
+        isLoading,
+        setIsLoading,
+        Logout,
+        isLoggedIn,
+        authStatus,
+    }}>
         {children}
     </AuthContext.Provider>
-}
+};
 
 export const UserAuth = () => {
     const authContextValue = useContext(AuthContext);
     if (!authContextValue) {
-        throw new Error("useAuth used outside of the provider")
+        throw new Error("useAuth used outside of the provider");
     }
     return authContextValue;
-}
+};

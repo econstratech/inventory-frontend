@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Select from "react-select";
 import { PrivateAxios } from "../../environment/AxiosInstance";
 
@@ -47,6 +47,13 @@ const ProductSelect = ({
     hasPrevPage: false,
   });
 
+  // Stabilize queryParams by value, not by identity. Callers commonly pass an
+  // inline object literal (e.g. queryParams={{ type: "dropDown" }}), which has
+  // a fresh identity on every parent render — without this, loadProducts'
+  // useCallback invalidates each render and refetches /product/list.
+  const queryParamsKey = JSON.stringify(queryParams || {});
+  const stableQueryParams = useMemo(() => queryParams || {}, [queryParamsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Function to load products from API with search and pagination
   const loadProducts = useCallback(async (searchKey = "", page = 1) => {
     setIsLoadingProducts(true);
@@ -56,7 +63,7 @@ const ProductSelect = ({
         limit,
         // type: 'search',
         ...(searchKey && searchKey.trim() !== "" && { searchkey: searchKey.trim() }),
-        ...queryParams,
+        ...stableQueryParams,
       }).toString();
 
       const response = await PrivateAxios.get(`/product/list?${params}`);
@@ -100,7 +107,7 @@ const ProductSelect = ({
     } finally {
       setIsLoadingProducts(false);
     }
-  }, [limit, queryParams]);
+  }, [limit, stableQueryParams]);
 
   // Debounced search handler - reset to page 1 on search
   useEffect(() => {

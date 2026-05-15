@@ -1,5 +1,7 @@
+// The auth cookie is HttpOnly and cleared by POST /user/logout (fired from
+// the AuthProvider). All we do here is wipe the local UI hydration mirror
+// (auth_user / permissions in localStorage) and bounce to the entry page.
 export const clearAuthStorage = () => {
-  sessionStorage.removeItem("token");
   localStorage.removeItem("auth_user");
   localStorage.removeItem("permissions");
   localStorage.removeItem("third_party_token");

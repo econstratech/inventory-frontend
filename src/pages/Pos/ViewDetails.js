@@ -1,38 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Table } from "react-bootstrap";
-import { Link } from "react-router-dom";
 import Invoice from "./Invoice";
 import { useNavigate } from "react-router-dom"; // Required if using navigate
 
 import AutoHeightTextarea from "../CommonComponent/AutoHeightTextarea";
-import { Upload } from "@progress/kendo-react-upload";
 import { Tooltip } from "antd";
 import { UserAuth } from "../auth/Auth";
-import { PrivateAxios, PrivateAxiosFile, url } from "../../environment/AxiosInstance";
+import { PrivateAxios, PrivateAxiosFile } from "../../environment/AxiosInstance";
 import Select from "react-select";
 import { SuccessMessage, ErrorMessage } from "../../environment/ToastMessage";
 
 const ViewDetails = () => {
-  const { isLoading, setIsLoading, Logout } = UserAuth();
+  const { setIsLoading, Logout } = UserAuth();
   const [shipping, setShipping] = useState(0);
   const [discount, setDiscount] = useState(0);
   const { getGeneralSettingssymbol } = UserAuth();
   const [remarksMap, setRemarksMap] = useState({});
   const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [formData, setFormData] = useState({
-    companyInformation: "",
-    state: "",
-    city: "",
-    country: "",
-  });
   const navigate = useNavigate();
-  // count start
-  const [count, setCount] = useState(1);
   const [datacustomer, setData] = useState([]);
 
 
   useEffect(() => {
     fetchCustomers();
+    // fetchCustomers is intentionally defined inside the component and only
+    // needs to run on mount; including it here would refetch on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCustomers = async ({ autoSelectId, autoSelectMatch } = {}) => {
@@ -71,21 +64,14 @@ const ViewDetails = () => {
       setIsLoading(false);
     }
   };
-  const handleChange = (e) => {
-    const value = parseInt(e.target.value, 10);
-    if (!isNaN(value)) {
-      setCount(value);
-    } else {
-      setCount(0);
-    }
+  const handleChange = () => {
+    // No-op: quantity input is read-only here; updateQuantity buttons drive changes.
   };
-  // count end
   const [vendorId, setVendor] = useState({
     customer_id: "",
   });
   const [showInvoice, setShowInvoice] = useState(false);
   const invoiceClose = () => setShowInvoice(false);
-  const invoiceShow = () => setShowInvoice(true);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [shippingAddress, setShippingAddress] = useState("");
   const [sameAsBilling, setSameAsBilling] = useState(false);
@@ -93,71 +79,66 @@ const ViewDetails = () => {
   const paymentClose = () => setShowPayment(false);
   const paymentShow = () => setShowPayment(true);
 
-  const getTaskData = async (e, data) => {
-    if (e.target) {
-      var name = e.target.name;
-      setFormData({ ...formData, [name]: e.target.value });
-    } else {
-      setFormData({ ...formData, [data.name]: e.id });
-    }
-  };
-
   const [cart, setCart] = useState({});
-  const [cartProducts, setCartProducts] = useState([]);
 
   useEffect(() => {
     const storedCart = sessionStorage.getItem("cart");
-    const storedProducts = sessionStorage.getItem("cartProducts");
-    if (storedCart) setCart(JSON.parse(storedCart));
-    if (storedProducts) setCartProducts(JSON.parse(storedProducts));
+    if (!storedCart) return;
+    try {
+      const parsed = JSON.parse(storedCart);
+      // Drop any legacy entries that pre-date the entry-keyed cart schema.
+      const cleaned = {};
+      for (const [key, value] of Object.entries(parsed || {})) {
+        if (value && value.entry_id != null) cleaned[key] = value;
+      }
+      setCart(cleaned);
+    } catch {
+      // Ignore malformed cart payloads.
+    }
   }, []);
 
-  const updateQuantity = (productId, delta) => {
+  // Stable array of cart lines for rendering / totals; one line per stock entry.
+  const cartLines = Object.entries(cart).map(([entryId, line]) => ({
+    ...line,
+    entry_id: line.entry_id ?? entryId,
+  }));
+
+  const updateQuantity = (entryId, delta) => {
     const updatedCart = { ...cart };
-    const currentItem = updatedCart[productId];
+    const currentItem = updatedCart[entryId];
 
     if (!currentItem) return;
 
     const newQty = (currentItem.quantity || 0) + delta;
 
     if (newQty <= 0) {
-      delete updatedCart[productId];
+      delete updatedCart[entryId];
     } else {
-      updatedCart[productId] = {
+      updatedCart[entryId] = {
         ...currentItem,
         quantity: newQty,
       };
     }
 
-    const updatedProducts = cartProducts.filter(
-      (product) => updatedCart[product.id]
-    );
-
     setCart(updatedCart);
-    setCartProducts(updatedProducts);
     sessionStorage.setItem("cart", JSON.stringify(updatedCart));
-    sessionStorage.setItem("cartProducts", JSON.stringify(updatedProducts));
   };
 
-  // Handles product removal
-  const removeProduct = (productId) => {
+  // Handles cart-line removal
+  const removeProduct = (entryId) => {
     const updatedCart = { ...cart };
-    delete updatedCart[productId];
-
-    const updatedProducts = cartProducts.filter((p) => p.id !== productId);
+    delete updatedCart[entryId];
 
     setCart(updatedCart);
-    setCartProducts(updatedProducts);
     sessionStorage.setItem("cart", JSON.stringify(updatedCart));
-    sessionStorage.setItem("cartProducts", JSON.stringify(updatedProducts));
   };
 
   const calculateTotals = () => {
     let subtotal = 0, sgst = 0, cgst = 0, igst = 0;
-    cartProducts.forEach((product) => {
-      const qty = cart[product.id]?.quantity || 0;
-      const price = parseFloat(product.product_price || 0);
-      const tax = parseFloat(product.tax || 0);
+    cartLines.forEach((line) => {
+      const qty = line.quantity || 0;
+      const price = parseFloat(line.product?.product_price || 0);
+      const tax = parseFloat(line.product?.tax || 0);
       const productSubtotal = qty * price;
       subtotal += productSubtotal;
       const taxPerSide = (productSubtotal * tax) / 100 / 2;
@@ -176,12 +157,14 @@ const ViewDetails = () => {
   const handlePlaceOrder = async (paymentType) => {
     const orderPayload = {
       customer_id: vendorId.customer_id,
-      products: cartProducts.map((product) => ({
-        product_id: product.id,
-        quantity: cart[product.id]?.quantity || 0,
-        price: product.product_price,
-        store_id: cart[product.id]?.store_id || null,
-        remarks: remarksMap[product.id] || "",
+      products: cartLines.map((line) => ({
+        product_id: line.product?.id,
+        product_variant_id: line.productVariant?.id || null,
+        stock_entry_id: line.entry_id,
+        quantity: line.quantity || 0,
+        price: line.product?.product_price,
+        store_id: line.store_id || null,
+        remarks: remarksMap[line.entry_id] || "",
       })),
       shipping,
       discount,
@@ -241,8 +224,10 @@ const ViewDetails = () => {
 
       paymentClose();
     } catch (err) {
-      console.error("Order placement failed", err);
-      ErrorMessage("Order placement failed. Please try again.");
+      const backendMessage =
+      err.response?.data?.message || err.response?.data?.error;
+      console.log("Order failed", backendMessage || err.message);
+      ErrorMessage(backendMessage || "Order placement failed. Please try again.");
     }
   };
 
@@ -383,54 +368,41 @@ const ViewDetails = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {cartProducts.map((product) => (
-                            <tr>
-                              <td>
-                                <div class="d-flex align-items-center min-width-150 max-width-150">
-                                  <h6 class="f-s-12 mb-0 fw-bold">
-                                    {product.product_name}
-                                  </h6>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="d-flex align-items-center justify-content-center">
-                                  <div className="count_btn">
-                                    {cart[product.id]?.quantity || 0}
-                                    {/* <button onClick={decrease} className="table-btn">
-                                                                        <i className="fas fa-minus f-s-10"></i>
-                                                                    </button>
-
-                                                                    <input
-                                                                        type="text"
-                                                                        value={count}
-                                                                        onChange={handleChange}
-                                                                        className="f-s-12 mb-0 text-center fw-bold rounded-1 count_number border-0"
-                                                                        style={{ width: "50px" }}
-                                                                        min={0}
-                                                                    />
-
-                                                                    <button onClick={increase} className="table-btn">
-                                                                        <i className="fas fa-plus f-s-10"></i>
-                                                                    </button> */}
+                          {cartLines.map((line) => {
+                            const product = line.product || {};
+                            return (
+                              <tr key={line.entry_id}>
+                                <td>
+                                  <div class="d-flex align-items-center min-width-150 max-width-150">
+                                    <h6 class="f-s-12 mb-0 fw-bold">
+                                      {product.product_name}
+                                    </h6>
                                   </div>
-                                </div>
-                              </td>
-                              <td class="f-s-16 mb-0 fw-bold text-gray-9 text-end text-nowrap">
-                                {getGeneralSettingssymbol}
-                                {(
-                                  (cart[product.id]?.quantity || 0) * product.product_price
-                                ).toFixed(2)}
-                              </td>
-                              <td className="text-end">
-                                <button
-                                  onClick={() => removeProduct(product.id)}
-                                  class=" bg-transparent fw-semibold border-0 text-end text-nowrap text-primary-grey-5 f-s-12 text-exp-red "
-                                >
-                                  <i class="fas fa-trash-alt  me-2"></i> REMOVE
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                                <td>
+                                  <div className="d-flex align-items-center justify-content-center">
+                                    <div className="count_btn">
+                                      {line.quantity || 0}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td class="f-s-16 mb-0 fw-bold text-gray-9 text-end text-nowrap">
+                                  {getGeneralSettingssymbol}
+                                  {(
+                                    (line.quantity || 0) * (product.product_price || 0)
+                                  ).toFixed(2)}
+                                </td>
+                                <td className="text-end">
+                                  <button
+                                    onClick={() => removeProduct(line.entry_id)}
+                                    class=" bg-transparent fw-semibold border-0 text-end text-nowrap text-primary-grey-5 f-s-12 text-exp-red "
+                                  >
+                                    <i class="fas fa-trash-alt  me-2"></i> REMOVE
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </Table>
                     </div>
@@ -603,121 +575,134 @@ const ViewDetails = () => {
                   <div class="ibox-title">
                     <h5 className="mb-2">View Order Details</h5>
                   </div>
-                  {cartProducts.map((product) => (
-                    <div class="ibox-content" key={product.id}>
-                      <div className="card shadow-none border rounded-3 position-relative">
-                        <div className="card-body">
-                          <div className=" d-flex gap-2 wrapCard">
-                            <div className="card_img me-3">
-                              <img
-                                className="prof-img"
-                                src={
-                                  product.attachment_file
-                                    ? `${product.attachment_file}`
-                                    : 'https://growthh.s3.ap-south-1.amazonaws.com/ERP/sample/picture.png'
+                  {cartLines.map((line) => {
+                    const product = line.product || {};
+                    const variant = line.productVariant || null;
+                    const warehouse = line.warehouse || null;
+                    return (
+                      <div class="ibox-content" key={line.entry_id}>
+                        <div className="card shadow-none border rounded-3 position-relative">
+                          <div className="card-body">
+                            <div className=" d-flex gap-2 wrapCard">
+                              <div className="card_img me-3">
+                                <img
+                                  className="prof-img"
+                                  src={
+                                    product.attachment_file
+                                      ? `${product.attachment_file}`
+                                      : 'https://growthh.s3.ap-south-1.amazonaws.com/ERP/sample/picture.png'
 
-                                }
-                                alt="logo"
-                              />
-                            </div>
-                            <div className=" d-flex align-items-start gap-2 flex-wrap justify-content-between w-100">
-                              <div className="card_content flex-full mt-3">
-                                <h5 className="fw-semibold">
-                                  {product.product_name} ({" "}
-                                  <strong className="fw-bold">
-                                    {product.product_code}
-                                  </strong>{" "}
-                                  )
-                                </h5>
-                                <p className="fw-semibold f-s-14 text-primary-grey-5 mb-1 ">
-                                  {product.sku_description ||
-                                    "No description available."}
-                                </p>
-                                <p className="fw-semibold f-s-14 d-flex align-items-center gap-2 mb-1">
-                                  <span className="text-primary-grey-5">
-                                    Date
-                                  </span>
-                                  :{" "}
-                                  <span>{new Date().toLocaleDateString()}</span>
-                                </p>
-                                <p className="fw-semibold f-s-14 d-flex align-items-center gap-2 mb-0">
-                                  <span className="text-primary-grey-5">
-                                    Product Rate / Per Uint
-                                  </span>
-                                  :{" "}
-                                  <span>
-                                    {getGeneralSettingssymbol}
-                                    {product.product_price ?? '-'}
-                                  </span>
-                                </p>
+                                  }
+                                  alt="logo"
+                                />
                               </div>
-                              <div className="card_item_cart">
-                                <button
-                                  onClick={() => removeProduct(product.id)}
-                                  className=" bg-transparent fw-semibold border-0 text-end text-primary-grey-5 f-s-12 text-exp-red remove_btn"
-                                >
-                                  <i class="fas fa-trash-alt  me-2"></i> REMOVE
-                                </button>
-                                <p className="f-s-25 fw-bold mt-3 product_price">
-                                  {getGeneralSettingssymbol}
-                                  {(
-                                    (cart[product.id]?.quantity || 0) * product.product_price
-                                  ).toFixed(2)}
-                                </p>
-                                <div className="d-flex align-items-center justify-content-end">
-                                  <div className="count_btn">
-                                    <button
-                                      onClick={() =>
-                                        updateQuantity(product.id, -1)
-                                      }
-                                      className="table-btn"
-                                    >
-                                      <i className="fas fa-minus f-s-10"></i>
-                                    </button>
+                              <div className=" d-flex align-items-start gap-2 flex-wrap justify-content-between w-100">
+                                <div className="card_content flex-full mt-3">
+                                  <h5 className="fw-semibold">
+                                    {product.product_name} ({" "}
+                                    <strong className="fw-bold">
+                                      {product.product_code}
+                                    </strong>{" "}
+                                    )
+                                  </h5>
+                                  {variant && (
+                                    <p className="fw-semibold f-s-14 text-primary-grey-5 mb-1">
+                                      Variant: {variant.weight_per_unit} {variant.masterUOM?.label || ""}
+                                    </p>
+                                  )}
+                                  {warehouse?.name && (
+                                    <p className="fw-semibold f-s-14 text-primary-grey-5 mb-1">
+                                      Store: {warehouse.name}
+                                    </p>
+                                  )}
+                                  <p className="fw-semibold f-s-14 text-primary-grey-5 mb-1 ">
+                                    {product.sku_description ||
+                                      "No description available."}
+                                  </p>
+                                  <p className="fw-semibold f-s-14 d-flex align-items-center gap-2 mb-1">
+                                    <span className="text-primary-grey-5">
+                                      Date
+                                    </span>
+                                    :{" "}
+                                    <span>{new Date().toLocaleDateString()}</span>
+                                  </p>
+                                  <p className="fw-semibold f-s-14 d-flex align-items-center gap-2 mb-0">
+                                    <span className="text-primary-grey-5">
+                                      Product Rate / Per Uint
+                                    </span>
+                                    :{" "}
+                                    <span>
+                                      {getGeneralSettingssymbol}
+                                      {product.product_price ?? '-'}
+                                    </span>
+                                  </p>
+                                </div>
+                                <div className="card_item_cart">
+                                  <button
+                                    onClick={() => removeProduct(line.entry_id)}
+                                    className=" bg-transparent fw-semibold border-0 text-end text-primary-grey-5 f-s-12 text-exp-red remove_btn"
+                                  >
+                                    <i class="fas fa-trash-alt  me-2"></i> REMOVE
+                                  </button>
+                                  <p className="f-s-25 fw-bold mt-3 product_price">
+                                    {getGeneralSettingssymbol}
+                                    {(
+                                      (line.quantity || 0) * (product.product_price || 0)
+                                    ).toFixed(2)}
+                                  </p>
+                                  <div className="d-flex align-items-center justify-content-end">
+                                    <div className="count_btn">
+                                      <button
+                                        onClick={() =>
+                                          updateQuantity(line.entry_id, -1)
+                                        }
+                                        className="table-btn"
+                                      >
+                                        <i className="fas fa-minus f-s-10"></i>
+                                      </button>
 
-                                    <input
-                                      type="text"
-                                      value={cart[product.id]?.quantity || 0}
-                                      onChange={handleChange}
-                                      className="f-s-12 mb-0 text-center fw-bold rounded-1 count_number border-0"
-                                      style={{ width: "50px" }}
-                                      min={0}
-                                    />
+                                      <input
+                                        type="text"
+                                        value={line.quantity || 0}
+                                        onChange={handleChange}
+                                        className="f-s-12 mb-0 text-center fw-bold rounded-1 count_number border-0"
+                                        style={{ width: "50px" }}
+                                        min={0}
+                                      />
 
-                                    <button
-                                      onClick={() =>
-                                        updateQuantity(product.id, 1)
-                                      }
-                                      className="table-btn"
-                                    >
-                                      <i className="fas fa-plus f-s-10"></i>
-                                    </button>
+                                      <button
+                                        onClick={() =>
+                                          updateQuantity(line.entry_id, 1)
+                                        }
+                                        className="table-btn"
+                                      >
+                                        <i className="fas fa-plus f-s-10"></i>
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="form-group mb-0 mt-2">
-                            <label className="form-label">Remarks</label>
-                            {/* <textarea type="text" name="remark" rows="3" required="" className="form-control form_control rounded-2" spellcheck="false"></textarea> */}
-
-                            <AutoHeightTextarea
-                              placeholder="Remarks ..."
-                              className="form-control"
-                              rows={2}
-                              value={remarksMap[product.id] || ""}
-                              onChange={(e) => {
-                                setRemarksMap({
-                                  ...remarksMap,
-                                  [product.id]: e.target.value,
-                                });
-                              }}
-                            />
+                            <div className="form-group mb-0 mt-2">
+                              <label className="form-label">Remarks</label>
+                              <AutoHeightTextarea
+                                placeholder="Remarks ..."
+                                className="form-control"
+                                rows={2}
+                                value={remarksMap[line.entry_id] || ""}
+                                onChange={(e) => {
+                                  setRemarksMap({
+                                    ...remarksMap,
+                                    [line.entry_id]: e.target.value,
+                                  });
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
