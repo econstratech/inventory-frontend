@@ -13,13 +13,15 @@ function PosDashboardIndex() {
     return (
         <>
             <div className='p-4'>
-                <div className='row'>
+                <div className='row mb-4'>
                     <div className='col-lg-4'>
                         <Welcome />
                     </div>
                     <div className='col-lg-8'>
                         <StartingCards />
                     </div>
+                </div>
+                <div className='row'>
                     <div className='col-lg-12'>
                         <DeliveryPendingReport />
                     </div>

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { ReactComponent as UpArrow } from './icon/arrow-trend-up.svg';
-import { ReactComponent as DownArrow } from './icon/arrow-trend-down.svg';
 import { UserAuth } from '../../auth/Auth';
 import { PrivateAxios } from '../../../environment/AxiosInstance';
 
 
 function Welcome() {
-    const { Logout, userDetails } = UserAuth();
+    const { userDetails } = UserAuth();
       const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,15 +28,10 @@ function Welcome() {
 
   if (!summary) return <div>Failed to load summary.</div>;
 
-  const {
-    total_quantity,
-    total_order_amount,
-    last_month_order_amount,
-    sales_increase_percentage,
-  } = summary;
+  const { sales_increase_percentage } = summary;
     return (
         <>
-            <div class="card bg-primary-gt overflow-hidden">
+            <div class="card bg-primary-gt overflow-hidden h-100 mb-0">
                 <div class="card-body position-relative z-1">
                     <span class="badge badge-primary d-inline-flex align-items-center gap-2 fs-6 px-3 flex-wrap">
                         <UpArrow className='text-white' width={20} height={20}/>
